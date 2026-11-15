@@ -41,16 +41,32 @@ jobs:
           KEY_ALIAS: ${{ secrets.XIAOYU_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.XIAOYU_KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "缺少 Secrets.XIAOYU_KEYSTORE_BASE64，无法签名发布" >&2
+          set -euo pipefail
+          missing=""
+          if [ -z "$KEYSTORE_BASE64" ]; then missing="$missing XIAOYU_KEYSTORE_BASE64"; fi
+          if [ -z "$STORE_PASSWORD" ]; then missing="$missing XIAOYU_KEYSTORE_PASSWORD"; fi
+          if [ -z "$KEY_PASSWORD" ]; then missing="$missing XIAOYU_KEY_PASSWORD"; fi
+          if [ -n "$missing" ]; then
+            echo "以下 Secrets 为空或未配置：$missing" >&2
             exit 1
           fi
+          alias="${KEY_ALIAS:-xiaoyu}"
           mkdir -p keys
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > keys/xiaoyu-release.jks
+          # 去掉粘贴时可能带上的换行、空格与引号，再解码
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n\t "' | tr -d "'" | base64 -d -i > keys/xiaoyu-release.jks
+          size=$(wc -c < keys/xiaoyu-release.jks)
+          echo "keystore 已还原：${size} 字节，sha256=$(sha256sum keys/xiaoyu-release.jks | cut -d' ' -f1)"
+          if [ "$size" -lt 1000 ]; then
+            echo "还原后的 keystore 过小，Secrets.XIAOYU_KEYSTORE_BASE64 可能被截断" >&2
+            exit 1
+          fi
+          # 用口令与别名实际校验一次，口令错/别名错在这里就报错，而不是等打包到一半
+          keytool -list -keystore keys/xiaoyu-release.jks -storepass "$STORE_PASSWORD" -alias "$alias" > /dev/null \
+            || { echo "keytool 校验失败：口令或别名不匹配（alias=$alias）" >&2; exit 1; }
           {
             echo "storeFile=keys/xiaoyu-release.jks"
             echo "storePassword=$STORE_PASSWORD"
-            echo "keyAlias=${KEY_ALIAS:-xiaoyu}"
+            echo "keyAlias=$alias"
             echo "keyPassword=$KEY_PASSWORD"
           } > key.properties
 
