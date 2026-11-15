@@ -41,19 +41,26 @@ jobs:
           KEY_ALIAS: ${{ secrets.XIAOYU_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.XIAOYU_KEY_PASSWORD }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           missing=""
-          if [ -z "$KEYSTORE_BASE64" ]; then missing="$missing XIAOYU_KEYSTORE_BASE64"; fi
-          if [ -z "$STORE_PASSWORD" ]; then missing="$missing XIAOYU_KEYSTORE_PASSWORD"; fi
-          if [ -z "$KEY_PASSWORD" ]; then missing="$missing XIAOYU_KEY_PASSWORD"; fi
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then missing="$missing XIAOYU_KEYSTORE_BASE64"; fi
+          if [ -z "${STORE_PASSWORD:-}" ]; then missing="$missing XIAOYU_KEYSTORE_PASSWORD"; fi
+          if [ -z "${KEY_PASSWORD:-}" ]; then missing="$missing XIAOYU_KEY_PASSWORD"; fi
           if [ -n "$missing" ]; then
             echo "以下 Secrets 为空或未配置：$missing" >&2
             exit 1
           fi
           alias="${KEY_ALIAS:-xiaoyu}"
           mkdir -p keys
-          # 去掉粘贴时可能带上的换行、空格与引号，再解码
-          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n\t "' | tr -d "'" | base64 -d -i > keys/xiaoyu-release.jks
+          # 去掉粘贴时可能带上的换行、空格与引号，并按 URL-safe 兼容处理
+          clean=$(printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n\t "' | tr -d "'" | tr '_-' '/+')
+          len=${#clean}
+          printf 'XIAOYU_KEYSTORE_BASE64 清洗后：长度=%s mod4=%s 指纹=%s\n' \
+            "$len" "$((len % 4))" "$(printf '%s' "$clean" | sha256sum | cut -d' ' -f1)"
+          if ! printf '%s' "$clean" | base64 -d > keys/xiaoyu-release.jks 2>/dev/null; then
+            echo "base64 解码失败。预期的正确值是：长度 3660、mod4=0、指纹 5447df397700a88289381851445de02e7998980df7d3b2bdf4d8d7b38f657768" >&2
+            exit 1
+          fi
           size=$(wc -c < keys/xiaoyu-release.jks)
           echo "keystore 已还原：${size} 字节，sha256=$(sha256sum keys/xiaoyu-release.jks | cut -d' ' -f1)"
           if [ "$size" -lt 1000 ]; then
