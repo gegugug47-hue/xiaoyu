@@ -38,7 +38,6 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.XIAOYU_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.XIAOYU_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.XIAOYU_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.XIAOYU_KEY_PASSWORD }}
         run: |
           set -uo pipefail
@@ -50,7 +49,8 @@ jobs:
             echo "以下 Secrets 为空或未配置：$missing" >&2
             exit 1
           fi
-          alias="${KEY_ALIAS:-xiaoyu}"
+          # 别名不是敏感信息，固定为 xiaoyu（见 docs/SETUP.md）
+          alias="xiaoyu"
           mkdir -p keys
           # 去掉粘贴时可能带上的换行、空格与引号，并按 URL-safe 兼容处理
           clean=$(printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n\t "' | tr -d "'" | tr '_-' '/+')
@@ -67,9 +67,15 @@ jobs:
             echo "还原后的 keystore 过小，Secrets.XIAOYU_KEYSTORE_BASE64 可能被截断" >&2
             exit 1
           fi
-          # 用口令与别名实际校验一次，口令错/别名错在这里就报错，而不是等打包到一半
-          keytool -list -keystore keys/xiaoyu-release.jks -storepass "$STORE_PASSWORD" -alias "$alias" > /dev/null \
-            || { echo "keytool 校验失败：口令或别名不匹配（alias=$alias）" >&2; exit 1; }
+          # 先只用 store 口令打开 keystore，能区分「口令错」与「别名错」
+          if ! keytool -list -keystore keys/xiaoyu-release.jks -storepass "$STORE_PASSWORD" > /dev/null 2>&1; then
+            echo "keystore 文件正确，但 XIAOYU_KEYSTORE_PASSWORD 打不开它：请从 key.properties 的 storePassword 精确复制（共 28 位，无空格）" >&2
+            exit 1
+          fi
+          if ! keytool -list -keystore keys/xiaoyu-release.jks -storepass "$STORE_PASSWORD" -alias "$alias" > /dev/null 2>&1; then
+            echo "store 口令正确，但别名 $alias 不存在于该 keystore 中" >&2
+            exit 1
+          fi
           {
             echo "storeFile=keys/xiaoyu-release.jks"
             echo "storePassword=$STORE_PASSWORD"

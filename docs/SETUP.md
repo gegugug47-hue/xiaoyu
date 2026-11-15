@@ -162,10 +162,11 @@ release 任务会启用 ABI 拆分，输出：
 
 | Secret | 内容 |
 | --- | --- |
-| `XIAOYU_KEYSTORE_BASE64` | keystore 文件的 Base64 文本 |
-| `XIAOYU_KEYSTORE_PASSWORD` | store 口令 |
-| `XIAOYU_KEY_ALIAS` | 密钥别名（为空时脚本回退为 `xiaoyu`） |
-| `XIAOYU_KEY_PASSWORD` | key 口令 |
+| `XIAOYU_KEYSTORE_BASE64` | keystore 文件的 Base64 文本（单行，3660 个字符） |
+| `XIAOYU_KEYSTORE_PASSWORD` | store 口令（与本地 `key.properties` 的 `storePassword` 完全一致） |
+| `XIAOYU_KEY_PASSWORD` | key 口令（与 `keyPassword` 完全一致） |
+
+密钥别名固定为 `xiaoyu`，写在 `release.yml` 里，不需要单独配置 Secret。
 
 发布流程：
 
