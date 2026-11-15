@@ -1,0 +1,36 @@
+#!/bin/sh
+# 提交前密钥扫描（执行书 M6-01 / M6-06）
+# 0) 工具缺失时直接失败，避免"静默放行"
+if ! command -v git >/dev/null 2>&1; then
+  echo "[ERROR] 找不到 git，无法执行提交前检查" >&2
+  exit 1
+fi
+
+# 1) 签名文件、密钥配置、人设包一律禁止入库
+blocked=$(git diff --cached --name-only --diff-filter=ACM | grep -Ei '(^|/)(key\.properties|keys/.*)$|\.(jks|keystore|p12|pem|xiaoyu)$' || true)
+if [ -n "$blocked" ]; then
+  echo "[ERROR] 拒绝提交：以下文件属于密钥/签名/人设素材，不应入库：" >&2
+  echo "$blocked" >&2
+  exit 1
+fi
+
+# 2) 安装了 gitleaks 时优先用它扫描暂存区
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || exit 1
+  exit 0
+fi
+
+# 3) 没有 gitleaks 时用内置正则兜底
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -Ev '\.(png|jpg|jpeg|gif|webp|apk|jar|zip|jks|keystore)$' || true)
+[ -z "$staged" ] && exit 0
+
+hits=$(git diff --cached -U0 -- $staged \
+  | grep -En 'AIza[0-9A-Za-z_-]{35}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|xox[baprs]-[A-Za-z0-9-]{10,}' \
+  || true)
+if [ -n "$hits" ]; then
+  echo "[ERROR] 暂存区中发现疑似密钥，请移除后重新提交：" >&2
+  echo "$hits" >&2
+  exit 1
+fi
+
+exit 0

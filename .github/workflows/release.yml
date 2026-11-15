@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # 执行书 M6-05：keystore 以 base64 存在 Secrets，CI 临时还原，用完即弃
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.XIAOYU_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.XIAOYU_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.XIAOYU_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.XIAOYU_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "缺少 Secrets.XIAOYU_KEYSTORE_BASE64，无法签名发布" >&2
+            exit 1
+          fi
+          mkdir -p keys
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > keys/xiaoyu-release.jks
+          {
+            echo "storeFile=keys/xiaoyu-release.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=${KEY_ALIAS:-xiaoyu}"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > key.properties
+
+      - name: Unit tests
+        run: ./gradlew :soul:test --no-daemon --console=plain
+
+      # 执行书 M6-04：tag 触发 per-ABI 构建，签名后产出 app-v<版本>-<abi>.apk
+      - name: Build signed APKs
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0-dev.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          ./gradlew :app:assembleRelease --no-daemon --console=plain \
+            -PxiaoyuVersionName="$VERSION" \
+            -PxiaoyuVersionCode="${GITHUB_RUN_NUMBER}"
+
+      - name: Rename APKs and generate checksums
+        run: |
+          set -euo pipefail
+          cd app/build/outputs/apk/release
+          rm -f output-metadata.json
+          shopt -s nullglob
+          for f in app-*-release.apk; do
+            abi="${f#app-}"
+            abi="${abi%-release.apk}"
+            mv "$f" "app-v${VERSION}-${abi}.apk"
+          done
+          if [ -f app-release.apk ]; then
+            mv app-release.apk "app-v${VERSION}-universal.apk"
+          fi
+          sha256sum ./*.apk > "app-v${VERSION}-SHA256SUMS.txt"
+          cat "app-v${VERSION}-SHA256SUMS.txt"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaoyu-v${{ env.VERSION }}
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/*SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "小鱼 v${{ env.VERSION }}"
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/*SHA256SUMS.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
+      # 执行书 M6-04：发布后把版本条目写回 CHANGELOG（失败不影响发布）
+      - name: Prepend CHANGELOG entry
+        if: github.ref_type == 'tag'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          date_utc="$(date -u +%Y-%m-%d)"
+          tmp="$(mktemp)"
+          {
+            echo "# 更新日志"
+            echo
+            echo "## v${version} (${date_utc})"
+            echo
+            echo "- Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+            echo
+            tail -n +2 CHANGELOG.md
+          } > "$tmp"
+          mv "$tmp" CHANGELOG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): v${version}"
+          git push origin "HEAD:${DEFAULT_BRANCH}"

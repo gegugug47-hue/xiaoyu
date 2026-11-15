@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- 硬编码字符串检查：所有面向用户的文案必须走 strings.xml（执行书 6.12） -->
+    <issue id="HardcodedText" severity="error" />
+    <issue id="SetTextI18n" severity="error" />
+    <issue id="ContentDescription" severity="warning" />
+    <issue id="MissingTranslation" severity="warning" />
+    <issue id="UnusedResources" severity="informational" />
+</lint>

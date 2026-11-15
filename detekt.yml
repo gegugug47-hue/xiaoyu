@@ -1,0 +1,44 @@
+build:
+  maxIssues: 0
+  weights:
+    complexity: 2
+    style: 1
+    potential-bugs: 2
+
+complexity:
+  ComplexCondition:
+    active: true
+    threshold: 5
+  ComplexMethod:
+    active: true
+    threshold: 20
+  LongMethod:
+    active: true
+    threshold: 120
+  TooManyFunctions:
+    active: false
+
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: ['-1', '0', '1', '100']
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreAnnotation: true
+    ignoreEnums: true
+    excludes: ['**/test/**', '**/androidTest/**']
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+    excludes: ['**/test/**', '**/androidTest/**']
+  ReturnCount:
+    active: true
+    max: 5
+  UnusedPrivateMember:
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**']
+  WildcardImport:
+    active: true
+
+formatting:
+  active: false

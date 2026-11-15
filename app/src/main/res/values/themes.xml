@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 窗口层只负责冷启动底色与系统栏透明；深浅色由 values-night 覆盖 -->
+    <style name="Theme.Xiaoyu.Base" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.Xiaoyu" parent="Theme.Xiaoyu.Base" />
+</resources>

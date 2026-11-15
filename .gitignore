@@ -1,0 +1,37 @@
+*.iml
+.gradle/
+.gradle-home/
+.kotlin/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.xiaoyu
+secrets.*
+app/schemas/
+build/
+
+# 发布签名与本地密钥（M6-01 / M6-05）：文件名与目录都不允许入库
+key.properties
+keys/
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# 安装包与打包产物
+*.apk
+*.aab
+
+# 本机设备转储（MIUI 设置导出等临时文件）
+/global.txt
+/secure.txt
+/sys.txt
+
+# 本地预览/截图可能含私人对话，不入库（M6-06）
+/.preview/
+/.screenshots/

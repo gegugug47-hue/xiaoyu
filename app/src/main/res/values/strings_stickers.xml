@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 表情导入版权提示（执行书 7.4.3 / 7.5 合规要求，必须资源化） -->
+    <string name="sticker_import_copyright">请仅导入你有权使用的图片，导入内容的版权由你自行负责。</string>
+    <string name="sticker_import_copyright_extra">请确认你拥有这些图片的版权或使用授权，不要导入侵权素材；小鱼不会上传、分享或审查你的表情。</string>
+    <string name="sticker_import_auto_tag">导入后自动打标签（需要视觉模型）</string>
+</resources>

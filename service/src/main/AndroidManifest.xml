@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 通知与后台存活所需权限（执行书 8.3）；library manifest 会合并进 app 模块 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application>
+
+        <!-- 精确闹钟触发点：早安 / 晚安 / 主动消息 -->
+        <receiver
+            android:name="com.xiaoyu.app.work.AlarmReceiver"
+            android:exported="false" />
+
+        <!-- 开机 / 应用升级后恢复闹钟排期 -->
+        <receiver
+            android:name="com.xiaoyu.app.work.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 通知栏 RemoteInput 直接回复 -->
+        <receiver
+            android:name="com.xiaoyu.app.work.NotificationReplyReceiver"
+            android:exported="false" />
+
+    </application>
+
+</manifest>

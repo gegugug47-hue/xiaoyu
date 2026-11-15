@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- M5-07：系统通知等 App 外可见文案全部走资源，便于后续加 values-en 而不改代码 -->
+    <string name="notify_channel_proactive">她主动发来的消息</string>
+    <string name="notify_channel_proactive_desc">小鱼想起你时发来的消息，可以直接在通知里回复</string>
+    <string name="notify_channel_task">后台任务结果</string>
+    <string name="notify_channel_task_desc">日记、生活碎片与记忆整理完成后的轻提醒</string>
+    <string name="notify_channel_backup">备份</string>
+    <string name="notify_channel_backup_desc">每周自动备份完成或失败的通知</string>
+    <string name="notify_channel_system">系统提醒</string>
+    <string name="notify_channel_system_desc">用量护栏、低电量等需要你留意的提醒</string>
+    <string name="notify_reply_label">回她一句…</string>
+    <string name="notify_reply_action">回复</string>
+    <string name="notify_app_name">小鱼</string>
+    <string name="notify_sender_her">她</string>
+    <string name="notify_sender_me">你</string>
+    <string name="notify_conversation_title">和小鱼的对话</string>
+    <string name="notify_hidden_text">小鱼发来一条消息</string>
+</resources>

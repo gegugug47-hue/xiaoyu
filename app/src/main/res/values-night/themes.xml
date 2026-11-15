@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色主题下系统栏图标需要浅色 -->
+    <style name="Theme.Xiaoyu" parent="Theme.Xiaoyu.Base">
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
