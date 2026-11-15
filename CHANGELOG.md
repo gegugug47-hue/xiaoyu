@@ -1,5 +1,10 @@
 # 更新日志
 
+## v1.0.0 (2026-11-15)
+
+- Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.0.0
+
+
 本文件格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
 ## Unreleased
