@@ -34,9 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.MessageEntity
 import com.xiaoyu.app.data.repo.ROLE_ASSISTANT
 import com.xiaoyu.app.data.repo.ROLE_USER
@@ -68,10 +70,10 @@ fun SearchScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("翻旧账") },
+                title = { Text(stringResource(R.string.search_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.search_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -97,7 +99,7 @@ fun SearchScreen(
                     value = keyword,
                     onValueChange = { keyword = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("搜索说过的话…") },
+                    placeholder = { Text(stringResource(R.string.search_hint)) },
                     singleLine = true,
                     shape = RoundedCornerShape(20.dp),
                     trailingIcon = {
@@ -105,7 +107,7 @@ fun SearchScreen(
                             onClick = { viewModel.searchMessages(keyword) },
                             enabled = keyword.isNotBlank(),
                         ) {
-                            Icon(Icons.Default.Search, contentDescription = "搜索")
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_action))
                         }
                     },
                 )
@@ -114,13 +116,13 @@ fun SearchScreen(
             when {
                 searching -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("正在翻旧账…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.search_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 results.isEmpty() && keyword.isNotBlank() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            "没找到和「$keyword」相关的对话。",
+                            stringResource(R.string.search_no_result, keyword),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -128,7 +130,7 @@ fun SearchScreen(
                 results.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            "输入关键词，从历史对话里翻出相关内容。\n选中一条后，她会基于那段旧对话回答你。",
+                            stringResource(R.string.search_empty_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 32.dp),
                         )
@@ -162,9 +164,9 @@ fun SearchScreen(
 private fun SearchResultItem(message: MessageEntity, onClick: () -> Unit) {
     val isUser = message.role == ROLE_USER
     val roleLabel = when (message.role) {
-        ROLE_USER -> "我"
-        ROLE_ASSISTANT -> "她"
-        else -> "系统"
+        ROLE_USER -> stringResource(R.string.search_role_me)
+        ROLE_ASSISTANT -> stringResource(R.string.search_role_her)
+        else -> stringResource(R.string.search_role_system)
     }
     Surface(
         onClick = onClick,

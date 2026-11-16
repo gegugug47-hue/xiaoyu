@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.StickerEntity
 import com.xiaoyu.app.data.db.StickerPackEntity
 import com.xiaoyu.app.data.repo.StickerRepository
@@ -64,14 +65,14 @@ class StickerViewModel @Inject constructor(
     fun createPack(name: String) {
         viewModelScope.launch {
             repository.createPack(name)
-            _message.value = "已新建表情包"
+            _message.value = context.getString(R.string.sticker_vm_pack_created)
             refreshStorage()
         }
     }
 
     fun renamePack(id: String, name: String) {
         viewModelScope.launch {
-            if (repository.renamePack(id, name)) _message.value = "已保存"
+            if (repository.renamePack(id, name)) _message.value = context.getString(R.string.sticker_vm_saved)
         }
     }
 
@@ -85,14 +86,20 @@ class StickerViewModel @Inject constructor(
 
     fun deletePack(id: String) {
         viewModelScope.launch {
-            _message.value = if (repository.deletePack(id)) "已删除表情包" else "内置表情包不能删除"
+            _message.value = if (repository.deletePack(id)) {
+                context.getString(R.string.sticker_vm_pack_deleted)
+            } else {
+                context.getString(R.string.sticker_vm_builtin_pack_cannot_delete)
+            }
             refreshStorage()
         }
     }
 
     fun updateStickerMeta(id: String, name: String, tags: String, moodTags: String) {
         viewModelScope.launch {
-            if (repository.updateStickerMeta(id, name, tags, moodTags)) _message.value = "已保存"
+            if (repository.updateStickerMeta(id, name, tags, moodTags)) {
+                _message.value = context.getString(R.string.sticker_vm_saved)
+            }
         }
     }
 
@@ -106,7 +113,11 @@ class StickerViewModel @Inject constructor(
 
     fun deleteSticker(id: String) {
         viewModelScope.launch {
-            _message.value = if (repository.deleteSticker(id)) "已删除表情" else "内置表情不能删除"
+            _message.value = if (repository.deleteSticker(id)) {
+                context.getString(R.string.sticker_vm_sticker_deleted)
+            } else {
+                context.getString(R.string.sticker_vm_builtin_sticker_cannot_delete)
+            }
             refreshStorage()
         }
     }
@@ -115,6 +126,6 @@ class StickerViewModel @Inject constructor(
     fun startImport(packId: String, uris: List<Uri>, autoTag: Boolean) {
         if (packId.isBlank() || uris.isEmpty()) return
         StickerImportWorker.enqueue(context, packId, uris, autoTag)
-        _message.value = "已开始导入，完成后会收到通知"
+        _message.value = context.getString(R.string.sticker_vm_import_started)
     }
 }

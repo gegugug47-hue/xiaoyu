@@ -115,13 +115,13 @@ Windows PowerShell：
 .\gradlew.bat :data:testDebugUnitTest
 ```
 
-覆盖率报告：
+覆盖率与门禁：
 
 ```powershell
-.\gradlew.bat :soul:jacocoTestReport
+.\gradlew.bat :soul:check
 ```
 
-报告位置：`soul/build/reports/jacoco/test/html/index.html`。
+`check` 会跑测试、生成报告并执行 `jacocoTestCoverageVerification`：`:soul` 行覆盖低于 80% 直接失败（当前 97.2%）。报告位置：`soul/build/reports/jacoco/test/html/index.html`。CI 的发布流水线执行的就是 `:soul:check`。
 
 现有测试覆盖提示词库、记忆与遗忘曲线、情绪与好感度、主动消息与日记节奏、分段后处理、表情提示词、备份加密等。新增逻辑请优先在 `:soul` 写纯 JVM 测试；涉及 Room、网络、WorkManager 的改动至少补一个可复现的手动验证步骤写在 PR 里。
 
@@ -147,7 +147,7 @@ Windows PowerShell：
 提交 PR 前确认：
 
 - [ ] 从最新 `main` 切出，已 rebase / 合并最新代码。
-- [ ] `.\gradlew.bat :soul:test` 通过。
+- [ ] `.\gradlew.bat :soul:check` 通过（含 80% 覆盖率门禁）。
 - [ ] `.\gradlew.bat assertModuleDeps` 通过。
 - [ ] 静态检查无新增问题；严格模式下通过。
 - [ ] 没有提交 `key.properties`、`keys/`、签名文件、真实密钥、聊天记录、备份或私人截图。

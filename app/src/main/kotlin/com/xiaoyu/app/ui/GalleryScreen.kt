@@ -31,9 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.MessageEntity
 import com.xiaoyu.app.ui.FileImage
 import java.io.File
@@ -55,10 +57,10 @@ fun GalleryScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("她的画") },
+                title = { Text(stringResource(R.string.gallery_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.gallery_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -75,7 +77,7 @@ fun GalleryScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "还没有画。\n对她说「画一只小猫」试试。",
+                    stringResource(R.string.gallery_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

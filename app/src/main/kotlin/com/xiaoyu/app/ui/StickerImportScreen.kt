@@ -92,9 +92,9 @@ fun StickerImportScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("导入表情") },
+                title = { Text(stringResource(R.string.sticker_import_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.sticker_action_back)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -112,12 +112,12 @@ fun StickerImportScreen(
             ) {
                 item {
                     Text(
-                        "导入到「${packName.ifBlank { packId }}」",
+                        stringResource(R.string.sticker_import_to_target, packName.ifBlank { packId }),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                     Text(
-                        "支持 PNG / JPG / WebP / GIF，单次最多 $MAX_SELECTION 个；也可以选一个 zip / .xystickers 压缩包。",
+                        stringResource(R.string.sticker_import_hint, MAX_SELECTION),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -132,11 +132,11 @@ fun StickerImportScreen(
                                 )
                             },
                             enabled = packId.isNotBlank() && selection.size < MAX_SELECTION,
-                        ) { Text("从相册选择") }
+                        ) { Text(stringResource(R.string.sticker_import_pick_images)) }
                         OutlinedButton(
                             onClick = { zipPicker.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) },
                             enabled = packId.isNotBlank() && selection.size < MAX_SELECTION,
-                        ) { Text("选择压缩包") }
+                        ) { Text(stringResource(R.string.sticker_import_pick_zip)) }
                     }
                 }
                 item {
@@ -155,7 +155,7 @@ fun StickerImportScreen(
                 if (selection.isEmpty()) {
                     item {
                         Text(
-                            "还没有选择文件。",
+                            stringResource(R.string.sticker_import_empty_selection),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -163,7 +163,7 @@ fun StickerImportScreen(
                 } else {
                     item {
                         Text(
-                            "已选择 ${selection.size} 个文件",
+                            stringResource(R.string.sticker_import_selected_count, selection.size),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -185,7 +185,7 @@ fun StickerImportScreen(
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f),
                                 )
-                                TextButton(onClick = { selection.remove(uri) }) { Text("移除") }
+                                TextButton(onClick = { selection.remove(uri) }) { Text(stringResource(R.string.sticker_import_remove)) }
                             }
                         }
                     }
@@ -193,7 +193,7 @@ fun StickerImportScreen(
                 if (packId.isBlank()) {
                     item {
                         Text(
-                            "请先新建或选择一个表情包后再导入。",
+                            stringResource(R.string.sticker_import_need_pack),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -215,7 +215,7 @@ fun StickerImportScreen(
                     },
                     enabled = packId.isNotBlank() && selection.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("开始导入（${selection.size}）") }
+                ) { Text(stringResource(R.string.sticker_import_start, selection.size)) }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     stringResource(R.string.sticker_import_copyright),
@@ -230,7 +230,7 @@ fun StickerImportScreen(
                 )
                 Divider(Modifier.padding(vertical = 6.dp))
                 Text(
-                    "导入在后台进行，进度会显示在通知栏；完成后可在管理页改名或补充标签。",
+                    stringResource(R.string.sticker_import_background_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

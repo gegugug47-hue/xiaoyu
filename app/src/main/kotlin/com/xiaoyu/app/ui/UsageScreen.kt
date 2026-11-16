@@ -38,10 +38,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.settings.DailyUsage
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -76,9 +78,9 @@ fun UsageScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("用量统计") },
+                title = { Text(stringResource(R.string.usage_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.usage_back)) }
                 },
             )
         },
@@ -99,28 +101,28 @@ fun UsageScreen(
                         .padding(14.dp),
                 ) {
                     Text(
-                        "成本护栏已触发：${guard.reason}。聊天不受影响，可在下方关闭护栏。",
+                        stringResource(R.string.usage_guard_active, guard.reason.orEmpty()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF6B5200),
                     )
                 }
             }
 
-            UsageCard("今日") {
+            UsageCard(stringResource(R.string.usage_today)) {
                 StatRow("token", "${today.totalTokens}")
-                StatRow("调用次数", "${today.calls}")
-                StatRow("估算费用", "¥${"%.3f".format(today.costYuan)}")
-                StatRow("后台占用", "${today.backgroundTokens}")
+                StatRow(stringResource(R.string.usage_calls), "${today.calls}")
+                StatRow(stringResource(R.string.usage_estimated_cost), "¥${"%.3f".format(today.costYuan)}")
+                StatRow(stringResource(R.string.usage_background_tokens), "${today.backgroundTokens}")
             }
 
-            UsageCard("本月") {
+            UsageCard(stringResource(R.string.usage_this_month)) {
                 StatRow("token", "${settings.usage.totalTokens}")
-                StatRow("聊天 / 后台调用", "${settings.usage.chatRequests} / ${settings.usage.extractRequests}")
-                StatRow("估算费用", "¥${"%.3f".format(settings.usage.estimatedCost)}")
-                StatRow("缓存命中率", "${(cachedRate * 100).roundToInt()}%")
+                StatRow(stringResource(R.string.usage_chat_background_calls), "${settings.usage.chatRequests} / ${settings.usage.extractRequests}")
+                StatRow(stringResource(R.string.usage_estimated_cost), "¥${"%.3f".format(settings.usage.estimatedCost)}")
+                StatRow(stringResource(R.string.usage_cache_hit_rate), "${(cachedRate * 100).roundToInt()}%")
             }
 
-            UsageCard("近 7 天 token") {
+            UsageCard(stringResource(R.string.usage_last7_days)) {
                 UsageChart(
                     days = last7,
                     tint = MaterialTheme.colorScheme.primary,
@@ -138,16 +140,16 @@ fun UsageScreen(
                 }
             }
 
-            UsageCard("成本护栏") {
+            UsageCard(stringResource(R.string.usage_cost_guard)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("超限暂停后台生成", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.usage_pause_background_title), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "生活模拟 / 日记 / 主动聊天的模型调用会暂停，聊天仍可用。",
+                            stringResource(R.string.usage_pause_background_desc),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -168,7 +170,7 @@ fun UsageScreen(
                 OutlinedTextField(
                     value = dailyCap,
                     onValueChange = { dailyCap = it.filter(Char::isDigit).take(9) },
-                    label = { Text("每日 token 上限") },
+                    label = { Text(stringResource(R.string.usage_daily_token_cap)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -178,7 +180,7 @@ fun UsageScreen(
                     onValueChange = { input ->
                         monthlyCap = input.filter { it.isDigit() || it == '.' }.take(8)
                     },
-                    label = { Text("每月费用上限（元）") },
+                    label = { Text(stringResource(R.string.usage_monthly_cost_cap)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
@@ -195,9 +197,9 @@ fun UsageScreen(
                                 )
                             }
                         },
-                    ) { Text("保存上限") }
+                    ) { Text(stringResource(R.string.usage_save_cap)) }
                     Text(
-                        "关闭护栏等于允许无上限花费，请谨慎。",
+                        stringResource(R.string.usage_guard_off_warning),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.CenterVertically),
@@ -206,7 +208,7 @@ fun UsageScreen(
             }
 
             Text(
-                "单价表来自 assets/cost_table.json，未知模型按 0 计并标注「未定价」。Ollama 与示例模式不计费。",
+                stringResource(R.string.usage_price_note),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

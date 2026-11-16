@@ -37,9 +37,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 
 private data class PersonaDraft(val id: Long?, val name: String, val content: String, val isStyle: Boolean)
 
@@ -58,12 +60,12 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("她是谁") },
+                title = { Text(stringResource(R.string.persona_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.persona_action_back)) }
                 },
                 actions = {
-                    TextButton(onClick = { packPicker.launch(arrayOf("*/*")) }) { Text("导入人格包") }
+                    TextButton(onClick = { packPicker.launch(arrayOf("*/*")) }) { Text(stringResource(R.string.persona_import_pack)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -80,8 +82,8 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
         ) {
             item {
                 PersonaSection(
-                    title = "身份",
-                    hint = "她是谁：年龄、住在哪、经历过什么。写得越具体，她越像一个有过去的人。",
+                    title = stringResource(R.string.persona_section_identity),
+                    hint = stringResource(R.string.persona_identity_hint),
                     onAdd = { draft = PersonaDraft(null, "新的她", "", false) },
                 ) {
                     identities.forEach { identity ->
@@ -98,8 +100,8 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             }
             item {
                 PersonaSection(
-                    title = "说话风格",
-                    hint = "她怎么说话：口头禅、语气、字数习惯。可以在对话里随时切换。",
+                    title = stringResource(R.string.persona_section_style),
+                    hint = stringResource(R.string.persona_style_hint),
                     onAdd = { draft = PersonaDraft(null, "新的风格", "", true) },
                 ) {
                     styles.forEach { style ->
@@ -145,7 +147,7 @@ private fun PersonaSection(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onAdd) { Text("新增") }
+                TextButton(onClick = onAdd) { Text(stringResource(R.string.persona_action_add)) }
             }
             Text(hint, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
@@ -167,9 +169,9 @@ private fun PersonaRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.weight(1f))
-            onShare?.let { share -> TextButton(onClick = share) { Text("分享") } }
-            TextButton(onClick = onEdit) { Text("编辑") }
-            if (deletable) TextButton(onClick = onDelete) { Text("删除") }
+            onShare?.let { share -> TextButton(onClick = share) { Text(stringResource(R.string.persona_action_share)) } }
+            TextButton(onClick = onEdit) { Text(stringResource(R.string.persona_action_edit)) }
+            if (deletable) TextButton(onClick = onDelete) { Text(stringResource(R.string.persona_action_delete)) }
         }
         Text(
             preview.take(60) + if (preview.length > 60) "…" else "",
@@ -191,25 +193,25 @@ private fun PersonaEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (draft.isStyle) "说话风格" else "她的身份") },
+        title = { Text(if (draft.isStyle) stringResource(R.string.persona_dialog_title_style) else stringResource(R.string.persona_dialog_title_identity)) },
         text = {
             Column(
                 Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名字") }, singleLine = true)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.persona_label_name)) }, singleLine = true)
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
-                    label = { Text("描述") },
+                    label = { Text(stringResource(R.string.persona_label_description)) },
                     minLines = 8,
                     maxLines = 18,
                 )
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(name, content) }, enabled = content.isNotBlank()) { Text("保存") }
+            Button(onClick = { onConfirm(name, content) }, enabled = content.isNotBlank()) { Text(stringResource(R.string.persona_action_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.persona_action_cancel)) } },
     )
 }

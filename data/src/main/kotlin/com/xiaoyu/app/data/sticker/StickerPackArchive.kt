@@ -2,6 +2,7 @@ package com.xiaoyu.app.data.sticker
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.archive.SafeZip
 import com.xiaoyu.app.data.archive.UnsafeArchiveException
 import com.xiaoyu.app.data.db.StickerArchiveDao
@@ -82,11 +83,13 @@ class StickerPackArchive @Inject constructor(
     /** 导出表情包；默认写到 cache/share 下，便于 FileProvider 分享。 */
     suspend fun export(packId: String, target: File? = null): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
-            val pack = dao.pack(packId) ?: error("表情包不存在")
+            val pack = dao.pack(packId) ?: error(context.getString(R.string.data_sticker_archive_pack_not_found))
             val stickers = dao.stickers(packId)
                 .filter { it.filePath.isNotBlank() && !it.filePath.startsWith("builtin://") }
                 .filter { File(it.filePath).isFile }
-            if (stickers.isEmpty()) error("这个表情包没有可导出的图片文件")
+            if (stickers.isEmpty()) {
+                error(context.getString(R.string.data_sticker_archive_no_exportable_images))
+            }
 
             val items = stickers.mapIndexed { index, sticker ->
                 Item(
@@ -123,7 +126,9 @@ class StickerPackArchive @Inject constructor(
                 stickers.forEachIndexed { index, sticker ->
                     val bytes = File(sticker.filePath).readBytes()
                     total += bytes.size
-                    if (total > MAX_TOTAL_BYTES) error("表情包体积超过 30MB，建议拆包后再导出")
+                    if (total > MAX_TOTAL_BYTES) {
+                        error(context.getString(R.string.data_sticker_archive_export_too_large))
+                    }
                     zipOut.putNextEntry(ZipEntry(items[index].file))
                     zipOut.write(bytes)
                     zipOut.closeEntry()
@@ -151,7 +156,9 @@ class StickerPackArchive @Inject constructor(
                             packName = existing.name,
                             imported = 0,
                             skipped = manifest.stickers.size,
-                            warnings = listOf("已存在同名表情包，本次没有重复导入"),
+                            warnings = listOf(
+                                context.getString(R.string.data_sticker_archive_already_exists)
+                            ),
                             alreadyExists = true,
                         )
                     )
@@ -164,25 +171,35 @@ class StickerPackArchive @Inject constructor(
                 val entities = mutableListOf<StickerEntity>()
                 val warnings = mutableListOf<String>()
                 if (manifest.license.equals("Unknown", ignoreCase = true) || manifest.license.isBlank()) {
-                    warnings += "这个包没有声明许可证（license=Unknown），使用前请自行确认版权"
+                    warnings += context.getString(R.string.data_sticker_archive_no_license)
                 }
                 var skipped = 0
                 var totalBytes = 0L
                 manifest.stickers.forEachIndexed { index, item ->
                     val entryName = SafeZip.validateName(item.file)
                     if (zip.getEntry(entryName) == null) {
-                        error("清单里的 ${item.file} 不存在，整包已拒绝")
+                        error(
+                            context.getString(
+                                R.string.data_sticker_archive_entry_missing,
+                                item.file,
+                            )
+                        )
                     }
                     val ext = extensionOf(entryName, item.mime)
                     if (ext !in ALLOWED_EXTENSIONS) {
-                        error("${item.file} 格式不支持（仅支持 WEBP/PNG/JPG/GIF），整包已拒绝")
+                        error(
+                            context.getString(
+                                R.string.data_sticker_archive_unsupported_format,
+                                item.file,
+                            )
+                        )
                     }
                     val fileName = "${(index + 1).toString().padStart(2, '0')}-${sanitize(item.name.ifBlank { "sticker" })}.$ext"
                     val dest = File(dir, fileName)
                     val size = SafeZip.copyTo(zip, entryName, dir, dest, SafeZip.MAX_SINGLE_BYTES)
                     totalBytes += size
                     if (totalBytes > MAX_TOTAL_BYTES) {
-                        error("表情包解压后超过 30MB，整包已拒绝")
+                        error(context.getString(R.string.data_sticker_archive_unzip_too_large))
                     }
                     val (width, height) = bitmapSize(dest)
                     entities += StickerEntity(
@@ -201,7 +218,9 @@ class StickerPackArchive @Inject constructor(
                         createdAt = now,
                     )
                 }
-                if (entities.isEmpty()) error("压缩包里没有可用的表情图片")
+                if (entities.isEmpty()) {
+                    error(context.getString(R.string.data_sticker_archive_empty))
+                }
 
                 val sort = (dao.maxPackSort() ?: 0) + 1
                 val coverId = entities.first().id
@@ -232,10 +251,23 @@ class StickerPackArchive @Inject constructor(
             }
         } catch (e: UnsafeArchiveException) {
             packDir?.deleteRecursively()
-            Result.failure(IllegalArgumentException("导入失败：${e.message}", e))
+            Result.failure(
+                IllegalArgumentException(
+                    context.getString(R.string.data_import_failed, e.message),
+                    e,
+                )
+            )
         } catch (e: Exception) {
             packDir?.deleteRecursively()
-            Result.failure(IllegalArgumentException("导入失败：${e.message ?: "压缩包格式不正确"}", e))
+            Result.failure(
+                IllegalArgumentException(
+                    context.getString(
+                        R.string.data_import_failed,
+                        e.message ?: context.getString(R.string.data_sticker_archive_bad_zip),
+                    ),
+                    e,
+                )
+            )
         }
     }
 
@@ -250,8 +282,8 @@ class StickerPackArchive @Inject constructor(
     ): Result<ImportResult> = withContext(Dispatchers.IO) {
         var packDir: File? = null
         try {
-            if (packName.isBlank()) error("表情包名字不能为空")
-            if (files.isEmpty()) error("没有选择文件")
+            if (packName.isBlank()) error(context.getString(R.string.data_sticker_archive_name_required))
+            if (files.isEmpty()) error(context.getString(R.string.data_sticker_archive_no_files_selected))
             val now = System.currentTimeMillis()
             val packId = "tg-${UUID.randomUUID().toString().take(8)}"
             val uniqueName = uniquePackName(packName.trim())
@@ -269,23 +301,35 @@ class StickerPackArchive @Inject constructor(
                     }
                     ext == "webm" -> {
                         skipped++
-                        warnings += "${file.name} 是视频表情（WEBM），暂不支持"
+                        warnings += context.getString(
+                            R.string.data_sticker_archive_webm_unsupported,
+                            file.name,
+                        )
                     }
                     ext == "tgs" -> {
                         skipped++
-                        warnings += "${file.name} 是动态表情（TGS），暂不支持"
+                        warnings += context.getString(
+                            R.string.data_sticker_archive_tgs_unsupported,
+                            file.name,
+                        )
                     }
                     ext !in ALLOWED_EXTENSIONS -> {
                         skipped++
-                        warnings += "${file.name} 格式不支持，已跳过"
+                        warnings += context.getString(
+                            R.string.data_sticker_archive_file_unsupported,
+                            file.name,
+                        )
                     }
                     file.length() > SafeZip.MAX_SINGLE_BYTES -> {
                         skipped++
-                        warnings += "${file.name} 超过 16MB，已跳过"
+                        warnings += context.getString(
+                            R.string.data_sticker_archive_file_too_large,
+                            file.name,
+                        )
                     }
                     total + file.length() > MAX_TOTAL_BYTES -> {
                         skipped++
-                        warnings += "已达 30MB 上限，剩余文件跳过"
+                        warnings += context.getString(R.string.data_sticker_archive_total_limit)
                     }
                     else -> {
                         total += file.length()
@@ -313,9 +357,11 @@ class StickerPackArchive @Inject constructor(
                 }
             }
             if (files.size > MAX_STICKERS) {
-                warnings += "一次最多导入 $MAX_STICKERS 张，超出部分已忽略"
+                warnings += context.getString(R.string.data_sticker_archive_too_many_stickers, MAX_STICKERS)
             }
-            if (entities.isEmpty()) error("没有可导入的静态表情图片")
+            if (entities.isEmpty()) {
+                error(context.getString(R.string.data_sticker_archive_no_static_images))
+            }
 
             val pack = StickerPackEntity(
                 id = packId,
@@ -343,7 +389,15 @@ class StickerPackArchive @Inject constructor(
             )
         } catch (e: Exception) {
             packDir?.deleteRecursively()
-            Result.failure(IllegalArgumentException("导入失败：${e.message ?: "文件读写异常"}", e))
+            Result.failure(
+                IllegalArgumentException(
+                    context.getString(
+                        R.string.data_import_failed,
+                        e.message ?: context.getString(R.string.data_sticker_archive_io_error),
+                    ),
+                    e,
+                )
+            )
         }
     }
 
@@ -362,10 +416,18 @@ class StickerPackArchive @Inject constructor(
     }
 
     private fun validate(manifest: Manifest) {
-        if (manifest.format !in 1..FORMAT_VERSION) error("不支持的包格式版本：${manifest.format}")
-        if (manifest.name.isBlank() || manifest.name.length > 32) error("表情包名字不合法（1~32 字）")
-        if (manifest.stickers.isEmpty()) error("表情包里没有表情")
-        if (manifest.stickers.size > MAX_STICKERS) error("表情数量超过 $MAX_STICKERS 张")
+        if (manifest.format !in 1..FORMAT_VERSION) {
+            error(context.getString(R.string.data_sticker_archive_bad_format_version, manifest.format))
+        }
+        if (manifest.name.isBlank() || manifest.name.length > 32) {
+            error(context.getString(R.string.data_sticker_archive_bad_name))
+        }
+        if (manifest.stickers.isEmpty()) {
+            error(context.getString(R.string.data_sticker_archive_no_stickers))
+        }
+        if (manifest.stickers.size > MAX_STICKERS) {
+            error(context.getString(R.string.data_sticker_archive_sticker_limit, MAX_STICKERS))
+        }
     }
 
     private suspend fun uniquePackName(base: String): String {

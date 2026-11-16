@@ -1,6 +1,8 @@
 package com.xiaoyu.app.data.repo
 
+import android.content.Context
 import android.util.Log
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.brain.BrainGateway
 import com.xiaoyu.app.data.db.MessageEntity
 import com.xiaoyu.app.data.db.MessageFtsEntity
@@ -26,6 +28,7 @@ import com.xiaoyu.soul.postprocess.XyTokenParser
 import com.xiaoyu.soul.prompt.PromptContext
 import com.xiaoyu.soul.sticker.StickerCooldown
 import com.xiaoyu.soul.util.TokenEstimator
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -86,6 +89,7 @@ class ChatRepository @Inject constructor(
     private val diagnosticsRepo: DiagnosticsRepository,
     private val snapshotDao: RequestSnapshotDao,
     private val searchRepo: SearchRepository,
+    @ApplicationContext private val appContext: Context,
 ) {
     private val staleSessionMillis = 30 * 60 * 1000L
     /** AI 发表情冷却（执行书 7.4.7），跨会话共享。 */
@@ -247,9 +251,9 @@ class ChatRepository @Inject constructor(
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
         return msgs.joinToString("\n") { m ->
             val role = when (m.role) {
-                ROLE_USER -> "我"
-                ROLE_ASSISTANT -> "她"
-                else -> "系统"
+                ROLE_USER -> appContext.getString(R.string.data_export_role_me)
+                ROLE_ASSISTANT -> appContext.getString(R.string.data_export_role_her)
+                else -> appContext.getString(R.string.data_export_role_system)
             }
             val time = fmt.format(java.util.Date(m.createdAt))
             "[$time] $role: ${m.content}"
@@ -289,7 +293,10 @@ class ChatRepository @Inject constructor(
 
     /** 重发失败的消息（M1-09）：把状态改回 sending，再走一轮回复。 */
     suspend fun resend(sessionId: Long, messageId: Long): Flow<ChatEvent> {
-        val msg = messageDao.byId(messageId) ?: return flow { emit(ChatEvent.Failed("消息不存在", "")) }
+        val msg = messageDao.byId(messageId)
+            ?: return flow {
+                emit(ChatEvent.Failed(appContext.getString(R.string.data_chat_message_not_found), ""))
+            }
         messageDao.updateStatus(messageId, STATUS_SENDING)
         return replyFlow(sessionId, msg.content, continueMode = false)
     }
@@ -713,7 +720,10 @@ class ChatRepository @Inject constructor(
             persisted == 0 -> {
                 userMessageId?.let { messageDao.updateStatus(it, STATUS_FAILED) }
                 emit(
-                    ChatEvent.Failed("她好像走神了，没有说出话来。点“继续”试试，或检查模型设置。", "")
+                    ChatEvent.Failed(
+                        appContext.getString(R.string.data_chat_reply_empty),
+                        "",
+                    )
                 )
             }
             else -> {

@@ -32,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.DiaryEntity
 import com.xiaoyu.soul.diary.DiaryPlanner
 
@@ -47,9 +49,9 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("她的日记") },
+                title = { Text(stringResource(R.string.diary_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.diary_back)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -67,7 +69,7 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             if (diaries.isEmpty()) {
                 item {
                     Text(
-                        "日记本还是空的。\n在一起经历过一些事情之后，她会在夜里写点什么。",
+                        stringResource(R.string.diary_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 36.dp),
@@ -90,22 +92,22 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                             )
                             Spacer(Modifier.weight(1f))
                             if (locked) {
-                                Icon(Icons.Default.Lock, contentDescription = "加密", tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.diary_locked_content_description), tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                         Spacer(Modifier.height(6.dp))
                         if (locked) {
                             Text(
-                                "这一页上了锁。",
+                                stringResource(R.string.diary_locked),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            TextButton(onClick = { viewModel.unlockDiary(diary.id) }) { Text("试着翻开") }
+                            TextButton(onClick = { viewModel.unlockDiary(diary.id) }) { Text(stringResource(R.string.diary_try_unlock)) }
                         } else if (opened?.id == diary.id) {
                             Text(diary.contentMd, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                             Row {
-                                TextButton(onClick = { viewModel.exportDiaryMarkdown(diary.id) }) { Text("导出 Markdown") }
-                                TextButton(onClick = { opened = null }) { Text("合上") }
+                                TextButton(onClick = { viewModel.exportDiaryMarkdown(diary.id) }) { Text(stringResource(R.string.diary_export_markdown)) }
+                                TextButton(onClick = { opened = null }) { Text(stringResource(R.string.diary_close)) }
                             }
                         } else {
                             Text(
@@ -116,7 +118,7 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                             TextButton(onClick = {
                                 opened = diary
                                 viewModel.openDiary(diary)
-                            }) { Text("翻开看看") }
+                            }) { Text(stringResource(R.string.diary_open)) }
                         }
                     }
                 }

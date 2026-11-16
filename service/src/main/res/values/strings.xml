@@ -16,4 +16,9 @@
     <string name="notify_sender_me">你</string>
     <string name="notify_conversation_title">和小鱼的对话</string>
     <string name="notify_hidden_text">小鱼发来一条消息</string>
+
+    <!-- 桌面小组件 -->
+    <string name="svc_widget_brand">小渔</string>
+    <string name="svc_widget_empty_line">她正趴在窗边发呆，点我聊两句～</string>
+    <string name="svc_widget_favorability">好感度</string>
 </resources>

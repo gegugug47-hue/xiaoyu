@@ -53,9 +53,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.StickerEntity
 import com.xiaoyu.app.data.db.StickerPackEntity
 import com.xiaoyu.app.data.repo.BUILTIN_STICKER_PREFIX
@@ -471,7 +473,7 @@ fun StickerPanel(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "表情",
+                    stringResource(R.string.sticker_panel_title),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -481,7 +483,7 @@ fun StickerPanel(
                         onClick = onManage,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     ) {
-                        Text("管理", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.sticker_manage), style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -491,7 +493,7 @@ fun StickerPanel(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     item("all") {
-                        PackChip("全部", selected = selectedPack == null) { selectedPack = null }
+                        PackChip(stringResource(R.string.sticker_pack_all), selected = selectedPack == null) { selectedPack = null }
                     }
                     items(usedPacks, key = { it.id }) { pack ->
                         PackChip(pack.name, selected = selectedPack == pack.id) { selectedPack = pack.id }
@@ -500,7 +502,7 @@ fun StickerPanel(
             }
             if (shown.isEmpty()) {
                 Text(
-                    "还没有表情，去「管理」里导入一套吧。",
+                    stringResource(R.string.sticker_panel_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),

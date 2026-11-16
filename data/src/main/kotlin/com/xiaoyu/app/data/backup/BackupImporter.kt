@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.util.Log
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.db.XiaoyuDatabase
 import com.xiaoyu.app.data.system.StorageGuard
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -106,10 +107,16 @@ class BackupImporter @Inject constructor(
         onProgress(Progress.Reading)
         val raw = runCatching {
             context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        }.getOrNull() ?: return failure(FailureReason.IO_ERROR, "无法读取备份文件，请确认文件仍然存在。")
+        }.getOrNull() ?: return failure(
+            FailureReason.IO_ERROR,
+            context.getString(R.string.data_backup_import_unreadable),
+        )
 
         val header = BackupCrypto.peekHeader(raw)
-            ?: return failure(FailureReason.INVALID_FORMAT, "不是有效的备份文件（文件头过短）。")
+            ?: return failure(
+                FailureReason.INVALID_FORMAT,
+                context.getString(R.string.data_backup_import_invalid_header),
+            )
 
         val payload: ByteArray
         if (header.encrypted) {
@@ -117,20 +124,32 @@ class BackupImporter @Inject constructor(
                 return versionTooNew(header.version)
             }
             if (header.version <= 0) {
-                return failure(FailureReason.INVALID_FORMAT, "备份文件头损坏，无法识别版本。")
+                return failure(
+                    FailureReason.INVALID_FORMAT,
+                    context.getString(R.string.data_backup_import_broken_header),
+                )
             }
             if (password.isNullOrEmpty()) {
-                return failure(FailureReason.WRONG_PASSWORD, "该备份已加密，请输入口令后再恢复。")
+                return failure(
+                    FailureReason.WRONG_PASSWORD,
+                    context.getString(R.string.data_backup_import_password_required),
+                )
             }
             onProgress(Progress.Decrypting)
             payload = BackupCrypto.decrypt(raw, password)
-                ?: return failure(FailureReason.WRONG_PASSWORD, "口令不对，或备份文件已损坏。")
+                ?: return failure(
+                    FailureReason.WRONG_PASSWORD,
+                    context.getString(R.string.data_backup_import_wrong_password),
+                )
         } else {
             payload = raw
         }
 
         if (!isZip(payload)) {
-            return failure(FailureReason.INVALID_FORMAT, "不是有效的备份文件（zip 结构损坏）。")
+            return failure(
+                FailureReason.INVALID_FORMAT,
+                context.getString(R.string.data_backup_import_broken_zip),
+            )
         }
 
         onProgress(Progress.Verifying)
@@ -164,25 +183,40 @@ class BackupImporter @Inject constructor(
             }
         }.onFailure {
             Log.w(TAG, "解包备份失败", it)
-            return failure(FailureReason.INVALID_FORMAT, "备份包损坏，无法解压：${it.message ?: "未知错误"}")
+            return failure(
+                FailureReason.INVALID_FORMAT,
+                context.getString(
+                    R.string.data_backup_import_unzip_failed,
+                    it.message ?: context.getString(R.string.data_backup_import_unknown_error),
+                ),
+            )
         }
 
         if (manifestVersion > BackupCrypto.FORMAT_VERSION) {
             return versionTooNew(manifestVersion)
         }
         if (!foundDb) {
-            return failure(FailureReason.NO_DATABASE, "备份包里没有数据库文件，可能不是小鱼生成的备份。")
+            return failure(
+                FailureReason.NO_DATABASE,
+                context.getString(R.string.data_backup_import_no_database),
+            )
         }
 
         val stagedDb = inspectStagedDatabase(staging)
-            ?: return failure(FailureReason.CORRUPT_DATABASE, "备份中的数据库已损坏，无法导入（原数据未改动）。")
+            ?: return failure(
+                FailureReason.CORRUPT_DATABASE,
+                context.getString(R.string.data_backup_import_db_corrupt),
+            )
 
         val currentVersion = currentDbVersion()
         if (currentVersion > 0 && stagedDb.version > currentVersion) {
             return failure(
                 FailureReason.VERSION_TOO_NEW,
-                "备份来自更新版本的 App（数据版本 v${stagedDb.version}，当前仅支持 v$currentVersion），" +
-                    "请先升级 App 后再恢复。",
+                context.getString(
+                    R.string.data_backup_import_db_version_too_new,
+                    stagedDb.version,
+                    currentVersion,
+                ),
             )
         }
 
@@ -192,7 +226,10 @@ class BackupImporter @Inject constructor(
 
         onProgress(Progress.Snapshotting)
         val snapshot = createPreImportSnapshot()
-            ?: return failure(FailureReason.SNAPSHOT_FAILED, "无法创建导入前快照，已取消导入（原数据未改动）。")
+            ?: return failure(
+                FailureReason.SNAPSHOT_FAILED,
+                context.getString(R.string.data_backup_import_snapshot_failed),
+            )
 
         return when (mode) {
             Mode.OVERWRITE -> {
@@ -211,7 +248,10 @@ class BackupImporter @Inject constructor(
                     Log.e(TAG, "合并导入失败", it)
                     return failure(
                         FailureReason.MERGE_FAILED,
-                        "合并导入失败，已回滚（原数据未改动）：${it.message ?: "未知错误"}",
+                        context.getString(
+                            R.string.data_backup_import_merge_failed,
+                            it.message ?: context.getString(R.string.data_backup_import_unknown_error),
+                        ),
                     )
                 }
                 applyPrompts(prompts)
@@ -248,7 +288,13 @@ class BackupImporter @Inject constructor(
         null
     }.getOrElse {
         Log.e(TAG, "写入待恢复数据库失败", it)
-        failure(FailureReason.IO_ERROR, "写入待恢复文件失败：${it.message ?: "未知错误"}")
+        failure(
+            FailureReason.IO_ERROR,
+            context.getString(
+                R.string.data_backup_import_stage_failed,
+                it.message ?: context.getString(R.string.data_backup_import_unknown_error),
+            ),
+        )
     }
 
     private fun applyPrompts(prompts: Map<String, ByteArray>) {
@@ -464,8 +510,11 @@ class BackupImporter @Inject constructor(
 
     private fun versionTooNew(version: Int): ImportResult.Failure = failure(
         FailureReason.VERSION_TOO_NEW,
-        "备份来自更新版本的 App（备份格式 v$version，当前仅支持 v${BackupCrypto.FORMAT_VERSION}），" +
-            "请先升级 App 后再恢复。",
+        context.getString(
+            R.string.data_backup_import_format_too_new,
+            version,
+            BackupCrypto.FORMAT_VERSION,
+        ),
     )
 
     private fun failure(reason: FailureReason, message: String): ImportResult.Failure {

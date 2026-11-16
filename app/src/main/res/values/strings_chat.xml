@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 聊天页 ChatScreen -->
+    <string name="chat_selected_count">已选 %1$d 条</string>
+    <string name="chat_cancel">取消</string>
+    <string name="chat_select_all">全选</string>
+    <string name="chat_delete">删除</string>
+    <string name="chat_export">导出</string>
+    <string name="chat_her_name">小鱼</string>
+    <string name="chat_title_continuous">小鱼 · %1$s · %2$s</string>
+    <string name="chat_title_session">%1$s · %2$s · %3$s</string>
+    <string name="chat_menu">菜单</string>
+    <string name="chat_poke">戳一下</string>
+    <string name="chat_new_topic">新话题</string>
+    <string name="chat_new_chat">新对话</string>
+    <string name="chat_more">更多</string>
+    <string name="chat_export_markdown">导出对话为 Markdown</string>
+    <string name="chat_typing">她正在输入…</string>
+    <string name="chat_empty_hint">说点什么吧，她会记得你。</string>
+    <string name="chat_continue">继续</string>
+    <string name="chat_dismiss_error">知道了</string>
+    <string name="chat_reply_prefix">回复：%1$s</string>
+    <string name="chat_self">我</string>
+    <string name="chat_cancel_quote">取消引用</string>
+    <string name="chat_poke_her">戳一下她</string>
+    <string name="chat_quote_reply">引用回复</string>
+    <string name="chat_retract">撤回</string>
+    <string name="chat_edit">编辑</string>
+    <string name="chat_copy">复制</string>
+    <string name="chat_regenerate">重新生成</string>
+    <string name="chat_view_versions">查看之前的版本</string>
+    <string name="chat_remember">收藏并让她记住</string>
+    <string name="chat_hide_message">隐藏这条消息</string>
+    <string name="chat_multi_select">多选</string>
+    <string name="chat_versions_title">回复的历史版本</string>
+    <string name="chat_versions_desc">共 %1$d 个版本，点一下切换。旧版本只会被收起，不会从记录里删除。</string>
+    <string name="chat_version_label">版本 %1$d</string>
+    <string name="chat_version_label_current">版本 %1$d · 当前</string>
+    <string name="chat_version_empty">（这条没有正文）</string>
+    <string name="chat_hide_confirm_title">隐藏这条消息？</string>
+    <string name="chat_hide_confirm_text">聊天记录不会被真正删除，只是从对话里收起来。</string>
+    <string name="chat_hide">隐藏</string>
+    <string name="chat_retract_confirm_title">撤回这条消息？</string>
+    <string name="chat_retract_confirm_text">对方将看到“你撤回了一条消息”，2 分钟内可撤回。</string>
+    <string name="chat_delete_selected_title">删除选中的 %1$d 条消息？</string>
+    <string name="chat_edit_message_title">编辑消息</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_search_context_prefix">已带入旧账：%1$s</string>
+    <string name="chat_rename_title">给这段对话起个名字</string>
+    <string name="chat_save">保存</string>
+    <string name="chat_retracted_placeholder">你撤回了一条消息</string>
+    <string name="chat_synthesizing">合成中…</string>
+    <string name="chat_stop">停止</string>
+    <string name="chat_read_aloud">朗读</string>
+    <string name="chat_edited">已编辑</string>
+    <string name="chat_sending">发送中…</string>
+    <string name="chat_her_reaction">%1$s 她</string>
+    <string name="chat_switch_to_keyboard">切换到键盘</string>
+    <string name="chat_voice_input">语音输入</string>
+    <string name="chat_voice_hold">按住 说话</string>
+    <string name="chat_voice_release">松开，开始说话</string>
+    <string name="chat_input_placeholder">说点什么…</string>
+    <string name="chat_collapse_stickers">收起表情</string>
+    <string name="chat_open_stickers">表情</string>
+    <string name="chat_drawer_new_topic">开启新话题</string>
+    <string name="chat_drawer_new_chat">开始新的聊天</string>
+    <string name="chat_archive">归档</string>
+    <string name="chat_hide_archived">收起已归档</string>
+    <string name="chat_archived_count">已归档 (%1$d)</string>
+    <string name="chat_restore">恢复</string>
+    <string name="chat_relation">我们的关系</string>
+    <string name="chat_search">翻旧账</string>
+    <string name="chat_gallery">她的画</string>
+    <string name="chat_memory">她的记忆</string>
+    <string name="chat_diary">她的日记</string>
+    <string name="chat_settings">设置</string>
+    <string name="chat_topic_divider">—— 新的话题 ——</string>
+    <string name="chat_avatar_letter">渔</string>
+
+    <!-- 表情面板 Stickers / EmojiPanel -->
+    <string name="sticker_panel_title">表情</string>
+    <string name="sticker_manage">管理</string>
+    <string name="sticker_pack_all">全部</string>
+    <string name="sticker_panel_empty">还没有表情，去「管理」里导入一套吧。</string>
+    <string name="sticker_emoji_category_smiley">笑脸</string>
+    <string name="sticker_emoji_category_animal">动物</string>
+    <string name="sticker_emoji_category_food">食物</string>
+    <string name="sticker_emoji_category_activity">活动</string>
+    <string name="sticker_emoji_category_travel">旅行</string>
+    <string name="sticker_emoji_category_object">物品</string>
+    <string name="sticker_emoji_category_symbol">符号</string>
+    <string name="sticker_emoji_category_gesture">手势</string>
+
+    <!-- 锁屏页 LockScreen -->
+    <string name="lock_her_name">小鱼</string>
+    <string name="lock_enter_pin">输入 PIN 解锁</string>
+    <string name="lock_pin_error">PIN 不对，再想想</string>
+    <string name="lock_unlock">解锁</string>
+    <string name="lock_biometric_button">指纹 / 面容解锁</string>
+    <string name="lock_biometric_title">解锁小鱼</string>
+    <string name="lock_biometric_subtitle">用指纹或面容继续</string>
+    <string name="lock_use_pin">用 PIN</string>
+
+    <!-- 图库页 GalleryScreen -->
+    <string name="gallery_title">她的画</string>
+    <string name="gallery_back">返回</string>
+    <string name="gallery_empty">还没有画。\n对她说「画一只小猫」试试。</string>
+
+    <!-- 时间线日期分隔 -->
+    <string name="chat_date_today">今天</string>
+    <string name="chat_date_yesterday">昨天</string>
+</resources>

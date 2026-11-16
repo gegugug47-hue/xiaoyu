@@ -1,5 +1,7 @@
 package com.xiaoyu.app.data.repo
 
+import android.content.Context
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.db.DiaryDao
 import com.xiaoyu.app.data.db.MessageDao
 import com.xiaoyu.app.data.db.MoodDao
@@ -7,6 +9,7 @@ import com.xiaoyu.app.data.db.SessionDao
 import com.xiaoyu.app.data.settings.SettingsRepository
 import com.xiaoyu.soul.mood.FavorabilityLevel
 import com.xiaoyu.soul.mood.MoodSystem
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -49,6 +52,7 @@ class RelationRepository @Inject constructor(
     private val stateRepo: SoulStateRepository,
     private val personaRepo: PersonaRepository,
     private val settings: SettingsRepository,
+    @ApplicationContext private val appContext: Context,
 ) {
     private val zone: ZoneId get() = ZoneId.systemDefault()
 
@@ -68,7 +72,7 @@ class RelationRepository @Inject constructor(
         val identities = personaRepo.identities()
         val name = identities.firstOrNull { it.id == chosen }?.name
             ?: identities.firstOrNull()?.name
-            ?: "小鱼"
+            ?: appContext.getString(R.string.data_relation_default_name)
         val diaryAt = diaryDao.earliestCreatedAt()
 
         val moodPoints = moodDao.recent(30).reversed().map {
@@ -103,37 +107,46 @@ class RelationRepository @Inject constructor(
     ): List<RelationMilestone> {
         val items = mutableListOf<RelationMilestone>()
         items += RelationMilestone(
-            title = "我们认识的那天",
+            title = appContext.getString(R.string.data_relation_milestone_met_title),
             date = knownDate,
-            detail = "从这天起，她开始记得你。",
+            detail = appContext.getString(R.string.data_relation_milestone_met_detail),
         )
         levelUpDate(current, level)?.let { date ->
             items += RelationMilestone(
-                title = "她把你放进了「${level.label}」",
+                title = appContext.getString(
+                    R.string.data_relation_milestone_level_title,
+                    level.label,
+                ),
                 date = date,
-                detail = "关系悄悄往前走了一步。",
+                detail = appContext.getString(R.string.data_relation_milestone_level_detail),
             )
         }
         val hundred = knownDate.plusDays(99)
         items += if (hundred.isAfter(today)) {
             RelationMilestone(
-                title = "认识满 100 天",
+                title = appContext.getString(R.string.data_relation_milestone_hundred_title),
                 date = hundred,
-                detail = "还有 ${ChronoUnit.DAYS.between(today, hundred)} 天。",
+                detail = appContext.getString(
+                    R.string.data_relation_milestone_hundred_upcoming,
+                    ChronoUnit.DAYS.between(today, hundred).toInt(),
+                ),
                 upcoming = true,
             )
         } else {
             RelationMilestone(
-                title = "认识满 100 天",
+                title = appContext.getString(R.string.data_relation_milestone_hundred_title),
                 date = hundred,
-                detail = "已经一起走过 ${ChronoUnit.DAYS.between(hundred, today)} 天了。",
+                detail = appContext.getString(
+                    R.string.data_relation_milestone_hundred_passed,
+                    ChronoUnit.DAYS.between(hundred, today).toInt(),
+                ),
             )
         }
         firstDiaryAt?.let {
             items += RelationMilestone(
-                title = "她写的第一篇日记",
+                title = appContext.getString(R.string.data_relation_milestone_diary_title),
                 date = Instant.ofEpochMilli(it).atZone(zone).toLocalDate(),
-                detail = "有些话她没直接说，写下来了。",
+                detail = appContext.getString(R.string.data_relation_milestone_diary_detail),
             )
         }
         return items.sortedBy { it.date }
@@ -161,9 +174,13 @@ class RelationRepository @Inject constructor(
         val mood = stateRepo.currentMoodSnapshot()
         val fragment = stateRepo.recentLife(3).firstOrNull()?.content
         val line = if (fragment.isNullOrBlank()) {
-            "今天${MoodSystem.moodWord(mood.mood)}。"
+            appContext.getString(R.string.data_relation_mood_line, MoodSystem.moodWord(mood.mood))
         } else {
-            "今天${MoodSystem.moodWord(mood.mood)}，$fragment"
+            appContext.getString(
+                R.string.data_relation_mood_line_with_fragment,
+                MoodSystem.moodWord(mood.mood),
+                fragment,
+            )
         }
         cachedMoodLine = key to line
         return line

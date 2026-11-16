@@ -144,11 +144,11 @@ private class StickerImportNotifier(private val context: Context) {
         if (!canNotify()) return
         ensureChannel()
         val text = if (result.rejected.isEmpty()) {
-            result.summary()
+            result.summary(context)
         } else {
             // 只列前两条，避免通知被折叠得看不清
             val detail = result.rejected.take(2).joinToString("；") { "${it.fileName}：${it.reason}" }
-            "${result.summary()}（$detail${if (result.rejected.size > 2) "…" else ""}）"
+            "${result.summary(context)}（$detail${if (result.rejected.size > 2) "…" else ""}）"
         }
         val notification = NotificationCompat.Builder(context, CHANNEL_IMPORT)
             .setSmallIcon(R.drawable.ic_stat_fish)

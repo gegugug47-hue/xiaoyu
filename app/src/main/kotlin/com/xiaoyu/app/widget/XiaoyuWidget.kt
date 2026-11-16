@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -27,6 +28,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.xiaoyu.app.data.repo.ChatRepository
 import com.xiaoyu.app.data.repo.SoulStateRepository
+import com.xiaoyu.app.service.R
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
@@ -73,6 +75,7 @@ interface WidgetEntryPoint {
 
 @Composable
 private fun WidgetContent(state: WidgetState) {
+    val context = LocalContext.current
     val openIntent = Intent().apply {
         setClassName("com.xiaoyu.app", "com.xiaoyu.app.MainActivity")
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -85,7 +88,7 @@ private fun WidgetContent(state: WidgetState) {
             .padding(16.dp),
     ) {
         Text(
-            text = "小渔",
+            text = context.getString(R.string.svc_widget_brand),
             style = TextStyle(
                 color = ColorProvider(Color(0xFFE2856B)),
                 fontSize = 14.sp,
@@ -94,7 +97,7 @@ private fun WidgetContent(state: WidgetState) {
         )
         Spacer(modifier = GlanceModifier.padding(top = 6.dp))
         Text(
-            text = state.line.ifBlank { "她正趴在窗边发呆，点我聊两句～" },
+            text = state.line.ifBlank { context.getString(R.string.svc_widget_empty_line) },
             maxLines = 3,
             style = TextStyle(
                 color = ColorProvider(Color(0xFF3D3A38)),
@@ -104,7 +107,7 @@ private fun WidgetContent(state: WidgetState) {
         Spacer(modifier = GlanceModifier.padding(top = 10.dp))
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             Text(
-                text = "好感度",
+                text = context.getString(R.string.svc_widget_favorability),
                 style = TextStyle(color = ColorProvider(Color(0xFF9A928C)), fontSize = 12.sp),
             )
             Spacer(modifier = GlanceModifier.padding(start = 6.dp))

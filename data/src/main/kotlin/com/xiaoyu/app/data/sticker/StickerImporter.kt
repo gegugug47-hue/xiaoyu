@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.graphics.Movie
 import android.media.ExifInterface
 import android.net.Uri
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.archive.SafeZip
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -47,10 +48,12 @@ data class StickerImportResult(
     val isEmpty: Boolean get() = items.isEmpty() && rejected.isEmpty()
 
     /** 通知栏与页面共用的一句话总结。 */
-    fun summary(): String = buildString {
-        append("成功导入 ${items.size} 枚")
-        if (rejected.isNotEmpty()) append("，${rejected.size} 个文件被跳过")
-        if (autoTagSkipped) append("；未配置视觉模型，标签可稍后手动填写")
+    fun summary(context: Context): String = buildString {
+        append(context.getString(R.string.data_sticker_import_summary_imported, items.size))
+        if (rejected.isNotEmpty()) {
+            append(context.getString(R.string.data_sticker_import_summary_rejected, rejected.size))
+        }
+        if (autoTagSkipped) append(context.getString(R.string.data_sticker_import_summary_no_vision))
     }
 }
 
@@ -78,7 +81,10 @@ class StickerImporter @Inject constructor(
             val candidates = collectCandidates(uris, runDir, rejected)
             val limited = candidates.take(MAX_FILES)
             candidates.drop(MAX_FILES).forEach {
-                rejected += RejectedSticker(it.name, "一次最多导入 $MAX_FILES 个文件，多余的已跳过")
+                rejected += RejectedSticker(
+                    it.name,
+                    context.getString(R.string.data_sticker_import_skipped_over_limit, MAX_FILES),
+                )
             }
 
             val items = mutableListOf<StickerImportItem>()
@@ -89,14 +95,23 @@ class StickerImporter @Inject constructor(
                 val remaining = MAX_TOTAL_BYTES - totalBytes
                 val item = runCatching { processFile(packId, file, startIndex + index) }
                     .getOrElse { error ->
-                        rejected += RejectedSticker(label, error.message ?: "处理失败，请换一张图试试")
+                        rejected += RejectedSticker(
+                            label,
+                            error.message ?: context.getString(R.string.data_sticker_import_process_failed),
+                        )
                         null
                     }
                 if (item != null) {
                     if (item.bytes > remaining) {
                         File(item.filePath).delete()
                         item.thumbnailPath?.let { File(it).delete() }
-                        rejected += RejectedSticker(label, "本次导入总体积超过 ${MAX_TOTAL_BYTES / 1024 / 1024} MB，请分批导入")
+                        rejected += RejectedSticker(
+                            label,
+                            context.getString(
+                                R.string.data_sticker_import_total_too_large,
+                                (MAX_TOTAL_BYTES / 1024 / 1024).toInt(),
+                            ),
+                        )
                     } else {
                         items += item
                         totalBytes += item.bytes
@@ -134,17 +149,20 @@ class StickerImporter @Inject constructor(
         uris.forEachIndexed { index, uri ->
             val label = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "第 ${index + 1} 个文件"
             val raw = copyToTemp(uri, File(runDir, "raw_$index")) ?: run {
-                rejected += RejectedSticker(label, "无法读取所选文件")
+                rejected += RejectedSticker(label, context.getString(R.string.data_sticker_import_unreadable))
                 return@forEachIndexed
             }
             if (isZip(raw)) {
                 val target = File(runDir, "zip_$index").apply { mkdirs() }
                 val extracted = runCatching { unzipSafely(raw, target) }.getOrElse { error ->
-                    rejected += RejectedSticker(label, error.message ?: "压缩包解析失败")
+                    rejected += RejectedSticker(
+                        label,
+                        error.message ?: context.getString(R.string.data_sticker_import_zip_failed),
+                    )
                     emptyList()
                 }
                 if (extracted.isEmpty() && rejected.none { it.fileName == label }) {
-                    rejected += RejectedSticker(label, "压缩包里没有可导入的图片")
+                    rejected += RejectedSticker(label, context.getString(R.string.data_sticker_import_zip_empty))
                 } else {
                     files += extracted
                 }
@@ -183,12 +201,17 @@ class StickerImporter @Inject constructor(
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(source.path, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-            throw IllegalStateException("无法识别的图片格式（不支持 HEIC / 视频）")
+            throw IllegalStateException(context.getString(R.string.data_sticker_import_unknown_format))
         }
         val mime = normalizeMime(bounds.outMimeType, source.name)
         val animated = mime == MIME_GIF
         if (mime == null || mime !in SUPPORTED_MIMES) {
-            throw IllegalStateException("暂不支持 ${mime ?: "该"} 格式，请换成 PNG / JPG / WebP / GIF")
+            throw IllegalStateException(
+                context.getString(
+                    R.string.data_sticker_import_unsupported_format,
+                    mime ?: context.getString(R.string.data_sticker_import_format_unspecified),
+                )
+            )
         }
         if (animated) {
             return processAnimated(packId, source, index, bounds.outWidth, bounds.outHeight)
@@ -200,7 +223,7 @@ class StickerImporter @Inject constructor(
     private fun processStill(packId: String, source: File, index: Int): StickerImportItem {
         val stickerId = newStickerId(index)
         val decoded = decodeScaled(source.path, MAX_STATIC_EDGE)
-            ?: throw IllegalStateException("图片解码失败，请换一张图试试")
+            ?: throw IllegalStateException(context.getString(R.string.data_sticker_import_decode_failed))
         val rotated = applyExifRotation(source.path, decoded)
         if (rotated !== decoded) decoded.recycle()
         val bitmap = rotated
@@ -217,7 +240,12 @@ class StickerImporter @Inject constructor(
         if (bytes > MAX_STATIC_BYTES) {
             bitmap.recycle()
             file.delete()
-            throw IllegalStateException("图片压缩后仍超过 ${MAX_STATIC_BYTES / 1024 / 1024} MB")
+            throw IllegalStateException(
+                context.getString(
+                    R.string.data_sticker_import_static_too_large,
+                    (MAX_STATIC_BYTES / 1024 / 1024).toInt(),
+                )
+            )
         }
         val thumb = writeThumbnail(packId, stickerId, bitmap)
         bitmap.recycle()
@@ -237,14 +265,26 @@ class StickerImporter @Inject constructor(
     @Suppress("DEPRECATION")
     private fun processAnimated(packId: String, source: File, index: Int, width: Int, height: Int): StickerImportItem {
         if (max(width, height) > MAX_ANIMATED_EDGE) {
-            throw IllegalStateException("动图最长边不能超过 ${MAX_ANIMATED_EDGE}px，请先裁剪")
+            throw IllegalStateException(
+                context.getString(R.string.data_sticker_import_animated_edge, MAX_ANIMATED_EDGE)
+            )
         }
         if (source.length() > MAX_ANIMATED_BYTES) {
-            throw IllegalStateException("动图超过 ${MAX_ANIMATED_BYTES / 1024 / 1024} MB，请换一张更小的")
+            throw IllegalStateException(
+                context.getString(
+                    R.string.data_sticker_import_animated_too_large,
+                    (MAX_ANIMATED_BYTES / 1024 / 1024).toInt(),
+                )
+            )
         }
         val duration = runCatching { Movie.decodeFile(source.path)?.duration() ?: 0 }.getOrDefault(0)
         if (duration > MAX_GIF_DURATION_MS) {
-            throw IllegalStateException("动图时长超过 ${MAX_GIF_DURATION_MS / 1000} 秒，请先剪辑")
+            throw IllegalStateException(
+                context.getString(
+                    R.string.data_sticker_import_animated_too_long,
+                    MAX_GIF_DURATION_MS / 1000,
+                )
+            )
         }
         val stickerId = newStickerId(index)
         val target = StickerPaths.stickerFile(context, packId, stickerId, "gif")

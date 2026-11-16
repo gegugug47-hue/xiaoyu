@@ -51,11 +51,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.StickerEntity
 import com.xiaoyu.app.data.db.StickerPackEntity
 import com.xiaoyu.app.data.repo.MIME_BUILTIN_CANVAS
@@ -107,20 +109,20 @@ fun StickerManageScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("我的表情包") },
+                title = { Text(stringResource(R.string.sticker_manage_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.sticker_action_back)) }
                 },
                 actions = {
-                    TextButton(onClick = { packPicker.launch(arrayOf("*/*")) }) { Text("导入包") }
+                    TextButton(onClick = { packPicker.launch(arrayOf("*/*")) }) { Text(stringResource(R.string.sticker_action_import_pack)) }
                     TextButton(
                         onClick = { selectedPack?.let { appViewModel.shareStickerPack(it.id) } },
                         enabled = selectedPack != null && !selectedPack.isBuiltin,
-                    ) { Text("导出") }
+                    ) { Text(stringResource(R.string.sticker_action_export)) }
                     TextButton(onClick = {
                         newPackName = ""
                         creating = true
-                    }) { Text("新建") }
+                    }) { Text(stringResource(R.string.sticker_action_create)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -141,21 +143,21 @@ fun StickerManageScreen(
                     OutlinedButton(onClick = {
                         newPackName = ""
                         creating = true
-                    }) { Text("＋ 新建表情包") }
+                    }) { Text(stringResource(R.string.sticker_action_create_pack)) }
                     val target = selectedPack ?: packs.firstOrNull { !it.isBuiltin }
                     OutlinedButton(
                         onClick = { target?.let { importingPack = it } },
                         enabled = target != null,
-                    ) { Text("导入图片 / zip") }
+                    ) { Text(stringResource(R.string.sticker_action_import_images)) }
                 }
             }
             item {
-                Text("表情包", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.sticker_section_packs), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (packs.isEmpty()) {
                 item {
                     Text(
-                        "还没有表情包，点上方「新建表情包」开始。",
+                        stringResource(R.string.sticker_empty_packs),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -188,7 +190,7 @@ fun StickerManageScreen(
             selectedPack?.let { pack ->
                 item {
                     Text(
-                        "「${pack.name}」的表情（点一枚可改名 / 改标签 / 启停 / 排序）",
+                        stringResource(R.string.sticker_section_pack_stickers, pack.name),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -197,7 +199,7 @@ fun StickerManageScreen(
                     val list = byPack[pack.id].orEmpty()
                     if (list.isEmpty()) {
                         Text(
-                            "这个包里还没有表情，导入几张吧。",
+                            stringResource(R.string.sticker_empty_pack_stickers),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -215,12 +217,12 @@ fun StickerManageScreen(
     if (creating) {
         AlertDialog(
             onDismissRequest = { creating = false },
-            title = { Text("新建表情包") },
+            title = { Text(stringResource(R.string.sticker_dialog_create_pack_title)) },
             text = {
                 OutlinedTextField(
                     value = newPackName,
                     onValueChange = { newPackName = it.take(20) },
-                    label = { Text("表情包名称") },
+                    label = { Text(stringResource(R.string.sticker_label_pack_name)) },
                     singleLine = true,
                 )
             },
@@ -228,21 +230,21 @@ fun StickerManageScreen(
                 TextButton(onClick = {
                     viewModel.createPack(newPackName)
                     creating = false
-                }) { Text("创建") }
+                }) { Text(stringResource(R.string.sticker_action_confirm_create)) }
             },
-            dismissButton = { TextButton(onClick = { creating = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { creating = false }) { Text(stringResource(R.string.sticker_action_cancel)) } },
         )
     }
 
     renamingPack?.let { pack ->
         AlertDialog(
             onDismissRequest = { renamingPack = null },
-            title = { Text("重命名表情包") },
+            title = { Text(stringResource(R.string.sticker_dialog_rename_pack_title)) },
             text = {
                 OutlinedTextField(
                     value = renameValue,
                     onValueChange = { renameValue = it.take(20) },
-                    label = { Text("名称") },
+                    label = { Text(stringResource(R.string.sticker_label_name)) },
                     singleLine = true,
                 )
             },
@@ -250,24 +252,24 @@ fun StickerManageScreen(
                 TextButton(onClick = {
                     viewModel.renamePack(pack.id, renameValue)
                     renamingPack = null
-                }) { Text("保存") }
+                }) { Text(stringResource(R.string.sticker_action_save)) }
             },
-            dismissButton = { TextButton(onClick = { renamingPack = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { renamingPack = null }) { Text(stringResource(R.string.sticker_action_cancel)) } },
         )
     }
 
     importingPack?.let { pack ->
         AlertDialog(
             onDismissRequest = { importingPack = null },
-            title = { Text("导入到「${pack.name}」") },
-            text = { Text("将打开系统选择器，支持多选图片或一个 zip / .xystickers 压缩包，导入在后台进行。") },
+            title = { Text(stringResource(R.string.sticker_dialog_import_title, pack.name)) },
+            text = { Text(stringResource(R.string.sticker_dialog_import_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     importingPack = null
                     onImport(pack.id, pack.name)
-                }) { Text("去选择") }
+                }) { Text(stringResource(R.string.sticker_action_go_select)) }
             },
-            dismissButton = { TextButton(onClick = { importingPack = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { importingPack = null }) { Text(stringResource(R.string.sticker_action_cancel)) } },
         )
     }
 
@@ -292,8 +294,8 @@ fun StickerManageScreen(
 
     when (val target = pendingDelete) {
         is PendingDelete.Pack -> ConfirmDeleteDialog(
-            title = "删除表情包",
-            text = "「${target.pack.name}」里的所有表情与图片都会被删除，且不可恢复。",
+            title = stringResource(R.string.sticker_dialog_delete_pack_title),
+            text = stringResource(R.string.sticker_dialog_delete_pack_message, target.pack.name),
             onConfirm = {
                 viewModel.deletePack(target.pack.id)
                 if (selectedPackId == target.pack.id) selectedPackId = null
@@ -302,8 +304,8 @@ fun StickerManageScreen(
             onDismiss = { pendingDelete = null },
         )
         is PendingDelete.Sticker -> ConfirmDeleteDialog(
-            title = "删除表情",
-            text = "「${target.sticker.name}」将从列表和磁盘移除，且不可恢复。",
+            title = stringResource(R.string.sticker_dialog_delete_sticker_title),
+            text = stringResource(R.string.sticker_dialog_delete_sticker_message, target.sticker.name),
             onConfirm = {
                 viewModel.deleteSticker(target.sticker.id)
                 pendingDelete = null
@@ -329,16 +331,16 @@ private fun StorageCard(usage: StickerStorageUsage) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("存储占用", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            StorageLine("表情", usage.stickerBytes, "${usage.stickerCount} 枚")
-            StorageLine("图片", usage.imageBytes, null)
-            StorageLine("语音", usage.voiceBytes, null)
-            StorageLine("备份", usage.backupBytes, null)
+            Text(stringResource(R.string.sticker_storage_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            StorageLine(stringResource(R.string.sticker_storage_stickers), usage.stickerBytes, stringResource(R.string.sticker_storage_count, usage.stickerCount))
+            StorageLine(stringResource(R.string.sticker_storage_images), usage.imageBytes, null)
+            StorageLine(stringResource(R.string.sticker_storage_voice), usage.voiceBytes, null)
+            StorageLine(stringResource(R.string.sticker_storage_backup), usage.backupBytes, null)
             Divider()
-            StorageLine("合计", usage.totalBytes, null)
+            StorageLine(stringResource(R.string.sticker_storage_total), usage.totalBytes, null)
             if (warn) {
                 Text(
-                    "表情已超过 ${StickerStorage.STICKER_STORAGE_WARN_MB} MB，建议删掉不常用的表情包。",
+                    stringResource(R.string.sticker_storage_warn, StickerStorage.STICKER_STORAGE_WARN_MB),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFB8860B),
                 )
@@ -402,8 +404,8 @@ private fun PackRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "${cover.size} 枚 · ${StickerStorage.formatSize(sizeBytes)}" +
-                            if (pack.isBuiltin) " · 内置" else "",
+                        stringResource(R.string.sticker_pack_meta, cover.size, StickerStorage.formatSize(sizeBytes)) +
+                            if (pack.isBuiltin) stringResource(R.string.sticker_pack_builtin_suffix) else "",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -417,11 +419,11 @@ private fun PackRow(
             ) {
                 TextButton(onClick = onUp, enabled = !pack.isBuiltin && !isFirstUserPack) { Text("↑") }
                 TextButton(onClick = onDown, enabled = !pack.isBuiltin && !isLastUserPack) { Text("↓") }
-                TextButton(onClick = onRename) { Text("改名") }
+                TextButton(onClick = onRename) { Text(stringResource(R.string.sticker_action_rename)) }
                 if (!pack.isBuiltin) {
-                    TextButton(onClick = onImport) { Text("导入") }
+                    TextButton(onClick = onImport) { Text(stringResource(R.string.sticker_action_import)) }
                     TextButton(onClick = onDelete) {
-                        Text("删除", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.sticker_action_delete), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -461,7 +463,7 @@ private fun StickerGrid(stickers: List<StickerEntity>, onClick: (StickerEntity) 
                 )
                 if (!sticker.enabled) {
                     Text(
-                        "已停用",
+                        stringResource(R.string.sticker_status_disabled),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -489,7 +491,7 @@ private fun StickerEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑表情") },
+        title = { Text(stringResource(R.string.sticker_dialog_edit_title)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -499,23 +501,23 @@ private fun StickerEditDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it.take(10) },
-                    label = { Text("名称（最多 10 字）") },
+                    label = { Text(stringResource(R.string.sticker_label_name_max10)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = tags,
                     onValueChange = { tags = it },
-                    label = { Text("语义标签（逗号分隔，最多 4 个）") },
+                    label = { Text(stringResource(R.string.sticker_label_semantic_tags)) },
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = moodTags,
                     onValueChange = { moodTags = it },
-                    label = { Text("情绪标签（joy,sad,angry…）") },
+                    label = { Text(stringResource(R.string.sticker_label_mood_tags)) },
                     singleLine = true,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("启用", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.sticker_label_enabled), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(
                         checked = enabled,
                         onCheckedChange = {
@@ -525,11 +527,11 @@ private fun StickerEditDialog(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = onUp) { Text("上移") }
-                    TextButton(onClick = onDown) { Text("下移") }
+                    TextButton(onClick = onUp) { Text(stringResource(R.string.sticker_action_move_up)) }
+                    TextButton(onClick = onDown) { Text(stringResource(R.string.sticker_action_move_down)) }
                     if (canDelete) {
                         TextButton(onClick = onDelete) {
-                            Text("删除", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.sticker_action_delete), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -543,9 +545,9 @@ private fun StickerEditDialog(
         confirmButton = {
             TextButton(onClick = {
                 onSave(name.trim(), normalizeCsv(tags, 4), normalizeCsv(moodTags, 3))
-            }) { Text("保存") }
+            }) { Text(stringResource(R.string.sticker_action_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.sticker_action_cancel)) } },
     )
 }
 
@@ -562,10 +564,10 @@ private fun ConfirmDeleteDialog(
         text = { Text(text) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("删除", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.sticker_action_delete), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.sticker_action_cancel)) } },
     )
 }
 

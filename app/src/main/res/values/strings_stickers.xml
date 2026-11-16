@@ -4,4 +4,97 @@
     <string name="sticker_import_copyright">请仅导入你有权使用的图片，导入内容的版权由你自行负责。</string>
     <string name="sticker_import_copyright_extra">请确认你拥有这些图片的版权或使用授权，不要导入侵权素材；小鱼不会上传、分享或审查你的表情。</string>
     <string name="sticker_import_auto_tag">导入后自动打标签（需要视觉模型）</string>
+
+    <!-- 表情包管理页 -->
+    <string name="sticker_manage_title">我的表情包</string>
+    <string name="sticker_action_back">返回</string>
+    <string name="sticker_action_import_pack">导入包</string>
+    <string name="sticker_action_export">导出</string>
+    <string name="sticker_action_create">新建</string>
+    <string name="sticker_action_create_pack">＋ 新建表情包</string>
+    <string name="sticker_action_import_images">导入图片 / zip</string>
+    <string name="sticker_section_packs">表情包</string>
+    <string name="sticker_empty_packs">还没有表情包，点上方「新建表情包」开始。</string>
+    <string name="sticker_section_pack_stickers">「%1$s」的表情（点一枚可改名 / 改标签 / 启停 / 排序）</string>
+    <string name="sticker_empty_pack_stickers">这个包里还没有表情，导入几张吧。</string>
+    <string name="sticker_dialog_create_pack_title">新建表情包</string>
+    <string name="sticker_label_pack_name">表情包名称</string>
+    <string name="sticker_action_confirm_create">创建</string>
+    <string name="sticker_action_cancel">取消</string>
+    <string name="sticker_dialog_rename_pack_title">重命名表情包</string>
+    <string name="sticker_label_name">名称</string>
+    <string name="sticker_action_save">保存</string>
+    <string name="sticker_dialog_import_title">导入到「%1$s」</string>
+    <string name="sticker_dialog_import_message">将打开系统选择器，支持多选图片或一个 zip / .xystickers 压缩包，导入在后台进行。</string>
+    <string name="sticker_action_go_select">去选择</string>
+    <string name="sticker_dialog_delete_pack_title">删除表情包</string>
+    <string name="sticker_dialog_delete_pack_message">「%1$s」里的所有表情与图片都会被删除，且不可恢复。</string>
+    <string name="sticker_dialog_delete_sticker_title">删除表情</string>
+    <string name="sticker_dialog_delete_sticker_message">「%1$s」将从列表和磁盘移除，且不可恢复。</string>
+
+    <!-- 存储占用 -->
+    <string name="sticker_storage_title">存储占用</string>
+    <string name="sticker_storage_stickers">表情</string>
+    <string name="sticker_storage_images">图片</string>
+    <string name="sticker_storage_voice">语音</string>
+    <string name="sticker_storage_backup">备份</string>
+    <string name="sticker_storage_total">合计</string>
+    <string name="sticker_storage_count">%1$d 枚</string>
+    <string name="sticker_storage_warn">表情已超过 %1$d MB，建议删掉不常用的表情包。</string>
+
+    <!-- 表情包行与表情编辑 -->
+    <string name="sticker_pack_meta">%1$d 枚 · %2$s</string>
+    <string name="sticker_pack_builtin_suffix">" · 内置"</string>
+    <string name="sticker_action_rename">改名</string>
+    <string name="sticker_action_import">导入</string>
+    <string name="sticker_action_delete">删除</string>
+    <string name="sticker_status_disabled">已停用</string>
+    <string name="sticker_dialog_edit_title">编辑表情</string>
+    <string name="sticker_label_name_max10">名称（最多 10 字）</string>
+    <string name="sticker_label_semantic_tags">语义标签（逗号分隔，最多 4 个）</string>
+    <string name="sticker_label_mood_tags">情绪标签（joy,sad,angry…）</string>
+    <string name="sticker_label_enabled">启用</string>
+    <string name="sticker_action_move_up">上移</string>
+    <string name="sticker_action_move_down">下移</string>
+
+    <!-- 表情导入页 -->
+    <string name="sticker_import_title">导入表情</string>
+    <string name="sticker_import_to_target">导入到「%1$s」</string>
+    <string name="sticker_import_hint">支持 PNG / JPG / WebP / GIF，单次最多 %1$d 个；也可以选一个 zip / .xystickers 压缩包。</string>
+    <string name="sticker_import_pick_images">从相册选择</string>
+    <string name="sticker_import_pick_zip">选择压缩包</string>
+    <string name="sticker_import_empty_selection">还没有选择文件。</string>
+    <string name="sticker_import_selected_count">已选择 %1$d 个文件</string>
+    <string name="sticker_import_remove">移除</string>
+    <string name="sticker_import_need_pack">请先新建或选择一个表情包后再导入。</string>
+    <string name="sticker_import_start">开始导入（%1$d）</string>
+    <string name="sticker_import_background_hint">导入在后台进行，进度会显示在通知栏；完成后可在管理页改名或补充标签。</string>
+
+    <!-- 人格 / 说话风格 -->
+    <string name="persona_title">她是谁</string>
+    <string name="persona_action_back">返回</string>
+    <string name="persona_import_pack">导入人格包</string>
+    <string name="persona_section_identity">身份</string>
+    <string name="persona_identity_hint">她是谁：年龄、住在哪、经历过什么。写得越具体，她越像一个有过去的人。</string>
+    <string name="persona_section_style">说话风格</string>
+    <string name="persona_style_hint">她怎么说话：口头禅、语气、字数习惯。可以在对话里随时切换。</string>
+    <string name="persona_action_add">新增</string>
+    <string name="persona_action_share">分享</string>
+    <string name="persona_action_edit">编辑</string>
+    <string name="persona_action_delete">删除</string>
+    <string name="persona_dialog_title_style">说话风格</string>
+    <string name="persona_dialog_title_identity">她的身份</string>
+    <string name="persona_label_name">名字</string>
+    <string name="persona_label_description">描述</string>
+    <string name="persona_action_save">保存</string>
+    <string name="persona_action_cancel">取消</string>
+
+    <!-- StickerViewModel 一次性提示 -->
+    <string name="sticker_vm_pack_created">已新建表情包</string>
+    <string name="sticker_vm_saved">已保存</string>
+    <string name="sticker_vm_pack_deleted">已删除表情包</string>
+    <string name="sticker_vm_builtin_pack_cannot_delete">内置表情包不能删除</string>
+    <string name="sticker_vm_sticker_deleted">已删除表情</string>
+    <string name="sticker_vm_builtin_sticker_cannot_delete">内置表情不能删除</string>
+    <string name="sticker_vm_import_started">已开始导入，完成后会收到通知</string>
 </resources>

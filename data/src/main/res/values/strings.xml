@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 导入失败的通用前缀 -->
+    <string name="data_import_failed">导入失败：%1$s</string>
+
+    <!-- 表情导入管线（StickerImporter） -->
+    <string name="data_sticker_import_skipped_over_limit">一次最多导入 %1$d 个文件，多余的已跳过</string>
+    <string name="data_sticker_import_process_failed">处理失败，请换一张图试试</string>
+    <string name="data_sticker_import_total_too_large">本次导入总体积超过 %1$d MB，请分批导入</string>
+    <string name="data_sticker_import_unreadable">无法读取所选文件</string>
+    <string name="data_sticker_import_zip_failed">压缩包解析失败</string>
+    <string name="data_sticker_import_zip_empty">压缩包里没有可导入的图片</string>
+    <string name="data_sticker_import_unknown_format">无法识别的图片格式（不支持 HEIC / 视频）</string>
+    <string name="data_sticker_import_unsupported_format">暂不支持 %1$s 格式，请换成 PNG / JPG / WebP / GIF</string>
+    <string name="data_sticker_import_format_unspecified">该</string>
+    <string name="data_sticker_import_decode_failed">图片解码失败，请换一张图试试</string>
+    <string name="data_sticker_import_static_too_large">图片压缩后仍超过 %1$d MB</string>
+    <string name="data_sticker_import_animated_edge">动图最长边不能超过 %1$dpx，请先裁剪</string>
+    <string name="data_sticker_import_animated_too_large">动图超过 %1$d MB，请换一张更小的</string>
+    <string name="data_sticker_import_animated_too_long">动图时长超过 %1$d 秒，请先剪辑</string>
+
+    <!-- 备份导入与回滚（BackupImporter） -->
+    <string name="data_backup_import_unreadable">无法读取备份文件，请确认文件仍然存在。</string>
+    <string name="data_backup_import_invalid_header">不是有效的备份文件（文件头过短）。</string>
+    <string name="data_backup_import_broken_header">备份文件头损坏，无法识别版本。</string>
+    <string name="data_backup_import_password_required">该备份已加密，请输入口令后再恢复。</string>
+    <string name="data_backup_import_wrong_password">口令不对，或备份文件已损坏。</string>
+    <string name="data_backup_import_broken_zip">不是有效的备份文件（zip 结构损坏）。</string>
+    <string name="data_backup_import_unzip_failed">备份包损坏，无法解压：%1$s</string>
+    <string name="data_backup_import_no_database">备份包里没有数据库文件，可能不是小鱼生成的备份。</string>
+    <string name="data_backup_import_db_corrupt">备份中的数据库已损坏，无法导入（原数据未改动）。</string>
+    <string name="data_backup_import_db_version_too_new">备份来自更新版本的 App（数据版本 v%1$d，当前仅支持 v%2$d），请先升级 App 后再恢复。</string>
+    <string name="data_backup_import_format_too_new">备份来自更新版本的 App（备份格式 v%1$d，当前仅支持 v%2$d），请先升级 App 后再恢复。</string>
+    <string name="data_backup_import_snapshot_failed">无法创建导入前快照，已取消导入（原数据未改动）。</string>
+    <string name="data_backup_import_merge_failed">合并导入失败，已回滚（原数据未改动）：%1$s</string>
+    <string name="data_backup_import_stage_failed">写入待恢复文件失败：%1$s</string>
+    <string name="data_backup_import_unknown_error">未知错误</string>
+
+    <!-- Markdown 导出（MarkdownExporter） -->
+    <string name="data_export_session_not_found">没有找到这段会话。</string>
+    <string name="data_export_session_empty">这段会话还没有可导出的消息。</string>
+    <string name="data_export_diary_not_found">没有找到这篇日记。</string>
+    <string name="data_export_write_failed">导出失败：无法写入下载目录。</string>
+    <string name="data_export_untitled_session">未命名会话</string>
+    <string name="data_export_session_heading"># 小鱼 · 会话导出</string>
+    <string name="data_export_line_exported_at">- 导出时间：%1$s</string>
+    <string name="data_export_line_session_title">- 会话标题：%1$s</string>
+    <string name="data_export_line_message_count">- 消息条数：%1$d</string>
+    <string name="data_export_line_time_range">- 时间范围：%1$s ~ %2$s</string>
+    <string name="data_export_line_role_time">**%1$s** · %2$s</string>
+    <string name="data_export_retracted">_[消息已撤回]_</string>
+    <string name="data_export_diary_heading"># 小鱼 · 日记（%1$s）</string>
+    <string name="data_export_line_diary_date">- 日记日期：%1$s</string>
+    <string name="data_export_line_mood_snapshot">- 心情快照：%1$s</string>
+    <string name="data_export_line_favor_snapshot">- 好感快照：%1$s</string>
+    <string name="data_export_line_secret_diary">- 加密日记：%1$s</string>
+    <string name="data_export_yes">是</string>
+    <string name="data_export_no">否</string>
+    <string name="data_export_sticker">[表情:%1$s]</string>
+    <string name="data_export_sticker_unknown">未知</string>
+    <string name="data_export_image">![图片](%1$s)</string>
+    <string name="data_export_voice">[语音] %1$s</string>
+    <string name="data_export_role_me">我</string>
+    <string name="data_export_role_system">系统</string>
+    <string name="data_export_role_her">她</string>
+
+    <!-- 表情包归档（StickerPackArchive） -->
+    <string name="data_sticker_archive_pack_not_found">表情包不存在</string>
+    <string name="data_sticker_archive_no_exportable_images">这个表情包没有可导出的图片文件</string>
+    <string name="data_sticker_archive_export_too_large">表情包体积超过 30MB，建议拆包后再导出</string>
+    <string name="data_sticker_archive_already_exists">已存在同名表情包，本次没有重复导入</string>
+    <string name="data_sticker_archive_no_license">这个包没有声明许可证（license=Unknown），使用前请自行确认版权</string>
+    <string name="data_sticker_archive_entry_missing">清单里的 %1$s 不存在，整包已拒绝</string>
+    <string name="data_sticker_archive_unsupported_format">%1$s 格式不支持（仅支持 WEBP/PNG/JPG/GIF），整包已拒绝</string>
+    <string name="data_sticker_archive_unzip_too_large">表情包解压后超过 30MB，整包已拒绝</string>
+    <string name="data_sticker_archive_empty">压缩包里没有可用的表情图片</string>
+    <string name="data_sticker_archive_bad_zip">压缩包格式不正确</string>
+    <string name="data_sticker_archive_no_files_selected">没有选择文件</string>
+    <string name="data_sticker_archive_name_required">表情包名字不能为空</string>
+    <string name="data_sticker_archive_webm_unsupported">%1$s 是视频表情（WEBM），暂不支持</string>
+    <string name="data_sticker_archive_tgs_unsupported">%1$s 是动态表情（TGS），暂不支持</string>
+    <string name="data_sticker_archive_file_unsupported">%1$s 格式不支持，已跳过</string>
+    <string name="data_sticker_archive_file_too_large">%1$s 超过 16MB，已跳过</string>
+    <string name="data_sticker_archive_total_limit">已达 30MB 上限，剩余文件跳过</string>
+    <string name="data_sticker_archive_too_many_stickers">一次最多导入 %1$d 张，超出部分已忽略</string>
+    <string name="data_sticker_archive_no_static_images">没有可导入的静态表情图片</string>
+    <string name="data_sticker_archive_io_error">文件读写异常</string>
+    <string name="data_sticker_archive_bad_format_version">不支持的包格式版本：%1$d</string>
+    <string name="data_sticker_archive_bad_name">表情包名字不合法（1~32 字）</string>
+    <string name="data_sticker_archive_no_stickers">表情包里没有表情</string>
+    <string name="data_sticker_archive_sticker_limit">表情数量超过 %1$d 张</string>
+
+    <!-- 人格包归档（PersonaPackArchive） -->
+    <string name="data_persona_archive_identity_not_found">身份不存在</string>
+    <string name="data_persona_archive_bad_version">不支持的人格包版本：%1$d</string>
+    <string name="data_persona_archive_missing_name">人格包缺少名字</string>
+    <string name="data_persona_archive_empty_identity">身份设定是空的</string>
+    <string name="data_persona_archive_large_identity">身份设定有 %1$d 字，超过 %2$d 字，可能稀释人格。确认后请带 confirmLargeIdentity = true 重新导入。</string>
+    <string name="data_persona_archive_identity_exists">已存在完全相同的身份，复用原记录</string>
+    <string name="data_persona_archive_bad_pack">人格包格式不正确</string>
+
+    <!-- 聊天链路（ChatRepository） -->
+    <string name="data_chat_message_not_found">消息不存在</string>
+    <string name="data_chat_reply_empty">她好像走神了，没有说出话来。点“继续”试试，或检查模型设置。</string>
+
+    <!-- 关系页（RelationRepository） -->
+    <string name="data_relation_default_name">小鱼</string>
+    <string name="data_relation_milestone_met_title">我们认识的那天</string>
+    <string name="data_relation_milestone_met_detail">从这天起，她开始记得你。</string>
+    <string name="data_relation_milestone_level_title">她把你放进了「%1$s」</string>
+    <string name="data_relation_milestone_level_detail">关系悄悄往前走了一步。</string>
+    <string name="data_relation_milestone_hundred_title">认识满 100 天</string>
+    <string name="data_relation_milestone_hundred_upcoming">还有 %1$d 天。</string>
+    <string name="data_relation_milestone_hundred_passed">已经一起走过 %1$d 天了。</string>
+    <string name="data_relation_milestone_diary_title">她写的第一篇日记</string>
+    <string name="data_relation_milestone_diary_detail">有些话她没直接说，写下来了。</string>
+    <string name="data_relation_mood_line">今天%1$s。</string>
+    <string name="data_relation_mood_line_with_fragment">今天%1$s，%2$s</string>
+
+    <!-- 表情导入结果总结（StickerImportResult） -->
+    <string name="data_sticker_import_summary_imported">成功导入 %1$d 枚</string>
+    <string name="data_sticker_import_summary_rejected">，%1$d 个文件被跳过</string>
+    <string name="data_sticker_import_summary_no_vision">；未配置视觉模型，标签可稍后手动填写</string>
+</resources>

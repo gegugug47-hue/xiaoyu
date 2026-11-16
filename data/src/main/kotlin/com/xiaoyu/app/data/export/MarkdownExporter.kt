@@ -2,6 +2,7 @@ package com.xiaoyu.app.data.export
 
 import android.content.Context
 import android.net.Uri
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.db.DiaryDao
 import com.xiaoyu.app.data.db.MessageDao
 import com.xiaoyu.app.data.db.MessageEntity
@@ -44,24 +45,32 @@ class MarkdownExporter @Inject constructor(
     /** 导出整段会话（隐藏消息不导出，撤回消息保留占位）。 */
     suspend fun exportSession(sessionId: Long): ExportResult = withContext(Dispatchers.IO) {
         val session = sessionDao.byId(sessionId)
-            ?: return@withContext ExportResult.Failure("没有找到这段会话。")
+            ?: return@withContext ExportResult.Failure(context.getString(R.string.data_export_session_not_found))
         if (storageGuard.isLow()) {
             return@withContext ExportResult.Failure(storageGuard.lowSpaceMessage())
         }
         val messages = messageDao.visibleForSession(sessionId)
         if (messages.isEmpty()) {
-            return@withContext ExportResult.Failure("这段会话还没有可导出的消息。")
+            return@withContext ExportResult.Failure(context.getString(R.string.data_export_session_empty))
         }
 
         val exportedAt = Date()
         val builder = StringBuilder()
-        val title = session.title.ifBlank { "未命名会话" }
-        builder.appendLine("# 小鱼 · 会话导出")
+        val title = session.title.ifBlank { context.getString(R.string.data_export_untitled_session) }
+        builder.appendLine(context.getString(R.string.data_export_session_heading))
         builder.appendLine()
-        builder.appendLine("- 导出时间：${formatDateTime(exportedAt.time)}")
-        builder.appendLine("- 会话标题：$title")
-        builder.appendLine("- 消息条数：${messages.size}")
-        builder.appendLine("- 时间范围：${formatDateTime(messages.first().createdAt)} ~ ${formatDateTime(messages.last().createdAt)}")
+        builder.appendLine(
+            context.getString(R.string.data_export_line_exported_at, formatDateTime(exportedAt.time))
+        )
+        builder.appendLine(context.getString(R.string.data_export_line_session_title, title))
+        builder.appendLine(context.getString(R.string.data_export_line_message_count, messages.size))
+        builder.appendLine(
+            context.getString(
+                R.string.data_export_line_time_range,
+                formatDateTime(messages.first().createdAt),
+                formatDateTime(messages.last().createdAt),
+            )
+        )
         builder.appendLine()
         builder.appendLine("---")
         builder.appendLine()
@@ -69,16 +78,28 @@ class MarkdownExporter @Inject constructor(
         var imageCount = 0
         messages.forEach { message ->
             if (message.retracted) {
-                builder.appendLine("**${roleLabel(message)}** · ${formatDateTime(message.createdAt)}")
+                builder.appendLine(
+                    context.getString(
+                        R.string.data_export_line_role_time,
+                        roleLabel(message),
+                        formatDateTime(message.createdAt),
+                    )
+                )
                 builder.appendLine()
-                builder.appendLine("_[消息已撤回]_")
+                builder.appendLine(context.getString(R.string.data_export_retracted))
                 builder.appendLine()
                 return@forEach
             }
             val imagePath = message.imageUri?.let { exportImage(message, it) }
             if (imagePath != null) imageCount++
             val body = renderBody(message, imagePath)
-            builder.appendLine("**${roleLabel(message)}** · ${formatDateTime(message.createdAt)}")
+            builder.appendLine(
+                context.getString(
+                    R.string.data_export_line_role_time,
+                    roleLabel(message),
+                    formatDateTime(message.createdAt),
+                )
+            )
             builder.appendLine()
             builder.appendLine(body)
             builder.appendLine()
@@ -86,26 +107,41 @@ class MarkdownExporter @Inject constructor(
 
         val fileName = "chat-${safeName(title)}-${fileStamp(exportedAt)}.md"
         val saved = publicDownloads.saveText(EXPORT_DIR, fileName, "text/markdown", builder.toString())
-            ?: return@withContext ExportResult.Failure("导出失败：无法写入下载目录。")
+            ?: return@withContext ExportResult.Failure(context.getString(R.string.data_export_write_failed))
         ExportResult.Success(saved.displayPath, imageCount)
     }
 
     /** 导出单篇日记（含元信息头与心情快照）。 */
     suspend fun exportDiary(diaryId: Long): ExportResult = withContext(Dispatchers.IO) {
         val diary = diaryDao.byId(diaryId)
-            ?: return@withContext ExportResult.Failure("没有找到这篇日记。")
+            ?: return@withContext ExportResult.Failure(context.getString(R.string.data_export_diary_not_found))
         if (storageGuard.isLow()) {
             return@withContext ExportResult.Failure(storageGuard.lowSpaceMessage())
         }
         val exportedAt = Date()
         val builder = StringBuilder()
-        builder.appendLine("# 小鱼 · 日记（${diary.eventDate}）")
+        builder.appendLine(context.getString(R.string.data_export_diary_heading, diary.eventDate))
         builder.appendLine()
-        builder.appendLine("- 导出时间：${formatDateTime(exportedAt.time)}")
-        builder.appendLine("- 日记日期：${diary.eventDate}")
-        builder.appendLine("- 心情快照：${diary.moodSnapshot}")
-        builder.appendLine("- 好感快照：${diary.favorabilitySnapshot}")
-        builder.appendLine("- 加密日记：${if (diary.isSecret) "是" else "否"}")
+        builder.appendLine(
+            context.getString(R.string.data_export_line_exported_at, formatDateTime(exportedAt.time))
+        )
+        builder.appendLine(context.getString(R.string.data_export_line_diary_date, diary.eventDate))
+        builder.appendLine(
+            context.getString(R.string.data_export_line_mood_snapshot, diary.moodSnapshot)
+        )
+        builder.appendLine(
+            context.getString(R.string.data_export_line_favor_snapshot, diary.favorabilitySnapshot)
+        )
+        builder.appendLine(
+            context.getString(
+                R.string.data_export_line_secret_diary,
+                if (diary.isSecret) {
+                    context.getString(R.string.data_export_yes)
+                } else {
+                    context.getString(R.string.data_export_no)
+                },
+            )
+        )
         builder.appendLine()
         builder.appendLine("---")
         builder.appendLine()
@@ -114,18 +150,20 @@ class MarkdownExporter @Inject constructor(
 
         val fileName = "diary-${diary.eventDate}-${fileStamp(exportedAt)}.md"
         val saved = publicDownloads.saveText(EXPORT_DIR, fileName, "text/markdown", builder.toString())
-            ?: return@withContext ExportResult.Failure("导出失败：无法写入下载目录。")
+            ?: return@withContext ExportResult.Failure(context.getString(R.string.data_export_write_failed))
         ExportResult.Success(saved.displayPath, 0)
     }
 
     private suspend fun renderBody(message: MessageEntity, imagePath: String?): String = when {
         message.type == "sticker" -> {
-            val name = message.stickerId?.let { stickerDao.byId(it)?.name } ?: "未知"
-            "[表情:$name]"
+            val name = message.stickerId?.let { stickerDao.byId(it)?.name }
+                ?: context.getString(R.string.data_export_sticker_unknown)
+            context.getString(R.string.data_export_sticker, name)
         }
-        imagePath != null && message.content.isBlank() -> "![图片]($imagePath)"
-        imagePath != null -> "${message.content}\n\n![图片]($imagePath)"
-        message.voiceUri != null -> "[语音] ${message.content}".trim()
+        imagePath != null && message.content.isBlank() ->
+            context.getString(R.string.data_export_image, imagePath)
+        imagePath != null -> "${message.content}\n\n" + context.getString(R.string.data_export_image, imagePath)
+        message.voiceUri != null -> context.getString(R.string.data_export_voice, message.content).trim()
         else -> message.content
     }
 
@@ -163,9 +201,9 @@ class MarkdownExporter @Inject constructor(
     }
 
     private fun roleLabel(message: MessageEntity): String = when (message.role) {
-        "user" -> "我"
-        "system_notice" -> "系统"
-        else -> "她"
+        "user" -> context.getString(R.string.data_export_role_me)
+        "system_notice" -> context.getString(R.string.data_export_role_system)
+        else -> context.getString(R.string.data_export_role_her)
     }
 
     private fun formatDateTime(millis: Long): String =

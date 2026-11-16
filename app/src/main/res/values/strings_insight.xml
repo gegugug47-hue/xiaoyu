@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 记忆 -->
+    <string name="memory_title">她的记忆</string>
+    <string name="memory_back">返回</string>
+    <string name="memory_add_card">新增</string>
+    <string name="memory_tab_short_term">短期记忆 %1$d</string>
+    <string name="memory_tab_long_cards">长期卡片 %1$d</string>
+    <string name="memory_tab_bin">回收站 %1$d</string>
+    <string name="memory_empty_short_term">还没有短期记忆。聊完一段对话后，她会把重要的事记下来。</string>
+    <string name="memory_meta_importance_strength">重要度 %1$d · 强度 %2$d</string>
+    <string name="memory_empty_long_cards">长期卡片会随着相处慢慢积累。对她说“记住……”也能直接写进来。</string>
+    <string name="memory_meta_from_user">你让她记住的</string>
+    <string name="memory_meta_learned">慢慢记住的</string>
+    <string name="memory_empty_bin">回收站是空的。被遗忘的碎片会先来这里，30 天后彻底消失。</string>
+    <string name="memory_meta_in_bin">已进入回收站</string>
+    <string name="memory_restore">捡回来</string>
+    <string name="memory_edit">编辑</string>
+    <string name="memory_delete_permanently">彻底删除</string>
+    <string name="memory_delete">删除</string>
+    <string name="memory_dialog_edit_memory">编辑记忆</string>
+    <string name="memory_label_content">内容</string>
+    <string name="memory_label_tags">标签（逗号分隔）</string>
+    <string name="memory_importance_value">重要度：%1$d</string>
+    <string name="memory_save">保存</string>
+    <string name="memory_cancel">取消</string>
+    <string name="memory_dialog_create_card">新增卡片</string>
+    <string name="memory_dialog_edit_card">编辑卡片</string>
+
+    <!-- 关系 -->
+    <string name="relation_title">我们的关系</string>
+    <string name="relation_back">返回</string>
+    <string name="relation_loading">正在整理你们的故事…</string>
+    <string name="relation_known_days">你们已经认识 %1$d 天了</string>
+    <string name="relation_stat_known">认识</string>
+    <string name="relation_unit_days">天</string>
+    <string name="relation_stat_streak">连续互动</string>
+    <string name="relation_stat_messages">说过</string>
+    <string name="relation_unit_sentences">句话</string>
+    <string name="relation_stat_diaries">她写了</string>
+    <string name="relation_unit_diaries">篇日记</string>
+    <string name="relation_mood_chart">心情曲线</string>
+    <string name="relation_mood_chart_range">最近 30 天</string>
+    <string name="relation_mood_chart_empty">再聊几天，这里会慢慢长出一条曲线。</string>
+    <string name="relation_today_mood">她今天的心情</string>
+    <string name="relation_milestones">纪念日</string>
+    <string name="relation_entry_diary">日记本</string>
+    <string name="relation_entry_memory">她的记忆</string>
+    <string name="relation_entry_persona">人设</string>
+
+    <!-- 用量 -->
+    <string name="usage_title">用量统计</string>
+    <string name="usage_back">返回</string>
+    <string name="usage_guard_active">成本护栏已触发：%1$s。聊天不受影响，可在下方关闭护栏。</string>
+    <string name="usage_today">今日</string>
+    <string name="usage_calls">调用次数</string>
+    <string name="usage_estimated_cost">估算费用</string>
+    <string name="usage_background_tokens">后台占用</string>
+    <string name="usage_this_month">本月</string>
+    <string name="usage_chat_background_calls">聊天 / 后台调用</string>
+    <string name="usage_cache_hit_rate">缓存命中率</string>
+    <string name="usage_last7_days">近 7 天 token</string>
+    <string name="usage_cost_guard">成本护栏</string>
+    <string name="usage_pause_background_title">超限暂停后台生成</string>
+    <string name="usage_pause_background_desc">生活模拟 / 日记 / 主动聊天的模型调用会暂停，聊天仍可用。</string>
+    <string name="usage_daily_token_cap">每日 token 上限</string>
+    <string name="usage_monthly_cost_cap">每月费用上限（元）</string>
+    <string name="usage_save_cap">保存上限</string>
+    <string name="usage_guard_off_warning">关闭护栏等于允许无上限花费，请谨慎。</string>
+    <string name="usage_price_note">单价表来自 assets/cost_table.json，未知模型按 0 计并标注「未定价」。Ollama 与示例模式不计费。</string>
+
+    <!-- 诊断 -->
+    <string name="diag_title">诊断</string>
+    <string name="diag_back">返回</string>
+    <string name="diag_export_success">已导出：%1$s</string>
+    <string name="diag_export_failed">导出失败</string>
+    <string name="diag_export">导出诊断包</string>
+    <string name="diag_clear">清空</string>
+    <string name="diag_db_notice_title">数据库自检提示</string>
+    <string name="diag_got_it">我知道了</string>
+    <string name="diag_crash_logs">崩溃日志</string>
+    <string name="diag_crash_recent">最近 %1$d 条</string>
+    <string name="diag_crash_empty">没有崩溃记录。</string>
+    <string name="diag_snapshots_empty_title">还没有请求记录</string>
+    <string name="diag_snapshots_empty_desc">和她聊几句后，这里会显示最近 50 次模型请求的 Prompt 分段、原文与后处理事件。</string>
+    <string name="diag_copied_curl">已复制 curl，Key 用 $XY_API_KEY 占位</string>
+    <string name="diag_error">错误</string>
+    <string name="diag_token_usage">prompt ≈ %1$d · 输出 ≈ %2$d · %3$dms</string>
+    <string name="diag_params">参数</string>
+    <string name="diag_error_detail">错误：%1$s</string>
+    <string name="diag_events">事件：%1$s</string>
+    <string name="diag_prompt_sections">Prompt 分段</string>
+    <string name="diag_raw_response">模型原文</string>
+    <string name="diag_empty_placeholder">（空）</string>
+    <string name="diag_copy_curl">复制 curl</string>
+    <string name="diag_collapse">收起</string>
+    <string name="diag_expand_hint">点击展开</string>
+
+    <!-- 日记 -->
+    <string name="diary_title">她的日记</string>
+    <string name="diary_back">返回</string>
+    <string name="diary_empty">日记本还是空的。\n在一起经历过一些事情之后，她会在夜里写点什么。</string>
+    <string name="diary_locked_content_description">加密</string>
+    <string name="diary_locked">这一页上了锁。</string>
+    <string name="diary_try_unlock">试着翻开</string>
+    <string name="diary_export_markdown">导出 Markdown</string>
+    <string name="diary_close">合上</string>
+    <string name="diary_open">翻开看看</string>
+
+    <!-- 搜索 -->
+    <string name="search_title">翻旧账</string>
+    <string name="search_back">返回</string>
+    <string name="search_hint">搜索说过的话…</string>
+    <string name="search_action">搜索</string>
+    <string name="search_loading">正在翻旧账…</string>
+    <string name="search_no_result">没找到和「%1$s」相关的对话。</string>
+    <string name="search_empty_hint">输入关键词，从历史对话里翻出相关内容。\n选中一条后，她会基于那段旧对话回答你。</string>
+    <string name="search_role_me">我</string>
+    <string name="search_role_her">她</string>
+    <string name="search_role_system">系统</string>
+</resources>

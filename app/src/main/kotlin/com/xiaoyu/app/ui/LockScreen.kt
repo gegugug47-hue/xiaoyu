@@ -32,10 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.xiaoyu.app.R
 
 /**
  * 锁屏页（执行书 5.6.3）：PIN 键盘 + 可选生物识别，解锁后才显示任何聊天内容。
@@ -58,7 +60,7 @@ fun LockScreen(
         if (verifyPin(pin)) {
             onUnlocked()
         } else {
-            error = "PIN 不对，再想想"
+            error = context.getString(R.string.lock_pin_error)
             pin = ""
         }
     }
@@ -68,9 +70,9 @@ fun LockScreen(
         runCatching {
             val executor = ContextCompat.getMainExecutor(activity)
             BiometricPrompt.Builder(activity)
-                .setTitle("解锁小鱼")
-                .setSubtitle("用指纹或面容继续")
-                .setNegativeButton("用 PIN", executor) { _, _ -> }
+                .setTitle(context.getString(R.string.lock_biometric_title))
+                .setSubtitle(context.getString(R.string.lock_biometric_subtitle))
+                .setNegativeButton(context.getString(R.string.lock_use_pin), executor) { _, _ -> }
                 .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
                 .build()
                 .authenticate(
@@ -98,10 +100,10 @@ fun LockScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("小鱼", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.lock_her_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(6.dp))
             Text(
-                "输入 PIN 解锁",
+                stringResource(R.string.lock_enter_pin),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -158,9 +160,9 @@ fun LockScreen(
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (canUseBiometric) {
-                    TextButton(onClick = { requestBiometric() }) { Text("指纹 / 面容解锁") }
+                    TextButton(onClick = { requestBiometric() }) { Text(stringResource(R.string.lock_biometric_button)) }
                 }
-                TextButton(onClick = { submit() }, enabled = pin.length >= 4) { Text("解锁") }
+                TextButton(onClick = { submit() }, enabled = pin.length >= 4) { Text(stringResource(R.string.lock_unlock)) }
             }
         }
     }

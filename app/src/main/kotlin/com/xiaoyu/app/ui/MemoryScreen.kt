@@ -35,9 +35,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.FactCardEntity
 import com.xiaoyu.app.data.db.MemoryEntity
 import com.xiaoyu.soul.memory.CARD_CATEGORIES
@@ -60,15 +62,15 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("她的记忆") },
+                title = { Text(stringResource(R.string.memory_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.memory_back))
                     }
                 },
                 actions = {
                     if (tab == 1) {
-                        TextButton(onClick = { creatingCard = true }) { Text("新增") }
+                        TextButton(onClick = { creatingCard = true }) { Text(stringResource(R.string.memory_add_card)) }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -85,9 +87,9 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("短期记忆 ${shortTerm.size}") })
-                FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("长期卡片 ${cards.size}") })
-                FilterChip(selected = tab == 2, onClick = { tab = 2 }, label = { Text("回收站 ${bin.size}") })
+                FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text(stringResource(R.string.memory_tab_short_term, shortTerm.size)) })
+                FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text(stringResource(R.string.memory_tab_long_cards, cards.size)) })
+                FilterChip(selected = tab == 2, onClick = { tab = 2 }, label = { Text(stringResource(R.string.memory_tab_bin, bin.size)) })
             }
             Spacer(Modifier.height(8.dp))
             when (tab) {
@@ -97,14 +99,14 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (shortTerm.isEmpty()) {
-                        item { EmptyHint("还没有短期记忆。聊完一段对话后，她会把重要的事记下来。") }
+                        item { EmptyHint(stringResource(R.string.memory_empty_short_term)) }
                     }
                     items(shortTerm, key = { it.id }) { memory ->
                         MemoryCard(
                             title = MemoryType.from(memory.type).label,
                             content = memory.content,
                             tags = memory.tags,
-                            meta = "重要度 ${memory.importance} · 强度 ${memory.strength}",
+                            meta = stringResource(R.string.memory_meta_importance_strength, memory.importance, memory.strength),
                             onEdit = { editingMemory = memory },
                             onDelete = { viewModel.deleteMemory(memory.id) },
                         )
@@ -116,14 +118,14 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (cards.isEmpty()) {
-                        item { EmptyHint("长期卡片会随着相处慢慢积累。对她说“记住……”也能直接写进来。") }
+                        item { EmptyHint(stringResource(R.string.memory_empty_long_cards)) }
                     }
                     items(cards, key = { it.id }) { card ->
                         MemoryCard(
                             title = card.category,
                             content = card.content,
                             tags = card.tags,
-                            meta = if (card.source == "user_command") "你让她记住的" else "慢慢记住的",
+                            meta = if (card.source == "user_command") stringResource(R.string.memory_meta_from_user) else stringResource(R.string.memory_meta_learned),
                             onEdit = { editingCard = card },
                             onDelete = { viewModel.deleteCard(card.id) },
                         )
@@ -135,18 +137,18 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (bin.isEmpty()) {
-                        item { EmptyHint("回收站是空的。被遗忘的碎片会先来这里，30 天后彻底消失。") }
+                        item { EmptyHint(stringResource(R.string.memory_empty_bin)) }
                     }
                     items(bin, key = { it.id }) { memory ->
                         MemoryCard(
                             title = MemoryType.from(memory.type).label,
                             content = memory.content,
                             tags = memory.tags,
-                            meta = "已进入回收站",
+                            meta = stringResource(R.string.memory_meta_in_bin),
                             onEdit = null,
                             onDelete = { viewModel.deleteMemory(memory.id) },
                             extra = {
-                                TextButton(onClick = { viewModel.restoreMemory(memory.id) }) { Text("捡回来") }
+                                TextButton(onClick = { viewModel.restoreMemory(memory.id) }) { Text(stringResource(R.string.memory_restore)) }
                             },
                         )
                     }
@@ -223,8 +225,10 @@ private fun MemoryCard(
             }
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                 extra?.invoke()
-                if (onEdit != null) TextButton(onClick = onEdit) { Text("编辑") }
-                TextButton(onClick = onDelete) { Text(if (onEdit == null) "彻底删除" else "删除") }
+                if (onEdit != null) TextButton(onClick = onEdit) { Text(stringResource(R.string.memory_edit)) }
+                TextButton(onClick = onDelete) {
+                    Text(if (onEdit == null) stringResource(R.string.memory_delete_permanently) else stringResource(R.string.memory_delete))
+                }
             }
         }
     }
@@ -243,10 +247,10 @@ private fun MemoryEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑记忆") },
+        title = { Text(stringResource(R.string.memory_dialog_edit_memory)) },
         text = {
             Column {
-                OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text("内容") }, maxLines = 4)
+                OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text(stringResource(R.string.memory_label_content)) }, maxLines = 4)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     MemoryType.entries.forEach { item ->
@@ -254,9 +258,9 @@ private fun MemoryEditDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = tags, onValueChange = { tags = it }, label = { Text("标签（逗号分隔）") })
+                OutlinedTextField(value = tags, onValueChange = { tags = it }, label = { Text(stringResource(R.string.memory_label_tags)) })
                 Spacer(Modifier.height(8.dp))
-                Text("重要度：$importance", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.memory_importance_value, importance), style = MaterialTheme.typography.labelMedium)
                 Slider(
                     value = importance.toFloat(),
                     onValueChange = { importance = it.roundToInt() },
@@ -265,8 +269,8 @@ private fun MemoryEditDialog(
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(content, type, tags, importance) }) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = { onConfirm(content, type, tags, importance) }) { Text(stringResource(R.string.memory_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.memory_cancel)) } },
     )
 }
 
@@ -282,10 +286,10 @@ private fun CardEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (card == null) "新增卡片" else "编辑卡片") },
+        title = { Text(if (card == null) stringResource(R.string.memory_dialog_create_card) else stringResource(R.string.memory_dialog_edit_card)) },
         text = {
             Column {
-                OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text("内容") }, maxLines = 4)
+                OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text(stringResource(R.string.memory_label_content)) }, maxLines = 4)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     CARD_CATEGORIES.take(3).forEach { item ->
@@ -298,10 +302,10 @@ private fun CardEditDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = tags, onValueChange = { tags = it }, label = { Text("标签（逗号分隔）") })
+                OutlinedTextField(value = tags, onValueChange = { tags = it }, label = { Text(stringResource(R.string.memory_label_tags)) })
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(content, category, tags) }) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = { onConfirm(content, category, tags) }) { Text(stringResource(R.string.memory_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.memory_cancel)) } },
     )
 }

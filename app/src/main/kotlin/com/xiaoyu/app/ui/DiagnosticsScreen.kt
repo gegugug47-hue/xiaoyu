@@ -34,11 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.CrashLogger
 import com.xiaoyu.app.data.db.DatabaseSelfCheck
 import com.xiaoyu.app.data.db.RequestSnapshotEntity
@@ -68,21 +70,21 @@ fun DiagnosticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("诊断") },
+                title = { Text(stringResource(R.string.diag_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.diag_back)) }
                 },
                 actions = {
                     TextButton(onClick = {
                         viewModel.exportDiagnostics { path ->
                             Toast.makeText(
                                 context,
-                                path?.let { "已导出：$it" } ?: "导出失败",
+                                path?.let { context.getString(R.string.diag_export_success, it) } ?: context.getString(R.string.diag_export_failed),
                                 Toast.LENGTH_LONG,
                             ).show()
                         }
-                    }) { Text("导出诊断包") }
-                    TextButton(onClick = { viewModel.clearDiagnostics() }) { Text("清空") }
+                    }) { Text(stringResource(R.string.diag_export)) }
+                    TextButton(onClick = { viewModel.clearDiagnostics() }) { Text(stringResource(R.string.diag_clear)) }
                 },
             )
         },
@@ -101,7 +103,7 @@ fun DiagnosticsScreen(
                     ) {
                         Column(Modifier.padding(14.dp)) {
                             Text(
-                                "数据库自检提示",
+                                stringResource(R.string.diag_db_notice_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                             )
@@ -114,7 +116,7 @@ fun DiagnosticsScreen(
                             TextButton(onClick = {
                                 DatabaseSelfCheck.clearNotice(context)
                                 dbNotice = null
-                            }) { Text("我知道了") }
+                            }) { Text(stringResource(R.string.diag_got_it)) }
                         }
                     }
                 }
@@ -122,10 +124,10 @@ fun DiagnosticsScreen(
 
             item(key = "crash-header") {
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Text("崩溃日志", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.diag_crash_logs), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.weight(1f))
                     Text(
-                        "最近 ${crashFiles.size} 条",
+                        stringResource(R.string.diag_crash_recent, crashFiles.size),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -136,13 +138,13 @@ fun DiagnosticsScreen(
                             openedCrash = null
                         },
                         enabled = crashFiles.isNotEmpty(),
-                    ) { Text("清空") }
+                    ) { Text(stringResource(R.string.diag_clear)) }
                 }
             }
             if (crashFiles.isEmpty()) {
                 item(key = "crash-empty") {
                     Text(
-                        "没有崩溃记录。",
+                        stringResource(R.string.diag_crash_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -182,10 +184,10 @@ fun DiagnosticsScreen(
             if (snapshots.isEmpty()) {
                 item(key = "empty") {
                     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                        Text("还没有请求记录", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.diag_snapshots_empty_title), style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "和她聊几句后，这里会显示最近 50 次模型请求的 Prompt 分段、原文与后处理事件。",
+                            stringResource(R.string.diag_snapshots_empty_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -202,7 +204,7 @@ fun DiagnosticsScreen(
                             clipboard?.setPrimaryClip(
                                 android.content.ClipData.newPlainText("curl", viewModel.curlOf(snapshot))
                             )
-                            Toast.makeText(context, "已复制 curl，Key 用 \$XY_API_KEY 占位", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.diag_copied_curl), Toast.LENGTH_SHORT).show()
                         },
                     )
                 }
@@ -232,7 +234,7 @@ private fun SnapshotCard(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    if (snapshot.error == null) snapshot.finishReason.orEmpty() else "错误",
+                    if (snapshot.error == null) snapshot.finishReason.orEmpty() else stringResource(R.string.diag_error),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (snapshot.error == null) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.error,
@@ -244,7 +246,12 @@ private fun SnapshotCard(
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             )
             Text(
-                "prompt ≈ ${snapshot.promptTokens} · 输出 ≈ ${snapshot.completionTokens} · ${snapshot.durationMs}ms",
+                stringResource(
+                    R.string.diag_token_usage,
+                    snapshot.promptTokens,
+                    snapshot.completionTokens,
+                    snapshot.durationMs,
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -253,7 +260,7 @@ private fun SnapshotCard(
                 Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                 Spacer(Modifier.height(10.dp))
 
-                Text("参数", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.diag_params), style = MaterialTheme.typography.labelLarge)
                 Text(
                     pretty(snapshot.paramsJson),
                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
@@ -261,15 +268,15 @@ private fun SnapshotCard(
                 )
                 snapshot.error?.let {
                     Spacer(Modifier.height(8.dp))
-                    Text("错误：$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.diag_error_detail, it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
                 if (snapshot.eventsText.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
-                    Text("事件：${snapshot.eventsText}", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.diag_events, snapshot.eventsText), style = MaterialTheme.typography.bodySmall)
                 }
 
                 Spacer(Modifier.height(12.dp))
-                Text("Prompt 分段", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.diag_prompt_sections), style = MaterialTheme.typography.labelLarge)
                 sections(snapshot.sectionsJson).forEach { section ->
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -285,20 +292,20 @@ private fun SnapshotCard(
                 }
 
                 Spacer(Modifier.height(12.dp))
-                Text("模型原文", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.diag_raw_response), style = MaterialTheme.typography.labelLarge)
                 Text(
-                    snapshot.responseRaw.ifBlank { "（空）" },
+                    snapshot.responseRaw.ifBlank { stringResource(R.string.diag_empty_placeholder) },
                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 )
 
                 Spacer(Modifier.height(8.dp))
                 Row {
-                    TextButton(onClick = onCopyCurl) { Text("复制 curl") }
-                    TextButton(onClick = onToggle) { Text("收起") }
+                    TextButton(onClick = onCopyCurl) { Text(stringResource(R.string.diag_copy_curl)) }
+                    TextButton(onClick = onToggle) { Text(stringResource(R.string.diag_collapse)) }
                 }
             } else {
                 Spacer(Modifier.height(4.dp))
-                Text("点击展开", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.diag_expand_hint), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
         }
     }

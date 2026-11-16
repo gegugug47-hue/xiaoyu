@@ -53,9 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.brain.ProviderHealth
 import com.xiaoyu.app.data.settings.AppLockMode
 import com.xiaoyu.app.data.settings.AppSettings
@@ -68,11 +70,11 @@ import com.xiaoyu.app.ui.theme.ThemeMode
 import com.xiaoyu.soul.core.BrainRole
 import kotlin.math.roundToInt
 
-private enum class Slot(val label: String, val role: BrainRole) {
-    CHAT("聊天主模型", BrainRole.CHAT),
-    CHAT_FALLBACK("聊天备用模型", BrainRole.CHAT),
-    EXTRACT("记忆 / 日记模型", BrainRole.EXTRACT),
-    EXTRACT_FALLBACK("记忆备用模型", BrainRole.EXTRACT),
+private enum class Slot(val labelRes: Int, val role: BrainRole) {
+    CHAT(R.string.settings_model_chat, BrainRole.CHAT),
+    CHAT_FALLBACK(R.string.settings_model_chat_fallback, BrainRole.CHAT),
+    EXTRACT(R.string.settings_model_extract, BrainRole.EXTRACT),
+    EXTRACT_FALLBACK(R.string.settings_model_extract_fallback, BrainRole.EXTRACT),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,9 +116,9 @@ fun SettingsScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("设置") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.settings_back)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -132,10 +134,10 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                SectionCard("模型") {
+                SectionCard(stringResource(R.string.settings_section_model)) {
                     Slot.entries.forEach { slot ->
                         ProviderRow(
-                            title = slot.label,
+                            title = stringResource(slot.labelRes),
                             config = settings.brain.configFor(slot),
                             onEdit = { editingSlot = slot },
                             onClear = { viewModel.updateSettings { it.withConfig(slot, null) } },
@@ -145,10 +147,10 @@ fun SettingsScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { viewModel.checkHealth(BrainRole.CHAT) }, enabled = !checking) {
-                            Text(if (checking) "检测中…" else "检测连接")
+                            Text(if (checking) stringResource(R.string.settings_checking) else stringResource(R.string.settings_check_connection))
                         }
                         TextButton(onClick = { viewModel.updateSettings { it.copy(immersiveEnabled = !it.immersiveEnabled) } }) {
-                            Text("不需要？先用示例模式")
+                            Text(stringResource(R.string.settings_use_demo_mode))
                         }
                     }
                     health.forEach { item: ProviderHealth ->
@@ -163,15 +165,15 @@ fun SettingsScreen(
             }
 
             item {
-                SectionCard("相处方式") {
+                SectionCard(stringResource(R.string.settings_section_relationship)) {
                     ToggleRow(
-                        "回复节奏",
-                        "让她像真人一样思考几秒再回，而不是瞬间弹出",
+                        stringResource(R.string.settings_reply_pace_title),
+                        stringResource(R.string.settings_reply_pace_subtitle),
                         settings.immersiveEnabled,
                     ) { enabled -> viewModel.updateSettings { it.copy(immersiveEnabled = enabled) } }
                     if (settings.immersiveEnabled) {
                         Text(
-                            "节奏强度 ${String.format("%.1f", settings.immersiveIntensity)}",
+                            stringResource(R.string.settings_pace_intensity, String.format("%.1f", settings.immersiveIntensity)),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -183,14 +185,14 @@ fun SettingsScreen(
                     }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     ToggleRow(
-                        "分段发送",
-                        "长回复拆成几条短消息连发，更像真人在聊天",
+                        stringResource(R.string.settings_segment_sending_title),
+                        stringResource(R.string.settings_segment_sending_subtitle),
                         settings.segmentSending,
                     ) { enabled -> viewModel.updateSettings { it.copy(segmentSending = enabled) } }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     ToggleRow(
-                        "允许她主动找你",
-                        "每天在合适的时间，她可能会发来一条消息",
+                        stringResource(R.string.settings_proactive_title),
+                        stringResource(R.string.settings_proactive_subtitle),
                         settings.proactiveEnabled,
                     ) { enabled ->
                         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -200,15 +202,15 @@ fun SettingsScreen(
                     }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     TextButton(onClick = { showHours = true }) {
-                        Text("免打扰：${settings.dndStartHour}:00 - ${settings.dndEndHour}:00")
+                        Text(stringResource(R.string.settings_dnd_button, settings.dndStartHour, settings.dndEndHour))
                     }
                 }
             }
 
             item {
-                SectionCard("聊天模式") {
+                SectionCard(stringResource(R.string.settings_section_chat_mode)) {
                     Text(
-                        "连续流：像微信一样只有一个聊天窗口，所有消息按时间连续展示；会话列表：按话题分成多个对话。两种模式共用同一份数据。",
+                        stringResource(R.string.settings_chat_mode_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -217,20 +219,20 @@ fun SettingsScreen(
                         FilterChip(
                             selected = settings.chatMode == "continuous",
                             onClick = { viewModel.updateSettings { it.copy(chatMode = "continuous") } },
-                            label = { Text("连续流（默认）") },
+                            label = { Text(stringResource(R.string.settings_chat_mode_continuous)) },
                         )
                         FilterChip(
                             selected = settings.chatMode == "session_list",
                             onClick = { viewModel.updateSettings { it.copy(chatMode = "session_list") } },
-                            label = { Text("会话列表") },
+                            label = { Text(stringResource(R.string.settings_chat_mode_session_list)) },
                         )
                     }
                     if (settings.chatMode == "continuous") {
                         Spacer(Modifier.height(6.dp))
                         Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                         ToggleRow(
-                            "话题分隔线",
-                            "幕后会话切换处插入“—— 新的话题 ——”淡色分隔线",
+                            stringResource(R.string.settings_topic_divider_title),
+                            stringResource(R.string.settings_topic_divider_subtitle),
                             settings.showTopicDividers,
                         ) { enabled -> viewModel.updateSettings { it.copy(showTopicDividers = enabled) } }
                     }
@@ -238,9 +240,9 @@ fun SettingsScreen(
             }
 
             item {
-                SectionCard("外观") {
+                SectionCard(stringResource(R.string.settings_section_appearance)) {
                     Text(
-                        "主题",
+                        stringResource(R.string.settings_theme_title),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -256,13 +258,13 @@ fun SettingsScreen(
                     }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     ToggleRow(
-                        "动态取色",
-                        "Android 12+ 跟随壁纸取色；关闭时使用品牌青灰蓝",
+                        stringResource(R.string.settings_dynamic_color_title),
+                        stringResource(R.string.settings_dynamic_color_subtitle),
                         settings.dynamicColor,
                     ) { enabled -> viewModel.updateSettings { it.copy(dynamicColor = enabled) } }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     Text(
-                        "字号",
+                        stringResource(R.string.settings_font_size_title),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -278,7 +280,7 @@ fun SettingsScreen(
                     }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     Text(
-                        "我的气泡",
+                        stringResource(R.string.settings_bubble_title),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -291,9 +293,9 @@ fun SettingsScreen(
                                 label = {
                                     Text(
                                         when (style) {
-                                            BubbleStyle.BRAND -> "青灰"
-                                            BubbleStyle.MINT -> "薄荷"
-                                            BubbleStyle.WARM -> "暖橙"
+                                            BubbleStyle.BRAND -> stringResource(R.string.settings_bubble_brand)
+                                            BubbleStyle.MINT -> stringResource(R.string.settings_bubble_mint)
+                                            BubbleStyle.WARM -> stringResource(R.string.settings_bubble_warm)
                                         },
                                     )
                                 },
@@ -312,75 +314,75 @@ fun SettingsScreen(
             }
 
             item {
-                SectionCard("人设") {
+                SectionCard(stringResource(R.string.settings_section_persona)) {
                     Text(
-                        "她的身份与说话风格都可以改。新的对话会使用当前设置。",
+                        stringResource(R.string.settings_persona_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenPersona) { Text("编辑她是谁 / 怎么说话") }
+                    Button(onClick = onOpenPersona) { Text(stringResource(R.string.settings_persona_edit)) }
                 }
             }
 
             item {
-                SectionCard("表情包") {
+                SectionCard(stringResource(R.string.settings_section_stickers)) {
                     Text(
-                        "新建分组、改名、调排序、停用或删除，也能看到表情占用的空间。",
+                        stringResource(R.string.settings_stickers_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenStickers) { Text("管理表情包") }
+                    Button(onClick = onOpenStickers) { Text(stringResource(R.string.settings_manage_stickers)) }
                 }
             }
 
             item {
-                SectionCard("用量") {
+                SectionCard(stringResource(R.string.settings_section_usage)) {
                     Text(
-                        "本月请求：聊天 ${settings.usage.chatRequests} 次 · 记忆 ${settings.usage.extractRequests} 次",
+                        stringResource(R.string.settings_usage_month, settings.usage.chatRequests, settings.usage.extractRequests),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "Token 合计：${settings.usage.totalTokens}",
+                        stringResource(R.string.settings_usage_total_tokens, settings.usage.totalTokens),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "估算花费：¥${String.format("%.3f", settings.usage.estimatedCost)}",
+                        stringResource(R.string.settings_usage_estimated_cost, String.format("%.3f", settings.usage.estimatedCost)),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        "示例模式和本地 Ollama 不计费；数值仅供参考。",
+                        stringResource(R.string.settings_usage_note),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(onClick = onOpenUsage) { Text("查看用量统计与成本护栏") }
+                    Button(onClick = onOpenUsage) { Text(stringResource(R.string.settings_usage_open)) }
                 }
             }
 
             item {
-                SectionCard("备份") {
+                SectionCard(stringResource(R.string.settings_section_backup)) {
                     Text(
-                        "聊天、记忆、日记全部在本地。备份文件包含数据库和你改过的提示词。",
+                        stringResource(R.string.settings_backup_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { viewModel.createLocalBackup(if (encryptBackup) backupPassword.ifBlank { null } else null) }) { Text("立即备份") }
+                        Button(onClick = { viewModel.createLocalBackup(if (encryptBackup) backupPassword.ifBlank { null } else null) }) { Text(stringResource(R.string.settings_backup_now)) }
                         TextButton(onClick = {
                             exportLauncher.launch("xiaoyu-backup.xiaoyu")
-                        }) { Text("导出") }
+                        }) { Text(stringResource(R.string.settings_backup_export)) }
                         TextButton(onClick = {
                             importLauncher.launch(arrayOf("*/*"))
-                        }) { Text("恢复") }
+                        }) { Text(stringResource(R.string.settings_backup_restore)) }
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "恢复方式",
+                        stringResource(R.string.settings_backup_mode_title),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -388,24 +390,24 @@ fun SettingsScreen(
                         FilterChip(
                             selected = importMode == "MERGE",
                             onClick = { importMode = "MERGE" },
-                            label = { Text("合并（保留现有聊天）") },
+                            label = { Text(stringResource(R.string.settings_backup_mode_merge)) },
                         )
                         FilterChip(
                             selected = importMode == "OVERWRITE",
                             onClick = { importMode = "OVERWRITE" },
-                            label = { Text("覆盖（重启后生效）") },
+                            label = { Text(stringResource(R.string.settings_backup_mode_overwrite)) },
                         )
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = encryptBackup, onCheckedChange = { encryptBackup = it })
-                        Text("用口令加密备份（AES-GCM）", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.settings_backup_encrypt), style = MaterialTheme.typography.bodyMedium)
                     }
                     if (encryptBackup) {
                         OutlinedTextField(
                             value = backupPassword,
                             onValueChange = { backupPassword = it },
-                            label = { Text("备份口令（恢复时需要）") },
+                            label = { Text(stringResource(R.string.settings_backup_password_label)) },
                             singleLine = true,
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
@@ -415,7 +417,7 @@ fun SettingsScreen(
                     if (localBackups.isNotEmpty()) {
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "本机备份 ${localBackups.size} 份，最近：${localBackups.first().name}",
+                            stringResource(R.string.settings_backup_local_count, localBackups.size, localBackups.first().name),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -432,20 +434,20 @@ fun SettingsScreen(
             }
 
             item {
-                SectionCard("诊断") {
+                SectionCard(stringResource(R.string.settings_section_diagnostics)) {
                     Text(
-                        "查看最近 50 次模型请求的 Prompt 分段、模型原文与后处理事件。数据只留在这台设备上，可随时清空。",
+                        stringResource(R.string.settings_diagnostics_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenDiagnostics) { Text("查看最近请求") }
+                    Button(onClick = onOpenDiagnostics) { Text(stringResource(R.string.settings_diagnostics_open)) }
                 }
             }
 
             item {
                 Text(
-                    "小鱼 v1.0 · 数据只保存在这台设备上\n聊天记录只增不改，删除记忆只影响她的记忆，不影响聊天原文。",
+                    stringResource(R.string.settings_footer),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp),
@@ -456,7 +458,7 @@ fun SettingsScreen(
 
     editingSlot?.let { slot ->
         ProviderEditDialog(
-            title = slot.label,
+            title = stringResource(slot.labelRes),
             config = settings.brain.configFor(slot),
             onDismiss = { editingSlot = null },
             onConfirm = { config ->
@@ -503,9 +505,9 @@ private fun AppLockSection(viewModel: AppViewModel) {
     val mode = AppLockMode.from(settings.appLockMode)
     var pinTarget by remember { mutableStateOf<AppLockMode?>(null) }
 
-    SectionCard("隐私与安全") {
+    SectionCard(stringResource(R.string.settings_section_app_lock)) {
         Text(
-            "开启后，每次回到 App 都要先解锁；聊天内容与通知正文在锁定时不会露出。PIN 只存加密后的摘要，不写入备份。",
+            stringResource(R.string.settings_app_lock_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -514,7 +516,7 @@ private fun AppLockSection(viewModel: AppViewModel) {
             FilterChip(
                 selected = mode == AppLockMode.OFF,
                 onClick = { viewModel.disableAppLock() },
-                label = { Text("关闭") },
+                label = { Text(stringResource(R.string.settings_app_lock_off)) },
             )
             FilterChip(
                 selected = mode == AppLockMode.PIN,
@@ -530,17 +532,17 @@ private fun AppLockSection(viewModel: AppViewModel) {
                     if (viewModel.appLockHasPin()) viewModel.setAppLockMode(AppLockMode.BIOMETRIC)
                     else pinTarget = AppLockMode.BIOMETRIC
                 },
-                label = { Text("生物识别") },
+                label = { Text(stringResource(R.string.settings_app_lock_biometric)) },
             )
         }
         if (mode != AppLockMode.OFF) {
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { pinTarget = mode }) { Text("修改 PIN") }
-                TextButton(onClick = { viewModel.lockNow() }) { Text("立即锁定") }
+                TextButton(onClick = { pinTarget = mode }) { Text(stringResource(R.string.settings_app_lock_change_pin)) }
+                TextButton(onClick = { viewModel.lockNow() }) { Text(stringResource(R.string.settings_app_lock_now)) }
             }
             Text(
-                "回到前台超过 ${settings.autoLockSeconds} 秒需要重新解锁；应用锁开启时通知只显示「小鱼发来一条消息」。",
+                stringResource(R.string.settings_app_lock_auto_hint, settings.autoLockSeconds),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -549,7 +551,7 @@ private fun AppLockSection(viewModel: AppViewModel) {
 
     pinTarget?.let { target ->
         PinSetupDialog(
-            title = if (viewModel.appLockHasPin()) "修改 PIN" else "设置 PIN",
+            title = if (viewModel.appLockHasPin()) stringResource(R.string.settings_app_lock_change_pin) else stringResource(R.string.settings_app_lock_set_pin),
             onDismiss = { pinTarget = null },
             onConfirm = { pin ->
                 viewModel.enableAppLock(pin, target) { ok -> if (ok) pinTarget = null }
@@ -573,7 +575,7 @@ private fun PinSetupDialog(
         text = {
             Column {
                 Text(
-                    "输入 4~6 位数字。忘了 PIN 只能关闭应用锁重新设置。",
+                    stringResource(R.string.settings_pin_dialog_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -593,7 +595,7 @@ private fun PinSetupDialog(
                 OutlinedTextField(
                     value = confirm,
                     onValueChange = { value -> confirm = value.filter { it.isDigit() }.take(6) },
-                    label = { Text("再输一次") },
+                    label = { Text(stringResource(R.string.settings_pin_confirm_label)) },
                     singleLine = true,
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -604,10 +606,10 @@ private fun PinSetupDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(pin) }, enabled = valid) { Text("保存") }
+            TextButton(onClick = { onConfirm(pin) }, enabled = valid) { Text(stringResource(R.string.settings_action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_action_cancel)) }
         },
     )
 }
@@ -639,9 +641,9 @@ private fun BackgroundSection(viewModel: AppViewModel) {
     var blurValue by remember(blur) { mutableStateOf(blur) }
     var dimValue by remember(dim) { mutableStateOf(dim) }
 
-    SectionCard("聊天背景") {
+    SectionCard(stringResource(R.string.settings_section_chat_background)) {
         Text(
-            "选一张喜欢的图片铺在聊天下面。图片会压缩后保存在这台设备上，不会上传，也不需要相册权限。",
+            stringResource(R.string.settings_background_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -665,7 +667,7 @@ private fun BackgroundSection(viewModel: AppViewModel) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "当前是默认纯色背景",
+                    stringResource(R.string.settings_background_default),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -679,15 +681,15 @@ private fun BackgroundSection(viewModel: AppViewModel) {
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 },
-            ) { Text(if (current == null) "选择图片" else "更换图片") }
+            ) { Text(if (current == null) stringResource(R.string.settings_background_pick) else stringResource(R.string.settings_background_change)) }
             if (current != null) {
-                TextButton(onClick = { viewModel.clearChatBackground() }) { Text("恢复默认") }
+                TextButton(onClick = { viewModel.clearChatBackground() }) { Text(stringResource(R.string.settings_background_reset)) }
             }
         }
         if (current != null) {
             Spacer(Modifier.height(6.dp))
             Text(
-                "模糊 ${blurValue.roundToInt()} · 暗化 ${(dimValue * 100).roundToInt()}%",
+                stringResource(R.string.settings_background_tune, blurValue.roundToInt(), (dimValue * 100).roundToInt()),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -709,7 +711,7 @@ private fun BackgroundSection(viewModel: AppViewModel) {
             )
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
                 Text(
-                    "模糊效果需要 Android 12 及以上；当前系统会自动只用暗化来保证气泡清晰。",
+                    stringResource(R.string.settings_background_blur_hint),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -731,10 +733,9 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
         if (settings.localAiUrl != null && styleOptions.isEmpty()) viewModel.refreshLocalAiOptions()
     }
 
-    SectionCard("本地 AI 服务（生图 + 语音）") {
+    SectionCard(stringResource(R.string.settings_section_local_ai)) {
         Text(
-            "家里电脑跑着 DSHA Gateway 时可用：生图走 ComfyUI，语音走 CosyVoice3。" +
-                "填网关地址和 Token，电脑关机不影响聊天。",
+            stringResource(R.string.settings_local_ai_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -743,7 +744,7 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             value = url,
             onValueChange = { url = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("网关地址") },
+            label = { Text(stringResource(R.string.settings_local_ai_url_label)) },
             placeholder = { Text("http://10.x.x.x:8300") },
             singleLine = true,
         )
@@ -753,7 +754,7 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             onValueChange = { token = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Token") },
-            placeholder = { Text("Gateway 配置里的 [server].token") },
+            placeholder = { Text(stringResource(R.string.settings_local_ai_token_placeholder)) },
             singleLine = true,
         )
         Spacer(Modifier.height(8.dp))
@@ -761,7 +762,7 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             Button(
                 enabled = !checking,
                 onClick = { viewModel.saveAndTestLocalAi(url, token) },
-            ) { Text(if (checking) "连接中…" else "保存并测试") }
+            ) { Text(if (checking) stringResource(R.string.settings_local_ai_connecting) else stringResource(R.string.settings_local_ai_save_test)) }
             if (settings.localAiUrl != null) {
                 TextButton(onClick = {
                     url = ""
@@ -770,7 +771,7 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
                         it.copy(localAiUrl = null, localAiToken = null)
                     }
                     viewModel.clearLocalAiOptions()
-                }) { Text("停用") }
+                }) { Text(stringResource(R.string.settings_local_ai_disable)) }
             }
         }
 
@@ -780,11 +781,11 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             Spacer(Modifier.height(12.dp))
 
             OptionDropdown(
-                title = "朗读音色",
+                title = stringResource(R.string.settings_voice_title),
                 hint = if (voiceOptions.isEmpty()) {
-                    "未能读取音色列表，保存地址后重试"
+                    stringResource(R.string.settings_voice_empty)
                 } else {
-                    "共 ${voiceOptions.size} 个音色，点击切换"
+                    stringResource(R.string.settings_voice_count, voiceOptions.size)
                 },
                 options = voiceOptions.ifEmpty { listOf(settings.ttsVoice) },
                 selected = settings.ttsVoice,
@@ -792,8 +793,8 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             )
             Spacer(Modifier.height(12.dp))
             OptionChipGroup(
-                title = "生图画风",
-                hint = if (styleOptions.isEmpty()) "未能读取画风列表，保存地址后重试" else null,
+                title = stringResource(R.string.settings_style_title),
+                hint = if (styleOptions.isEmpty()) stringResource(R.string.settings_style_empty) else null,
                 options = styleOptions.ifEmpty { listOf(settings.imageStyle) },
                 selected = settings.imageStyle,
                 onSelect = { style -> viewModel.updateSettings { it.copy(imageStyle = style) } },
@@ -835,7 +836,7 @@ private fun OptionDropdown(
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Icon(Icons.Filled.ArrowDropDown, contentDescription = "展开音色列表")
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = stringResource(R.string.settings_voice_expand))
             }
             DropdownMenu(
                 expanded = expanded,
@@ -915,13 +916,13 @@ private fun ProviderRow(title: String, config: ProviderConfig?, onEdit: () -> Un
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(
-                if (config == null) "未设置" else "${config.label()} · ${config.model}",
+                if (config == null) stringResource(R.string.settings_provider_unset) else "${config.label()} · ${config.model}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(onClick = onEdit) { Text(if (config == null) "设置" else "修改") }
-        if (config != null) TextButton(onClick = onClear) { Text("清除") }
+        TextButton(onClick = onEdit) { Text(if (config == null) stringResource(R.string.settings_action_set) else stringResource(R.string.settings_action_edit)) }
+        if (config != null) TextButton(onClick = onClear) { Text(stringResource(R.string.settings_action_clear)) }
     }
 }
 
@@ -982,16 +983,16 @@ private fun ProviderEditDialog(
                         )
                     }
                 }
-                OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("接口地址") }, singleLine = true)
-                OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("模型名") }, singleLine = true)
+                OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text(stringResource(R.string.settings_provider_base_url)) }, singleLine = true)
+                OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text(stringResource(R.string.settings_provider_model)) }, singleLine = true)
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
-                    label = { Text(if (kind == ProviderKind.OLLAMA) "API Key（本地可不填）" else "API Key") },
+                    label = { Text(if (kind == ProviderKind.OLLAMA) stringResource(R.string.settings_provider_api_key_optional) else "API Key") },
                     singleLine = true,
                 )
                 Text(
-                    "Key 会加密保存在本机数据库，不会上传到任何第三方。",
+                    stringResource(R.string.settings_provider_key_note),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1007,9 +1008,9 @@ private fun ProviderEditDialog(
                         model = model.trim(),
                     )
                 )
-            }) { Text("保存") }
+            }) { Text(stringResource(R.string.settings_action_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_action_cancel)) } },
     )
 }
 
@@ -1019,21 +1020,21 @@ private fun DndDialog(start: Int, end: Int, onDismiss: () -> Unit, onConfirm: (I
     var e by remember { mutableStateOf(end) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("免打扰时段") },
+        title = { Text(stringResource(R.string.settings_dnd_dialog_title)) },
         text = {
             Column {
-                Text("开始：$s:00", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.settings_dnd_start, s), style = MaterialTheme.typography.bodyMedium)
                 Slider(value = s.toFloat(), onValueChange = { s = it.roundToInt() }, valueRange = 0f..23f, steps = 22)
-                Text("结束：$e:00", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.settings_dnd_end, e), style = MaterialTheme.typography.bodyMedium)
                 Slider(value = e.toFloat(), onValueChange = { e = it.roundToInt() }, valueRange = 0f..23f, steps = 22)
                 Text(
-                    "这段时间她不会主动发消息；跨过午夜也可以。",
+                    stringResource(R.string.settings_dnd_desc),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(s, e) }) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { TextButton(onClick = { onConfirm(s, e) }) { Text(stringResource(R.string.settings_action_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_action_cancel)) } },
     )
 }

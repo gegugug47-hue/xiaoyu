@@ -58,12 +58,14 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 
 enum class Screen {
     Chat, Memory, Diary, Settings, Persona, Search, Gallery, Relation, Diagnostics, Usage,
@@ -99,7 +101,7 @@ fun XiaoyuRoot(viewModel: AppViewModel = hiltViewModel()) {
             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center,
         ) {
-            Text("小鱼", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
         }
         return
     }
@@ -285,10 +287,10 @@ private fun OnboardingScreen(viewModel: AppViewModel) {
                 0 -> {
                     FishWander(MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(6.dp))
-                    Text("小鱼", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "她不只是 AI，她是一个会记得你的人",
+                        stringResource(R.string.app_onboarding_tagline),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center,
@@ -301,24 +303,24 @@ private fun OnboardingScreen(viewModel: AppViewModel) {
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Bullet("她会记得你说过的事，很久以后也能提起。")
-                        Bullet("她有自己的情绪和生活，不总是同一种语气。")
-                        Bullet("她会偶尔主动找你，像真的在等你回消息。")
-                        Bullet("聊天记录只增不删；看不惯的记忆，可以丢进回收站。")
+                        Bullet(stringResource(R.string.app_onboarding_bullet_memory))
+                        Bullet(stringResource(R.string.app_onboarding_bullet_mood))
+                        Bullet(stringResource(R.string.app_onboarding_bullet_proactive))
+                        Bullet(stringResource(R.string.app_onboarding_bullet_records))
                     }
                     Spacer(Modifier.height(28.dp))
                     Button(
                         onClick = { step = 1 },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(16.dp),
-                    ) { Text("下一步") }
+                    ) { Text(stringResource(R.string.app_onboarding_next)) }
                 }
 
                 1 -> {
-                    Text("接入模型", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.app_onboarding_model_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "填一个你自己的 Key，她才会真正“活”起来；也可以先跳过，用示例模式逛一逛。",
+                        stringResource(R.string.app_onboarding_model_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -344,9 +346,9 @@ private fun OnboardingScreen(viewModel: AppViewModel) {
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text("接口地址") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = baseUrl, onValueChange = { baseUrl = it }, label = { Text(stringResource(R.string.app_onboarding_base_url)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("模型名") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text(stringResource(R.string.app_onboarding_model_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = apiKey, onValueChange = { apiKey = it }, label = { Text("API Key") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(20.dp))
@@ -369,21 +371,21 @@ private fun OnboardingScreen(viewModel: AppViewModel) {
                         enabled = apiKey.isNotBlank() || kind == com.xiaoyu.app.data.settings.ProviderKind.OLLAMA,
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(16.dp),
-                    ) { Text("保存并继续") }
-                    TextButton(onClick = { step = 2 }) { Text("先跳过，用示例模式") }
+                    ) { Text(stringResource(R.string.app_onboarding_save_continue)) }
+                    TextButton(onClick = { step = 2 }) { Text(stringResource(R.string.app_onboarding_skip_demo)) }
                 }
 
                 2 -> {
-                    Text("她是谁", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.app_onboarding_who_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "选一个身份和说话风格；之后可以在设置里随时改。",
+                        stringResource(R.string.app_onboarding_who_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(16.dp))
-                    Text("身份", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.app_onboarding_identity_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                     identities.forEach { identity ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -403,7 +405,7 @@ private fun OnboardingScreen(viewModel: AppViewModel) {
                         )
                     }
                     Spacer(Modifier.height(14.dp))
-                    Text("说话风格", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.app_onboarding_style_label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         styles.forEach { style ->
@@ -419,7 +421,7 @@ private fun OnboardingScreen(viewModel: AppViewModel) {
                         onClick = { step = 3 },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(16.dp),
-                    ) { Text("继续") }
+                    ) { Text(stringResource(R.string.app_onboarding_continue)) }
                 }
 
                 else -> {
@@ -511,10 +513,10 @@ private fun OnboardingSteps345(
     var address by rememberSaveable { mutableStateOf(formOfAddress) }
     when (step) {
         3 -> {
-            Text("怎么称呼你", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.app_onboarding_name_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             Text(
-                "她会记住这个称呼。留空也可以，她就会用「你」来叫你。",
+                stringResource(R.string.app_onboarding_name_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -523,8 +525,8 @@ private fun OnboardingSteps345(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it.take(12) },
-                label = { Text("她叫你") },
-                placeholder = { Text("例如：小满") },
+                label = { Text(stringResource(R.string.app_onboarding_call_you_label)) },
+                placeholder = { Text(stringResource(R.string.app_onboarding_call_you_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -532,8 +534,8 @@ private fun OnboardingSteps345(
             OutlinedTextField(
                 value = address,
                 onValueChange = { address = it.take(12) },
-                label = { Text("你怎么叫她（选填）") },
-                placeholder = { Text("例如：小鱼") },
+                label = { Text(stringResource(R.string.app_onboarding_call_her_label)) },
+                placeholder = { Text(stringResource(R.string.app_onboarding_call_her_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -542,14 +544,14 @@ private fun OnboardingSteps345(
                 onClick = { onStep(4) },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(16.dp),
-            ) { Text("继续") }
+            ) { Text(stringResource(R.string.app_onboarding_continue)) }
         }
 
         4 -> {
-            Text("让她找到你", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.app_onboarding_notify_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(10.dp))
             Text(
-                "她可能会在合适的时间主动找你。允许通知，才不会错过她的消息；不同意也没关系，App 里依然能看到。",
+                stringResource(R.string.app_onboarding_notify_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -562,9 +564,9 @@ private fun OnboardingSteps345(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Bullet("通知权限：她主动发消息时提醒你。")
-                Bullet("精确闹钟：早安、晚安和生活碎片才不会被系统拖延。")
-                Bullet("电池优化白名单：杀后台的机型上，她不容易「失联」。")
+                Bullet(stringResource(R.string.app_onboarding_bullet_notify))
+                Bullet(stringResource(R.string.app_onboarding_bullet_alarm))
+                Bullet(stringResource(R.string.app_onboarding_bullet_battery))
             }
             Spacer(Modifier.height(24.dp))
             Button(
@@ -574,13 +576,13 @@ private fun OnboardingSteps345(
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(16.dp),
-            ) { Text("开启通知") }
+            ) { Text(stringResource(R.string.app_onboarding_enable_notify)) }
             Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { onStep(5) }) { Text("先不开启，继续") }
+            TextButton(onClick = { onStep(5) }) { Text(stringResource(R.string.app_onboarding_skip_notify)) }
         }
 
         else -> {
-            Text("三个小提示", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.app_onboarding_tips_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(12.dp))
             Column(
                 modifier = Modifier
@@ -589,19 +591,19 @@ private fun OnboardingSteps345(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Bullet("长按消息可以引用、编辑或撤回；她的记忆会跟着修正。")
-                Bullet("聊天记录只增不删，删除只是收进回收站，随时能捞回来。")
-                Bullet("设置里可以改她的身份、说话风格，以及备份与恢复。")
+                Bullet(stringResource(R.string.app_onboarding_bullet_long_press))
+                Bullet(stringResource(R.string.app_onboarding_bullet_records_bin))
+                Bullet(stringResource(R.string.app_onboarding_bullet_settings))
             }
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = { complete(name, address) },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(16.dp),
-            ) { Text("开始和她聊天") }
+            ) { Text(stringResource(R.string.app_onboarding_start_chat)) }
             Spacer(Modifier.height(10.dp))
             Text(
-                "清空应用数据可以重新走一遍引导。",
+                stringResource(R.string.app_onboarding_reset_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

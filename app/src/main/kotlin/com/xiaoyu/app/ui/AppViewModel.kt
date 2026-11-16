@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.prompt.PromptAssetSource
 import com.xiaoyu.app.data.backup.BackupImporter
 import com.xiaoyu.app.data.backup.BackupRepository
@@ -312,12 +313,12 @@ class AppViewModel @Inject constructor(
             _localAiChecking.value = false
             _toast.value = when {
                 health == null ->
-                    "连不上本地 AI 服务（$base），请确认网关已启动、手机和电脑在同一 WiFi。"
+                    appContext.getString(R.string.vm_local_ai_unreachable, base)
                 !health.comfyAvailable && !health.ttsAvailable ->
-                    "网关已连接，但 ComfyUI 和 TTS 都没就绪，请到电脑上启动服务。"
-                !health.comfyAvailable -> "网关已连接，TTS 可用；ComfyUI 未就绪，暂时不能生图。"
-                !health.ttsAvailable -> "网关已连接，ComfyUI 可用；TTS 未就绪，暂时不能朗读。"
-                else -> "本地 AI 服务连接正常：生图、语音都可用。"
+                    appContext.getString(R.string.vm_local_ai_not_ready)
+                !health.comfyAvailable -> appContext.getString(R.string.vm_local_ai_image_unavailable)
+                !health.ttsAvailable -> appContext.getString(R.string.vm_local_ai_tts_unavailable)
+                else -> appContext.getString(R.string.vm_local_ai_ok)
             }
         }
     }
@@ -358,7 +359,7 @@ class AppViewModel @Inject constructor(
         stopVoice()
         val base = localAiUrl.value
         if (!localAiRepo.isConfigured(base)) {
-            _toast.value = "未配置本地 AI 服务，请到设置里填写电脑网关地址和 Token。"
+            _toast.value = appContext.getString(R.string.vm_local_ai_not_configured)
             return
         }
         _synthesizingMessageId.value = messageId
@@ -372,7 +373,7 @@ class AppViewModel @Inject constructor(
             if (_synthesizingMessageId.value != messageId) return@launch
             _synthesizingMessageId.value = null
             if (file == null) {
-                _toast.value = "语音合成失败，请确认电脑上的 TTS 服务和网关都在运行。"
+                _toast.value = appContext.getString(R.string.vm_tts_failed)
                 return@launch
             }
             _playingMessageId.value = messageId
@@ -389,7 +390,7 @@ class AppViewModel @Inject constructor(
                 }
                 mediaPlayer = mp
             }.onFailure {
-                _toast.value = "语音播放失败。"
+                _toast.value = appContext.getString(R.string.vm_voice_play_failed)
                 _playingMessageId.value = null
             }
         }
@@ -444,7 +445,7 @@ class AppViewModel @Inject constructor(
         if (_generatingImage.value) return
         val base = localAiUrl.value
         if (!localAiRepo.isConfigured(base)) {
-            _toast.value = "未配置本地 AI 服务，请到设置里填写电脑网关地址和 Token。"
+            _toast.value = appContext.getString(R.string.vm_local_ai_not_configured)
             return
         }
         _generatingImage.value = true
@@ -458,7 +459,7 @@ class AppViewModel @Inject constructor(
             )
             _generatingImage.value = false
             if (file == null) {
-                _toast.value = "生图失败，请确认电脑上的 ComfyUI 服务和网关都在运行。"
+                _toast.value = appContext.getString(R.string.vm_image_generate_failed)
                 return@launch
             }
             chatRepo.insertImageMessage(sessionId, "画了一张：$prompt", file.absolutePath)
@@ -600,7 +601,7 @@ class AppViewModel @Inject constructor(
 
     /** 系统没有可用的语音输入时给一句提示（M7-06）。 */
     fun notifyVoiceUnavailable() {
-        _toast.value = "这台设备没有可用的语音输入，请先在系统里启用输入法的语音服务。"
+        _toast.value = appContext.getString(R.string.vm_voice_input_unavailable)
     }
 
     /** 重新生成：软隐藏这条 AI 消息，让她换个说法。 */
@@ -620,7 +621,7 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: "重新生成失败"
+                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_regenerate_failed)
             } finally {
                 finishGeneration(serial)
             }
@@ -647,7 +648,7 @@ class AppViewModel @Inject constructor(
             pokeCount = 0
         }
         if (pokeCount >= POKE_DAILY_LIMIT) {
-            _toast.value = "她不想被戳了，过一会儿再试试"
+            _toast.value = appContext.getString(R.string.vm_poke_limit)
             return
         }
         pokeCount += 1
@@ -675,7 +676,7 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: "戳失败"
+                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_poke_failed)
             } finally {
                 finishGeneration(serial)
             }
@@ -691,7 +692,7 @@ class AppViewModel @Inject constructor(
         if (text.isEmpty()) return
         viewModelScope.launch {
             memoryRepo.writeUserCommandCard(text, listOf("收藏"), "EVENT")
-            _toast.value = "她记住了这句话"
+            _toast.value = appContext.getString(R.string.vm_message_saved_memory)
         }
     }
 
@@ -729,7 +730,7 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: "消息发送失败"
+                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_send_failed)
             } finally {
                 finishGeneration(serial)
             }
@@ -749,7 +750,7 @@ class AppViewModel @Inject constructor(
     fun retract(messageId: Long, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
             val ok = chatRepo.retract(messageId)
-            if (!ok) _toast.value = "只能在 2 分钟内撤回自己的消息"
+            if (!ok) _toast.value = appContext.getString(R.string.vm_retract_too_late)
             onResult(ok)
         }
     }
@@ -769,7 +770,7 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: "编辑重发失败"
+                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_edit_resend_failed)
             } finally {
                 finishGeneration(serial)
             }
@@ -791,7 +792,7 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: "重发失败"
+                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_resend_failed)
             } finally {
                 finishGeneration(serial)
             }
@@ -807,12 +808,16 @@ class AppViewModel @Inject constructor(
     // ---- 在线状态（执行书 1.3 #32）：由 energy + 时段推导 ----
     val onlineStatus: StateFlow<String> = stateRepo.observeMood()
         .map { row -> deriveOnlineStatus(row?.energy ?: 60, java.time.LocalTime.now().hour) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "在线")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), appContext.getString(R.string.vm_status_online))
 
     private fun deriveOnlineStatus(energy: Int, hour: Int): String = when {
-        energy < 25 -> if (hour in 0..6 || hour >= 23) "睡觉" else "离开"
-        energy < 50 -> "忙碌"
-        else -> "在线"
+        energy < 25 -> if (hour in 0..6 || hour >= 23) {
+            appContext.getString(R.string.vm_status_sleeping)
+        } else {
+            appContext.getString(R.string.vm_status_away)
+        }
+        energy < 50 -> appContext.getString(R.string.vm_status_busy)
+        else -> appContext.getString(R.string.vm_status_online)
     }
 
     /** 刷新关系页（进入页面时调用）。 */
@@ -902,7 +907,7 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: "继续失败"
+                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_continue_failed)
             } finally {
                 finishGeneration(serial)
             }
@@ -982,12 +987,12 @@ class AppViewModel @Inject constructor(
             backgroundMutex.withLock {
                 val name = backgroundStore.importFrom(uri)
                 if (name == null) {
-                    _toast.value = "这张图片打不开，换一张试试"
+                    _toast.value = appContext.getString(R.string.vm_background_open_failed)
                 } else {
                     settingsRepo.update { it.copy(chatBackground = name) }
                     // 只保留正在使用的这张，避免旧图越积越多
                     backgroundStore.trim(name)
-                    _toast.value = "聊天背景已更新"
+                    _toast.value = appContext.getString(R.string.vm_background_updated)
                 }
             }
         }
@@ -999,7 +1004,7 @@ class AppViewModel @Inject constructor(
                 val name = settings.value.chatBackground
                 settingsRepo.update { it.copy(chatBackground = null) }
                 backgroundStore.delete(name)
-                _toast.value = "已恢复默认背景"
+                _toast.value = appContext.getString(R.string.vm_background_reset)
             }
         }
     }
@@ -1074,7 +1079,7 @@ class AppViewModel @Inject constructor(
             if (stateRepo.secretShareable()) {
                 stateRepo.unlockDiary(id)
             } else {
-                _toast.value = "她还不太愿意给你看这本日记，再熟一点吧。"
+                _toast.value = appContext.getString(R.string.vm_diary_locked)
             }
         }
     }
@@ -1089,13 +1094,26 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val file = backupRepo.createBackupFile(password)
             refreshBackups()
-            _toast.value = if (file != null) "已备份：${file.name}${if (password.isNullOrBlank()) "" else "（已加密）"}" else "备份失败，请检查存储空间"
+            _toast.value = if (file != null) {
+                appContext.getString(
+                    if (password.isNullOrBlank()) R.string.vm_backup_created else R.string.vm_backup_created_encrypted,
+                    file.name,
+                )
+            } else {
+                appContext.getString(R.string.vm_backup_failed)
+            }
         }
     }
 
     fun exportBackup(uri: Uri, password: String? = null) {
         viewModelScope.launch {
-            _toast.value = if (backupRepo.exportTo(uri, password)) "已导出备份${if (password.isNullOrBlank()) "" else "（已加密）"}" else "导出失败"
+            _toast.value = if (backupRepo.exportTo(uri, password)) {
+                appContext.getString(
+                    if (password.isNullOrBlank()) R.string.vm_backup_exported else R.string.vm_backup_exported_encrypted,
+                )
+            } else {
+                appContext.getString(R.string.vm_backup_export_failed)
+            }
         }
     }
 
@@ -1109,9 +1127,9 @@ class AppViewModel @Inject constructor(
                 is BackupImporter.ImportResult.Success -> {
                     refreshBackups()
                     _toast.value = if (result.restartRequired) {
-                        "备份已导入，重启 App 后生效（已自动生成回滚快照）"
+                        appContext.getString(R.string.vm_backup_imported_restart)
                     } else {
-                        "已合并 ${result.mergedRows} 条数据"
+                        appContext.getString(R.string.vm_backup_merged, result.mergedRows)
                     }
                 }
                 is BackupImporter.ImportResult.Failure -> _toast.value = result.message
@@ -1123,7 +1141,7 @@ class AppViewModel @Inject constructor(
     fun exportSessionMarkdown(sessionId: Long) {
         viewModelScope.launch {
             _toast.value = when (val result = markdownExporter.exportSession(sessionId)) {
-                is MarkdownExporter.ExportResult.Success -> "已导出到 ${result.displayPath}"
+                is MarkdownExporter.ExportResult.Success -> appContext.getString(R.string.vm_exported_to, result.displayPath)
                 is MarkdownExporter.ExportResult.Failure -> result.message
             }
         }
@@ -1133,7 +1151,7 @@ class AppViewModel @Inject constructor(
     fun exportDiaryMarkdown(diaryId: Long) {
         viewModelScope.launch {
             _toast.value = when (val result = markdownExporter.exportDiary(diaryId)) {
-                is MarkdownExporter.ExportResult.Success -> "已导出到 ${result.displayPath}"
+                is MarkdownExporter.ExportResult.Success -> appContext.getString(R.string.vm_exported_to, result.displayPath)
                 is MarkdownExporter.ExportResult.Failure -> result.message
             }
         }
@@ -1146,11 +1164,14 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val result = personaPackArchive.export(identityId)
             val exported = result.getOrElse {
-                _toast.value = "导出人格包失败：${it.message ?: "未知错误"}"
+                _toast.value = appContext.getString(
+                    R.string.vm_persona_export_failed,
+                    it.message ?: appContext.getString(R.string.vm_unknown_error),
+                )
                 return@launch
             }
-            shareFile(personaPackArchive.shareIntent(exported.file), "分享人格包")
-            _toast.value = "人格包已生成（${exported.bytes / 1024} KB）"
+            shareFile(personaPackArchive.shareIntent(exported.file), appContext.getString(R.string.vm_share_persona))
+            _toast.value = appContext.getString(R.string.vm_persona_created, exported.bytes / 1024)
         }
     }
 
@@ -1158,21 +1179,26 @@ class AppViewModel @Inject constructor(
     fun importPersonaPack(uri: Uri, confirmLargeIdentity: Boolean = false) {
         viewModelScope.launch {
             val temp = copyToCache(uri, "xypersona") ?: run {
-                _toast.value = "读取人格包失败，请重新选择文件"
+                _toast.value = appContext.getString(R.string.vm_persona_read_failed)
                 return@launch
             }
             try {
                 val result = personaPackArchive.import(temp, confirmLargeIdentity)
                 result.onSuccess { imported ->
                     _toast.value = when {
-                        imported.requiresConfirmation -> imported.warnings.firstOrNull() ?: "身份设定过大，需要确认"
+                        imported.requiresConfirmation ->
+                            imported.warnings.firstOrNull() ?: appContext.getString(R.string.vm_persona_too_large)
                         else -> buildString {
-                            append("已导入「${imported.identityName}」")
-                            if (imported.styleIds.isNotEmpty()) append("，风格 ${imported.styleIds.size} 个")
-                            if (imported.promptFiles.isNotEmpty()) append("，模板 ${imported.promptFiles.size} 个（未自动应用）")
+                            append(appContext.getString(R.string.vm_persona_imported, imported.identityName))
+                            if (imported.styleIds.isNotEmpty()) {
+                                append(appContext.getString(R.string.vm_persona_imported_styles, imported.styleIds.size))
+                            }
+                            if (imported.promptFiles.isNotEmpty()) {
+                                append(appContext.getString(R.string.vm_persona_imported_prompts, imported.promptFiles.size))
+                            }
                         }
                     }
-                }.onFailure { _toast.value = it.message ?: "导入失败" }
+                }.onFailure { _toast.value = it.message ?: appContext.getString(R.string.vm_import_failed) }
             } finally {
                 runCatching { temp.delete() }
             }
@@ -1185,27 +1211,32 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val result = stickerPackArchive.export(packId)
             val file = result.getOrElse {
-                _toast.value = "导出表情包失败：${it.message ?: "未知错误"}"
+                _toast.value = appContext.getString(
+                    R.string.vm_sticker_export_failed,
+                    it.message ?: appContext.getString(R.string.vm_unknown_error),
+                )
                 return@launch
             }
-            shareFile(stickerPackArchive.shareIntent(file), "分享表情包")
+            shareFile(stickerPackArchive.shareIntent(file), appContext.getString(R.string.vm_share_sticker))
         }
     }
 
     fun importStickerPack(uri: Uri) {
         viewModelScope.launch {
             val temp = copyToCache(uri, "xystickers") ?: run {
-                _toast.value = "读取表情包失败，请重新选择文件"
+                _toast.value = appContext.getString(R.string.vm_sticker_read_failed)
                 return@launch
             }
             try {
                 val result = stickerPackArchive.import(temp)
                 result.onSuccess { imported ->
                     _toast.value = when {
-                        imported.alreadyExists -> "「${imported.packName}」已经在本地了"
-                        else -> "已导入表情包「${imported.packName}」，共 ${imported.imported} 张"
+                        imported.alreadyExists ->
+                            appContext.getString(R.string.vm_sticker_already_exists, imported.packName)
+                        else ->
+                            appContext.getString(R.string.vm_sticker_imported, imported.packName, imported.imported)
                     }
-                }.onFailure { _toast.value = it.message ?: "导入失败" }
+                }.onFailure { _toast.value = it.message ?: appContext.getString(R.string.vm_import_failed) }
             } finally {
                 runCatching { temp.delete() }
             }
@@ -1220,12 +1251,12 @@ class AppViewModel @Inject constructor(
      */
     fun describeImageForHer(path: String, sessionId: Long) {
         viewModelScope.launch {
-            _toast.value = "她正在仔细看…"
+            _toast.value = appContext.getString(R.string.vm_vision_looking)
             when (val result = visionRepo.describeImage(path)) {
                 is VisionRepository.Result.Described -> {
                     val line = result.description.ifBlank { "这幅画我看不太懂，但我喜欢它。" }
                     chatRepo.saveProactiveMessage(sessionId, line)
-                    _toast.value = "她看完了这张图"
+                    _toast.value = appContext.getString(R.string.vm_vision_done)
                 }
                 is VisionRepository.Result.Unsupported -> _toast.value = result.message
                 is VisionRepository.Result.Failed -> _toast.value = result.message
@@ -1237,7 +1268,7 @@ class AppViewModel @Inject constructor(
         val chooser = Intent.createChooser(intent, chooserTitle)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { appContext.startActivity(chooser) }
-            .onFailure { _toast.value = "没有可以分享的应用" }
+            .onFailure { _toast.value = appContext.getString(R.string.vm_no_share_app) }
     }
 
     /** 把 SAF 选择的文件复制到 cache，供解析器按真实路径读取；失败返回 null。 */

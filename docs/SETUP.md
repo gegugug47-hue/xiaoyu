@@ -52,6 +52,7 @@ sdk.dir=C\:\\Users\\<用户名>\\AppData\\Local\\Android\\Sdk
 | 编译 Debug | `.\gradlew.bat :app:assembleDebug` |
 | 安装到设备 | `.\gradlew.bat :app:installDebug` |
 | 只跑纯 JVM 单元测试 | `.\gradlew.bat :soul:test` |
+| 单测 + 覆盖率门禁（≥80%） | `.\gradlew.bat :soul:check` |
 | 全量检查 | `.\gradlew.bat check` |
 | 模块边界检查 | `.\gradlew.bat assertModuleDeps` |
 
@@ -172,7 +173,7 @@ release 任务会启用 ABI 拆分，输出：
 
 1. 确认 `CHANGELOG.md` 已准备好。
 2. 打标签并推送：`git tag v1.0.0`、`git push origin v1.0.0`。
-3. CI 依次执行 `:soul:test`、`:app:assembleRelease`，重命名产物并生成校验和。
+3. CI 依次执行 `:soul:check`（单测 + 覆盖率门禁）、`:app:assembleRelease`，重命名产物并生成校验和。
 4. 产物：`app-v1.0.0-armeabi-v7a.apk`、`app-v1.0.0-arm64-v8a.apk`、`app-v1.0.0-x86_64.apk`、`app-v1.0.0-SHA256SUMS.txt`。
 5. GitHub Release 自动创建；随后 CI 尝试把版本条目写回 `CHANGELOG.md`。
 

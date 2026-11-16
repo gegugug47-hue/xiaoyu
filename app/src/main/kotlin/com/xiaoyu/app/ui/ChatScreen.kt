@@ -2,6 +2,7 @@ package com.xiaoyu.app.ui
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -115,6 +116,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -128,6 +130,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.MessageEntity
 import com.xiaoyu.app.data.db.SessionEntity
 import com.xiaoyu.app.data.db.StickerEntity
@@ -337,22 +340,22 @@ private fun ChatPane(
             topBar = {
                 if (selectionMode) {
                     TopAppBar(
-                        title = { Text("已选 ${selectedIds.size} 条") },
+                        title = { Text(stringResource(R.string.chat_selected_count, selectedIds.size)) },
                         navigationIcon = {
                             TextButton(onClick = {
                                 selectionMode = false
                                 selectedIds = emptySet()
-                            }) { Text("取消") }
+                            }) { Text(stringResource(R.string.chat_cancel)) }
                         },
                         actions = {
                             TextButton(onClick = {
                                 val all = if (isContinuous) allMessages else messages
                                 selectedIds = all.map { it.id }.toSet()
-                            }) { Text("全选") }
+                            }) { Text(stringResource(R.string.chat_select_all)) }
                             TextButton(
                                 onClick = { confirmDeleteSelected = true },
                                 enabled = selectedIds.isNotEmpty(),
-                            ) { Text("删除") }
+                            ) { Text(stringResource(R.string.chat_delete)) }
                             TextButton(
                                 onClick = {
                                     if (selectedIds.isEmpty()) return@TextButton
@@ -363,7 +366,7 @@ private fun ChatPane(
                                     }
                                 },
                                 enabled = selectedIds.isNotEmpty(),
-                            ) { Text("导出") }
+                            ) { Text(stringResource(R.string.chat_export)) }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = paneBg,
@@ -381,9 +384,14 @@ private fun ChatPane(
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = if (isContinuous) {
-                                    "小鱼 · $moodLabel · $online"
+                                    stringResource(R.string.chat_title_continuous, moodLabel, online)
                                 } else {
-                                    "${current?.title ?: "小鱼"} · $moodLabel · $online"
+                                    stringResource(
+                                        R.string.chat_title_session,
+                                        current?.title ?: stringResource(R.string.chat_her_name),
+                                        moodLabel,
+                                        online,
+                                    )
                                 },
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onBackground,
@@ -395,27 +403,27 @@ private fun ChatPane(
                     navigationIcon = {
                         if (onOpenDrawer != null) {
                             IconButton(onClick = onOpenDrawer) {
-                                Icon(Icons.Default.Menu, contentDescription = "菜单")
+                                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.chat_menu))
                             }
                         }
                     },
                     actions = {
-                        TextButton(onClick = { viewModel.poke() }) { Text("戳一下") }
+                        TextButton(onClick = { viewModel.poke() }) { Text(stringResource(R.string.chat_poke)) }
                         if (isContinuous) {
-                            TextButton(onClick = { viewModel.startNewTopic() }) { Text("新话题") }
+                            TextButton(onClick = { viewModel.startNewTopic() }) { Text(stringResource(R.string.chat_new_topic)) }
                         } else {
-                            TextButton(onClick = { viewModel.newSession() }) { Text("新对话") }
+                            TextButton(onClick = { viewModel.newSession() }) { Text(stringResource(R.string.chat_new_chat)) }
                         }
                         Box {
                             IconButton(onClick = { showMoreMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.chat_more))
                             }
                             DropdownMenu(
                                 expanded = showMoreMenu,
                                 onDismissRequest = { showMoreMenu = false },
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("导出对话为 Markdown") },
+                                    text = { Text(stringResource(R.string.chat_export_markdown)) },
                                     onClick = {
                                         showMoreMenu = false
                                         sessionId?.let { viewModel.exportSessionMarkdown(it) }
@@ -448,8 +456,9 @@ private fun ChatPane(
                 val quoteMap = remember(displayMessages) {
                     displayMessages.associate { it.id to it.content }
                 }
+                val context = LocalContext.current
                 val timeline = remember(displayMessages, showTopicDividers, isContinuous) {
-                    if (isContinuous) buildTimeline(displayMessages, showTopicDividers) else emptyList()
+                    if (isContinuous) buildTimeline(context, displayMessages, showTopicDividers) else emptyList()
                 }
                 LaunchedEffect(displayMessages.size, streaming.isNotEmpty(), typing) {
                     val extra = (if (typing) 1 else 0) + (if (streaming.isNotEmpty()) 1 else 0)
@@ -548,7 +557,7 @@ private fun ChatPane(
                         } else if (typing) {
                             item("typing") {
                                 Text(
-                                    "她正在输入…",
+                                    stringResource(R.string.chat_typing),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(start = 6.dp),
@@ -559,7 +568,7 @@ private fun ChatPane(
                     // 空会话/空列表时给一句引导，避免出现一片空白
                     if (displayMessages.isEmpty() && streaming.isEmpty() && !typing) {
                         Text(
-                            "说点什么吧，她会记得你。",
+                            stringResource(R.string.chat_empty_hint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -583,9 +592,9 @@ private fun ChatPane(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (canContinue) {
-                            TextButton(onClick = { viewModel.continueReply() }) { Text("继续") }
+                            TextButton(onClick = { viewModel.continueReply() }) { Text(stringResource(R.string.chat_continue)) }
                         }
-                        TextButton(onClick = { viewModel.dismissError() }) { Text("知道了") }
+                        TextButton(onClick = { viewModel.dismissError() }) { Text(stringResource(R.string.chat_dismiss_error)) }
                     }
                 }
 
@@ -632,7 +641,18 @@ private fun ChatPane(
                         )
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("回复：${if (q.role == ROLE_USER) "我" else "小鱼"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                stringResource(
+                                    R.string.chat_reply_prefix,
+                                    if (q.role == ROLE_USER) {
+                                        stringResource(R.string.chat_self)
+                                    } else {
+                                        stringResource(R.string.chat_her_name)
+                                    },
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                             Text(
                                 q.content.take(50),
                                 style = MaterialTheme.typography.bodySmall,
@@ -642,7 +662,7 @@ private fun ChatPane(
                             )
                         }
                         IconButton(onClick = { viewModel.cancelQuote() }) {
-                            Icon(Icons.Default.Close, contentDescription = "取消引用")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.chat_cancel_quote))
                         }
                     }
                 }
@@ -693,57 +713,57 @@ private fun ChatPane(
                     TextButton(onClick = {
                         menuMessage = null
                         viewModel.poke()
-                    }) { Text("戳一下她") }
+                    }) { Text(stringResource(R.string.chat_poke_her)) }
                     if (target.content.isNotBlank() && !target.retracted) {
                         TextButton(onClick = {
                             viewModel.quote(target)
                             menuMessage = null
-                        }) { Text("引用回复") }
+                        }) { Text(stringResource(R.string.chat_quote_reply)) }
                     }
                     if (target.role == ROLE_USER && !target.retracted) {
                         TextButton(onClick = {
                             menuMessage = null
                             confirmRetract = target
-                        }) { Text("撤回") }
+                        }) { Text(stringResource(R.string.chat_retract)) }
                         TextButton(onClick = {
                             menuMessage = null
                             editingMessage = target
-                        }) { Text("编辑") }
+                        }) { Text(stringResource(R.string.chat_edit)) }
                     }
                     if (target.content.isNotBlank()) {
                         TextButton(onClick = {
                             clipboard.setText(AnnotatedString(target.content.split("\n").filterNot { it.startsWith(ACTION_PREFIX) }.joinToString("\n")))
                             menuMessage = null
-                        }) { Text("复制") }
+                        }) { Text(stringResource(R.string.chat_copy)) }
                     }
                     if (target.role == ROLE_ASSISTANT) {
                         TextButton(onClick = {
                             menuMessage = null
                             viewModel.regenerate(target)
-                        }) { Text("重新生成") }
+                        }) { Text(stringResource(R.string.chat_regenerate)) }
                         // M3-06：同组历史版本（重新生成不会丢掉旧版本）
                         if (target.replyGroupId != null) {
                             TextButton(onClick = {
                                 menuMessage = null
                                 versionTarget = target
-                            }) { Text("查看之前的版本") }
+                            }) { Text(stringResource(R.string.chat_view_versions)) }
                         }
                     }
                     if (target.content.isNotBlank()) {
                         TextButton(onClick = {
                             menuMessage = null
                             viewModel.rememberMessage(target)
-                        }) { Text("收藏并让她记住") }
+                        }) { Text(stringResource(R.string.chat_remember)) }
                     }
                     TextButton(onClick = {
                         menuMessage = null
                         confirmHide = target
-                    }) { Text("隐藏这条消息") }
+                    }) { Text(stringResource(R.string.chat_hide_message)) }
                     TextButton(onClick = {
                         menuMessage = null
                         selectionMode = true
                         selectedIds = setOf(target.id)
-                    }) { Text("多选") }
+                    }) { Text(stringResource(R.string.chat_multi_select)) }
                     Spacer(Modifier.height(16.dp))
                 }
             }
@@ -756,10 +776,10 @@ private fun ChatPane(
                 sheetState = rememberModalBottomSheetState(),
             ) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    Text("回复的历史版本", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.chat_versions_title), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "共 ${versions.size} 个版本，点一下切换。旧版本只会被收起，不会从记录里删除。",
+                        stringResource(R.string.chat_versions_desc, versions.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -792,12 +812,16 @@ private fun ChatPane(
                             ) {
                                 Column {
                                     Text(
-                                        "版本 ${versions.indexOf(version) + 1}" + if (isCurrent) " · 当前" else "",
+                                        if (isCurrent) {
+                                            stringResource(R.string.chat_version_label_current, versions.indexOf(version) + 1)
+                                        } else {
+                                            stringResource(R.string.chat_version_label, versions.indexOf(version) + 1)
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Text(
-                                        versionPreview(version.content),
+                                        versionPreview(version.content, stringResource(R.string.chat_version_empty)),
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 3,
                                         overflow = TextOverflow.Ellipsis,
@@ -815,39 +839,39 @@ private fun ChatPane(
         confirmHide?.let { target ->
             AlertDialog(
                 onDismissRequest = { confirmHide = null },
-                title = { Text("隐藏这条消息？") },
-                text = { Text("聊天记录不会被真正删除，只是从对话里收起来。") },
+                title = { Text(stringResource(R.string.chat_hide_confirm_title)) },
+                text = { Text(stringResource(R.string.chat_hide_confirm_text)) },
                 confirmButton = {
                     TextButton(onClick = {
                         confirmHide = null
                         viewModel.hideMessage(target.id)
-                    }) { Text("隐藏") }
+                    }) { Text(stringResource(R.string.chat_hide)) }
                 },
-                dismissButton = { TextButton(onClick = { confirmHide = null }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { confirmHide = null }) { Text(stringResource(R.string.chat_cancel)) } },
             )
         }
 
         confirmRetract?.let { target ->
             AlertDialog(
                 onDismissRequest = { confirmRetract = null },
-                title = { Text("撤回这条消息？") },
-                text = { Text("对方将看到“你撤回了一条消息”，2 分钟内可撤回。") },
+                title = { Text(stringResource(R.string.chat_retract_confirm_title)) },
+                text = { Text(stringResource(R.string.chat_retract_confirm_text)) },
                 confirmButton = {
                     TextButton(onClick = {
                         val id = target.id
                         confirmRetract = null
                         viewModel.retract(id)
-                    }) { Text("撤回") }
+                    }) { Text(stringResource(R.string.chat_retract)) }
                 },
-                dismissButton = { TextButton(onClick = { confirmRetract = null }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { confirmRetract = null }) { Text(stringResource(R.string.chat_cancel)) } },
             )
         }
 
         if (confirmDeleteSelected) {
             AlertDialog(
                 onDismissRequest = { confirmDeleteSelected = false },
-                title = { Text("删除选中的 ${selectedIds.size} 条消息？") },
-                text = { Text("聊天记录不会被真正删除，只是从对话里收起来。") },
+                title = { Text(stringResource(R.string.chat_delete_selected_title, selectedIds.size)) },
+                text = { Text(stringResource(R.string.chat_hide_confirm_text)) },
                 confirmButton = {
                     TextButton(onClick = {
                         val ids = selectedIds
@@ -855,9 +879,9 @@ private fun ChatPane(
                         selectionMode = false
                         selectedIds = emptySet()
                         viewModel.hideMessages(ids)
-                    }) { Text("删除") }
+                    }) { Text(stringResource(R.string.chat_delete)) }
                 },
-                dismissButton = { TextButton(onClick = { confirmDeleteSelected = false }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { confirmDeleteSelected = false }) { Text(stringResource(R.string.chat_cancel)) } },
             )
         }
 
@@ -865,7 +889,7 @@ private fun ChatPane(
             var text by remember(target.id) { mutableStateOf(target.content) }
             AlertDialog(
                 onDismissRequest = { editingMessage = null },
-                title = { Text("编辑消息") },
+                title = { Text(stringResource(R.string.chat_edit_message_title)) },
                 text = {
                     OutlinedTextField(
                         value = text,
@@ -881,9 +905,9 @@ private fun ChatPane(
                             if (newText.isNotBlank()) viewModel.editAndResend(target.id, newText)
                         },
                         enabled = text.isNotBlank(),
-                    ) { Text("发送") }
+                    ) { Text(stringResource(R.string.chat_send)) }
                 },
-                dismissButton = { TextButton(onClick = { editingMessage = null }) { Text("取消") } },
+                dismissButton = { TextButton(onClick = { editingMessage = null }) { Text(stringResource(R.string.chat_cancel)) } },
             )
         }
     }
@@ -905,13 +929,13 @@ private fun SearchContextBanner(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "已带入旧账：${context.take(40)}${if (context.length > 40) "…" else ""}",
+                stringResource(R.string.chat_search_context_prefix, context.take(40)) + if (context.length > 40) "…" else "",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            TextButton(onClick = onClear) { Text("取消") }
+            TextButton(onClick = onClear) { Text(stringResource(R.string.chat_cancel)) }
         }
     }
 }
@@ -921,14 +945,14 @@ private fun RenameSessionDialog(initial: String, onDismiss: () -> Unit, onConfir
     var title by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("给这段对话起个名字") },
+        title = { Text(stringResource(R.string.chat_rename_title)) },
         text = {
             OutlinedTextField(value = title, onValueChange = { title = it }, singleLine = true)
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(title.trim()) }, enabled = title.isNotBlank()) { Text("保存") }
+            TextButton(onClick = { onConfirm(title.trim()) }, enabled = title.isNotBlank()) { Text(stringResource(R.string.chat_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.chat_cancel)) } },
     )
 }
 
@@ -969,7 +993,7 @@ private fun MessageRow(
     // 撤回占位（M3-07）：正文不展示，只留一条居中提示
     if (message.retracted) {
         Text(
-            "你撤回了一条消息",
+            stringResource(R.string.chat_retracted_placeholder),
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -1090,18 +1114,18 @@ private fun MessageRow(
                         isSynthesizing -> TextButton(
                             onClick = onPlayVoice,
                             modifier = Modifier.height(28.dp),
-                        ) { Text("合成中…", style = MaterialTheme.typography.labelSmall) }
+                        ) { Text(stringResource(R.string.chat_synthesizing), style = MaterialTheme.typography.labelSmall) }
                         isPlaying -> TextButton(
                             onClick = onPlayVoice,
                             modifier = Modifier.height(28.dp),
-                        ) { Text("停止", style = MaterialTheme.typography.labelSmall) }
+                        ) { Text(stringResource(R.string.chat_stop), style = MaterialTheme.typography.labelSmall) }
                         else -> IconButton(
                             onClick = onPlayVoice,
                             modifier = Modifier.height(28.dp).width(28.dp),
                         ) {
                             Icon(
                                 Icons.Default.PlayArrow,
-                                contentDescription = "朗读",
+                                contentDescription = stringResource(R.string.chat_read_aloud),
                                 tint = if (onImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -1116,7 +1140,7 @@ private fun MessageRow(
                 // 编辑标记（M3-07）
                 if (message.editedAt != null) {
                     Text(
-                        "已编辑",
+                        stringResource(R.string.chat_edited),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.padding(start = 2.dp),
@@ -1125,7 +1149,7 @@ private fun MessageRow(
                 // 发送状态（M1-09）：发送中 / 失败可重发
                 when (message.status) {
                     STATUS_SENDING -> Text(
-                        "发送中…",
+                        stringResource(R.string.chat_sending),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         modifier = Modifier.padding(start = 4.dp),
@@ -1161,7 +1185,7 @@ private fun MessageRow(
                     }
                     herReaction?.let { emoji ->
                         Text(
-                            "$emoji 她",
+                            stringResource(R.string.chat_her_reaction, emoji),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(start = 2.dp),
@@ -1227,6 +1251,7 @@ private fun InputBar(
     val focusManager = LocalFocusManager.current
     val textInteraction = remember { MutableInteractionSource() }
     val focused by textInteraction.collectIsFocusedAsState()
+    val sendContentDescription = stringResource(R.string.chat_send)
 
     // 切回该人设时自动恢复草稿；切换人设时保存当前草稿（M1-09）
     LaunchedEffect(identityId) {
@@ -1322,7 +1347,7 @@ private fun InputBar(
                         focusManager.clearFocus()
                     }
                 },
-                contentDescription = if (voiceMode) "切换到键盘" else "语音输入",
+                contentDescription = if (voiceMode) stringResource(R.string.chat_switch_to_keyboard) else stringResource(R.string.chat_voice_input),
             ) {
                 if (voiceMode) {
                     KeyboardGlyph(tint = MaterialTheme.colorScheme.primary)
@@ -1351,7 +1376,7 @@ private fun InputBar(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (holding) "松开，开始说话" else "按住 说话",
+                        text = if (holding) stringResource(R.string.chat_voice_release) else stringResource(R.string.chat_voice_hold),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (holding) {
                             MaterialTheme.colorScheme.primary
@@ -1385,7 +1410,7 @@ private fun InputBar(
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (text.isEmpty()) {
                                 Text(
-                                    "说点什么…",
+                                    stringResource(R.string.chat_input_placeholder),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                 )
@@ -1398,7 +1423,7 @@ private fun InputBar(
 
             BarIconButton(
                 onClick = onToggleStickers,
-                contentDescription = if (stickersOpen) "收起表情" else "表情",
+                contentDescription = if (stickersOpen) stringResource(R.string.chat_collapse_stickers) else stringResource(R.string.chat_open_stickers),
             ) {
                 SmileyGlyph(
                     tint = if (stickersOpen) {
@@ -1422,7 +1447,7 @@ private fun InputBar(
                         .clip(CircleShape)
                         .background(sendBg)
                         .clickable(enabled = canSend, onClick = send)
-                        .semantics { contentDescription = "发送" },
+                        .semantics { contentDescription = sendContentDescription },
                     contentAlignment = Alignment.Center,
                 ) {
                     PlaneGlyph(tint = sendFg)
@@ -1569,7 +1594,7 @@ private fun SessionDrawer(
     var showArchived by remember { mutableStateOf(false) }
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 22.dp)) {
-            Text("小鱼", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.chat_her_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             Text(
                 FavorabilityLevel.of(favorability).label,
                 style = MaterialTheme.typography.labelMedium,
@@ -1577,7 +1602,7 @@ private fun SessionDrawer(
             )
             Spacer(Modifier.height(16.dp))
             Button(onClick = onNew, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-                Text(if (continuous) "开启新话题" else "开始新的聊天")
+                Text(if (continuous) stringResource(R.string.chat_drawer_new_topic) else stringResource(R.string.chat_drawer_new_chat))
             }
         }
         if (!continuous) {
@@ -1589,12 +1614,18 @@ private fun SessionDrawer(
                         selected = session.id == currentId,
                         onClick = { onSelect(session.id) },
                         onLongClick = { onRename(session) },
-                        trailing = { TextButton(onClick = { onArchive(session.id) }) { Text("归档") } },
+                        trailing = { TextButton(onClick = { onArchive(session.id) }) { Text(stringResource(R.string.chat_archive)) } },
                     )
                 }
                 item {
                     TextButton(onClick = { showArchived = !showArchived }, modifier = Modifier.padding(start = 8.dp)) {
-                        Text(if (showArchived) "收起已归档" else "已归档 (${archived.size})")
+                        Text(
+                            if (showArchived) {
+                                stringResource(R.string.chat_hide_archived)
+                            } else {
+                                stringResource(R.string.chat_archived_count, archived.size)
+                            },
+                        )
                     }
                 }
                 if (showArchived) {
@@ -1604,7 +1635,7 @@ private fun SessionDrawer(
                             selected = false,
                             onClick = { onSelect(session.id) },
                             onLongClick = { onRename(session) },
-                            trailing = { TextButton(onClick = { onUnarchive(session.id) }) { Text("恢复") } },
+                            trailing = { TextButton(onClick = { onUnarchive(session.id) }) { Text(stringResource(R.string.chat_restore)) } },
                         )
                     }
                 }
@@ -1614,12 +1645,12 @@ private fun SessionDrawer(
         }
         Divider(color = MaterialTheme.colorScheme.surfaceVariant)
         Column(Modifier.padding(vertical = 8.dp)) {
-            DrawerEntry("我们的关系", onOpenRelation)
-            DrawerEntry("翻旧账", onOpenSearch)
-            DrawerEntry("她的画", onOpenGallery)
-            DrawerEntry("她的记忆", onOpenMemory)
-            DrawerEntry("她的日记", onOpenDiary)
-            DrawerEntry("设置", onOpenSettings)
+            DrawerEntry(stringResource(R.string.chat_relation), onOpenRelation)
+            DrawerEntry(stringResource(R.string.chat_search), onOpenSearch)
+            DrawerEntry(stringResource(R.string.chat_gallery), onOpenGallery)
+            DrawerEntry(stringResource(R.string.chat_memory), onOpenMemory)
+            DrawerEntry(stringResource(R.string.chat_diary), onOpenDiary)
+            DrawerEntry(stringResource(R.string.chat_settings), onOpenSettings)
         }
     }
 }
@@ -1676,13 +1707,13 @@ private sealed interface TimelineItem {
 
 private val dayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
 
-private fun dateLabel(timestamp: Long): String {
+private fun dateLabel(context: Context, timestamp: Long): String {
     val now = System.currentTimeMillis()
     val today = dayFormat.format(Date(now))
     val that = dayFormat.format(Date(timestamp))
-    if (that == today) return "今天"
+    if (that == today) return context.getString(R.string.chat_date_today)
     val yesterday = dayFormat.format(Date(now - 24L * 60 * 60 * 1000))
-    if (that == yesterday) return "昨天"
+    if (that == yesterday) return context.getString(R.string.chat_date_yesterday)
     return that
 }
 
@@ -1691,7 +1722,7 @@ private fun dateLabel(timestamp: Long): String {
  * - 日期按天聚合：今天 / 昨天 / 具体日期；
  * - 话题分隔线落在会话切换处，用新会话第一条消息 id 锚定，保证 LazyColumn key 稳定。
  */
-private fun buildTimeline(messages: List<MessageEntity>, showTopicDividers: Boolean): List<TimelineItem> {
+private fun buildTimeline(context: Context, messages: List<MessageEntity>, showTopicDividers: Boolean): List<TimelineItem> {
     val out = ArrayList<TimelineItem>(messages.size * 2)
     var lastDay = ""
     var lastSession: Long? = null
@@ -1699,7 +1730,7 @@ private fun buildTimeline(messages: List<MessageEntity>, showTopicDividers: Bool
         val day = dayFormat.format(Date(msg.createdAt))
         if (day != lastDay) {
             lastDay = day
-            out.add(TimelineItem.DateHeader(dateLabel(msg.createdAt), msg.id))
+            out.add(TimelineItem.DateHeader(dateLabel(context, msg.createdAt), msg.id))
         }
         if (showTopicDividers && lastSession != null && lastSession != msg.sessionId) {
             out.add(TimelineItem.TopicDivider(msg.id))
@@ -1740,7 +1771,7 @@ private fun TopicDividerText(onImage: Boolean = false) {
     if (onImage) {
         Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
             Text(
-                "—— 新的话题 ——",
+                stringResource(R.string.chat_topic_divider),
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), RoundedCornerShape(50))
                     .padding(horizontal = 10.dp, vertical = 3.dp),
@@ -1751,7 +1782,7 @@ private fun TopicDividerText(onImage: Boolean = false) {
         return
     }
     Text(
-        "—— 新的话题 ——",
+        stringResource(R.string.chat_topic_divider),
         modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -1793,7 +1824,7 @@ private fun HerAvatar(onPoke: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "渔",
+            stringResource(R.string.chat_avatar_letter),
             color = MaterialTheme.colorScheme.onPrimary,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
@@ -1802,9 +1833,9 @@ private fun HerAvatar(onPoke: () -> Unit) {
 }
 
 /** 版本预览：去掉动作/情绪控制标记，只展示可见正文。 */
-private fun versionPreview(content: String): String =
+private fun versionPreview(content: String, emptyText: String): String =
     content.split("\n")
         .filterNot { it.startsWith(ACTION_PREFIX) }
         .joinToString(" ")
         .trim()
-        .ifBlank { "（这条没有正文）" }
+        .ifBlank { emptyText }

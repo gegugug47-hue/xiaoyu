@@ -34,11 +34,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.device.RomBrand
 import com.xiaoyu.app.data.device.RomCompat
 
@@ -96,64 +98,64 @@ fun BackgroundSelfCheckCard(modifier: Modifier = Modifier, lastPushAt: Long = 0L
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "后台存活自检",
+                stringResource(R.string.bgcheck_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                "她能不能准时找到你，就看下面四项。",
+                stringResource(R.string.bgcheck_subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             CheckRow(
-                title = "通知权限",
-                desc = "她发来消息时能提醒你",
+                title = stringResource(R.string.bgcheck_notification_title),
+                desc = stringResource(R.string.bgcheck_notification_desc),
                 state = if (status.notificationReady) CheckState.OK else CheckState.WARN,
-                actionLabel = "去开启",
+                actionLabel = stringResource(R.string.bgcheck_action_enable),
             ) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !status.notificationReady) {
                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else if (!openAppNotificationSettings(context)) {
-                    toast("请在系统设置 → 通知 里允许小鱼发送通知")
+                    toast(context.getString(R.string.bgcheck_toast_notification_settings))
                 }
             }
 
             CheckRow(
-                title = "精确闹钟",
-                desc = "早安、晚安和主动消息不被系统拖延",
+                title = stringResource(R.string.bgcheck_alarm_title),
+                desc = stringResource(R.string.bgcheck_alarm_desc),
                 state = if (status.exactAlarmReady) CheckState.OK else CheckState.WARN,
-                actionLabel = "去授权",
+                actionLabel = stringResource(R.string.bgcheck_action_authorize),
             ) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                    toast("当前系统不需要精确闹钟授权")
+                    toast(context.getString(R.string.bgcheck_toast_alarm_not_needed))
                 } else {
                     val intent = Intent(
                         Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                         Uri.parse("package:${context.packageName}"),
                     )
-                    if (!tryStart(context, intent)) toast("请在系统设置 → 应用 → 特殊权限 里允许「闹钟和提醒」")
+                    if (!tryStart(context, intent)) toast(context.getString(R.string.bgcheck_toast_exact_alarm_settings))
                 }
             }
 
             CheckRow(
-                title = "电池优化白名单",
-                desc = "系统不会轻易清理她的后台任务",
+                title = stringResource(R.string.bgcheck_battery_title),
+                desc = stringResource(R.string.bgcheck_battery_desc),
                 state = if (status.batteryReady) CheckState.OK else CheckState.WARN,
-                actionLabel = "去设置",
+                actionLabel = stringResource(R.string.bgcheck_action_open_settings),
             ) {
                 guide = RomCompat.openBatteryOptimization(context, status.brand)
             }
 
             CheckRow(
-                title = "自启动",
+                title = stringResource(R.string.bgcheck_autostart_title),
                 desc = if (status.autoStartPanelFound) {
-                    "无法自动检测，请确认已允许自启动"
+                    stringResource(R.string.bgcheck_autostart_desc_found)
                 } else {
-                    "没找到自启动设置页，请按指引手动设置"
+                    stringResource(R.string.bgcheck_autostart_desc_not_found)
                 },
                 state = if (status.autoStartPanelFound) CheckState.UNKNOWN else CheckState.WARN,
-                actionLabel = "去设置",
+                actionLabel = stringResource(R.string.bgcheck_action_open_settings),
             ) {
                 guide = RomCompat.openAutoStart(context, status.brand)
             }
@@ -172,14 +174,14 @@ fun BackgroundSelfCheckCard(modifier: Modifier = Modifier, lastPushAt: Long = 0L
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    "最近一次成功推送：${formatLastPush(lastPushAt)}",
+                    stringResource(R.string.bgcheck_last_push, formatLastPush(context, lastPushAt)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TextButton(onClick = {
                     copyDiagnostics(context, status)
-                    toast("诊断信息已复制")
-                }) { Text("复制诊断信息") }
+                    toast(context.getString(R.string.bgcheck_toast_copied))
+                }) { Text(stringResource(R.string.bgcheck_copy_diagnostics)) }
             }
         }
     }
@@ -245,8 +247,8 @@ private fun tryStart(context: Context, intent: Intent): Boolean = runCatching {
 }.getOrDefault(false)
 
 /** 最近一次推送时间：0 表示还没有成功推送过。 */
-private fun formatLastPush(lastPushAt: Long): String {
-    if (lastPushAt <= 0) return "还没有记录"
+private fun formatLastPush(context: Context, lastPushAt: Long): String {
+    if (lastPushAt <= 0) return context.getString(R.string.bgcheck_last_push_none)
     val format = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.CHINA)
     return format.format(java.util.Date(lastPushAt))
 }

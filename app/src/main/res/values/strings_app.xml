@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 根导航 / 引导页（XiaoyuRoot） -->
+    <string name="app_onboarding_tagline">她不只是 AI，她是一个会记得你的人</string>
+    <string name="app_onboarding_bullet_memory">她会记得你说过的事，很久以后也能提起。</string>
+    <string name="app_onboarding_bullet_mood">她有自己的情绪和生活，不总是同一种语气。</string>
+    <string name="app_onboarding_bullet_proactive">她会偶尔主动找你，像真的在等你回消息。</string>
+    <string name="app_onboarding_bullet_records">聊天记录只增不删；看不惯的记忆，可以丢进回收站。</string>
+    <string name="app_onboarding_next">下一步</string>
+    <string name="app_onboarding_model_title">接入模型</string>
+    <string name="app_onboarding_model_desc">填一个你自己的 Key，她才会真正“活”起来；也可以先跳过，用示例模式逛一逛。</string>
+    <string name="app_onboarding_base_url">接口地址</string>
+    <string name="app_onboarding_model_name">模型名</string>
+    <string name="app_onboarding_save_continue">保存并继续</string>
+    <string name="app_onboarding_skip_demo">先跳过，用示例模式</string>
+    <string name="app_onboarding_who_title">她是谁</string>
+    <string name="app_onboarding_who_desc">选一个身份和说话风格；之后可以在设置里随时改。</string>
+    <string name="app_onboarding_identity_label">身份</string>
+    <string name="app_onboarding_style_label">说话风格</string>
+    <string name="app_onboarding_continue">继续</string>
+    <string name="app_onboarding_name_title">怎么称呼你</string>
+    <string name="app_onboarding_name_desc">她会记住这个称呼。留空也可以，她就会用「你」来叫你。</string>
+    <string name="app_onboarding_call_you_label">她叫你</string>
+    <string name="app_onboarding_call_you_hint">例如：小满</string>
+    <string name="app_onboarding_call_her_label">你怎么叫她（选填）</string>
+    <string name="app_onboarding_call_her_hint">例如：小鱼</string>
+    <string name="app_onboarding_notify_title">让她找到你</string>
+    <string name="app_onboarding_notify_desc">她可能会在合适的时间主动找你。允许通知，才不会错过她的消息；不同意也没关系，App 里依然能看到。</string>
+    <string name="app_onboarding_bullet_notify">通知权限：她主动发消息时提醒你。</string>
+    <string name="app_onboarding_bullet_alarm">精确闹钟：早安、晚安和生活碎片才不会被系统拖延。</string>
+    <string name="app_onboarding_bullet_battery">电池优化白名单：杀后台的机型上，她不容易「失联」。</string>
+    <string name="app_onboarding_enable_notify">开启通知</string>
+    <string name="app_onboarding_skip_notify">先不开启，继续</string>
+    <string name="app_onboarding_tips_title">三个小提示</string>
+    <string name="app_onboarding_bullet_long_press">长按消息可以引用、编辑或撤回；她的记忆会跟着修正。</string>
+    <string name="app_onboarding_bullet_records_bin">聊天记录只增不删，删除只是收进回收站，随时能捞回来。</string>
+    <string name="app_onboarding_bullet_settings">设置里可以改她的身份、说话风格，以及备份与恢复。</string>
+    <string name="app_onboarding_start_chat">开始和她聊天</string>
+    <string name="app_onboarding_reset_hint">清空应用数据可以重新走一遍引导。</string>
+
+    <!-- AppViewModel 提示与 Toast -->
+    <string name="vm_local_ai_unreachable">连不上本地 AI 服务（%1$s），请确认网关已启动、手机和电脑在同一 WiFi。</string>
+    <string name="vm_local_ai_not_ready">网关已连接，但 ComfyUI 和 TTS 都没就绪，请到电脑上启动服务。</string>
+    <string name="vm_local_ai_image_unavailable">网关已连接，TTS 可用；ComfyUI 未就绪，暂时不能生图。</string>
+    <string name="vm_local_ai_tts_unavailable">网关已连接，ComfyUI 可用；TTS 未就绪，暂时不能朗读。</string>
+    <string name="vm_local_ai_ok">本地 AI 服务连接正常：生图、语音都可用。</string>
+    <string name="vm_local_ai_not_configured">未配置本地 AI 服务，请到设置里填写电脑网关地址和 Token。</string>
+    <string name="vm_tts_failed">语音合成失败，请确认电脑上的 TTS 服务和网关都在运行。</string>
+    <string name="vm_voice_play_failed">语音播放失败。</string>
+    <string name="vm_image_generate_failed">生图失败，请确认电脑上的 ComfyUI 服务和网关都在运行。</string>
+    <string name="vm_voice_input_unavailable">这台设备没有可用的语音输入，请先在系统里启用输入法的语音服务。</string>
+    <string name="vm_regenerate_failed">重新生成失败</string>
+    <string name="vm_poke_limit">她不想被戳了，过一会儿再试试</string>
+    <string name="vm_poke_failed">戳失败</string>
+    <string name="vm_message_saved_memory">她记住了这句话</string>
+    <string name="vm_send_failed">消息发送失败</string>
+    <string name="vm_retract_too_late">只能在 2 分钟内撤回自己的消息</string>
+    <string name="vm_edit_resend_failed">编辑重发失败</string>
+    <string name="vm_resend_failed">重发失败</string>
+    <string name="vm_continue_failed">继续失败</string>
+
+    <!-- 在线状态 -->
+    <string name="vm_status_online">在线</string>
+    <string name="vm_status_sleeping">睡觉</string>
+    <string name="vm_status_away">离开</string>
+    <string name="vm_status_busy">忙碌</string>
+
+    <!-- 聊天背景 -->
+    <string name="vm_background_open_failed">这张图片打不开，换一张试试</string>
+    <string name="vm_background_updated">聊天背景已更新</string>
+    <string name="vm_background_reset">已恢复默认背景</string>
+
+    <!-- 日记 / 备份 / 导出 -->
+    <string name="vm_diary_locked">她还不太愿意给你看这本日记，再熟一点吧。</string>
+    <string name="vm_backup_created">已备份：%1$s</string>
+    <string name="vm_backup_created_encrypted">已备份：%1$s（已加密）</string>
+    <string name="vm_backup_failed">备份失败，请检查存储空间</string>
+    <string name="vm_backup_exported">已导出备份</string>
+    <string name="vm_backup_exported_encrypted">已导出备份（已加密）</string>
+    <string name="vm_backup_export_failed">导出失败</string>
+    <string name="vm_backup_imported_restart">备份已导入，重启 App 后生效（已自动生成回滚快照）</string>
+    <string name="vm_backup_merged">已合并 %1$d 条数据</string>
+    <string name="vm_exported_to">已导出到 %1$s</string>
+
+    <!-- 人格包 / 表情包 -->
+    <string name="vm_persona_export_failed">导出人格包失败：%1$s</string>
+    <string name="vm_unknown_error">未知错误</string>
+    <string name="vm_share_persona">分享人格包</string>
+    <string name="vm_persona_created">人格包已生成（%1$d KB）</string>
+    <string name="vm_persona_read_failed">读取人格包失败，请重新选择文件</string>
+    <string name="vm_persona_too_large">身份设定过大，需要确认</string>
+    <string name="vm_persona_imported">已导入「%1$s」</string>
+    <string name="vm_persona_imported_styles">，风格 %1$d 个</string>
+    <string name="vm_persona_imported_prompts">，模板 %1$d 个（未自动应用）</string>
+    <string name="vm_import_failed">导入失败</string>
+    <string name="vm_sticker_export_failed">导出表情包失败：%1$s</string>
+    <string name="vm_share_sticker">分享表情包</string>
+    <string name="vm_sticker_read_failed">读取表情包失败，请重新选择文件</string>
+    <string name="vm_sticker_already_exists">「%1$s」已经在本地了</string>
+    <string name="vm_sticker_imported">已导入表情包「%1$s」，共 %2$d 张</string>
+
+    <!-- 看图 / 分享 -->
+    <string name="vm_vision_looking">她正在仔细看…</string>
+    <string name="vm_vision_done">她看完了这张图</string>
+    <string name="vm_no_share_app">没有可以分享的应用</string>
+</resources>

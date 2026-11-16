@@ -3,6 +3,7 @@ package com.xiaoyu.app.data.persona
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.archive.SafeZip
 import com.xiaoyu.app.data.archive.UnsafeArchiveException
 import com.xiaoyu.app.data.db.IdentityDao
@@ -103,7 +104,8 @@ class PersonaPackArchive @Inject constructor(
         target: File? = null,
     ): Result<ExportResult> = withContext(Dispatchers.IO) {
         runCatching {
-            val identity = identityDao.byId(identityId) ?: error("身份不存在")
+            val identity = identityDao.byId(identityId)
+                ?: error(context.getString(R.string.data_persona_archive_identity_not_found))
             val styles = if (styleIds.isEmpty()) {
                 styleDao.all()
             } else {
@@ -158,12 +160,23 @@ class PersonaPackArchive @Inject constructor(
                         Manifest.serializer(),
                         SafeZip.readBytes(zip, MANIFEST_NAME, 256L * 1024).decodeToString(),
                     )
-                    if (manifest.format !in 1..FORMAT_VERSION) error("不支持的人格包版本：${manifest.format}")
-                    if (manifest.name.isBlank()) error("人格包缺少名字")
+                    if (manifest.format !in 1..FORMAT_VERSION) {
+                        error(
+                            context.getString(
+                                R.string.data_persona_archive_bad_version,
+                                manifest.format,
+                            )
+                        )
+                    }
+                    if (manifest.name.isBlank()) {
+                        error(context.getString(R.string.data_persona_archive_missing_name))
+                    }
 
                     val identityText = SafeZip.readBytes(zip, SafeZip.validateName(manifest.identityFile), 1024L * 1024)
                         .decodeToString().trim()
-                    if (identityText.isBlank()) error("身份设定是空的")
+                    if (identityText.isBlank()) {
+                        error(context.getString(R.string.data_persona_archive_empty_identity))
+                    }
                     if (identityText.length > MAX_IDENTITY_CHARS && !confirmLargeIdentity) {
                         return@withContext Result.success(
                             ImportResult(
@@ -171,8 +184,11 @@ class PersonaPackArchive @Inject constructor(
                                 identityName = manifest.name,
                                 requiresConfirmation = true,
                                 warnings = listOf(
-                                    "身份设定有 ${identityText.length} 字，超过 $MAX_IDENTITY_CHARS 字，可能稀释人格。" +
-                                        "确认后请带 confirmLargeIdentity = true 重新导入。",
+                                    context.getString(
+                                        R.string.data_persona_archive_large_identity,
+                                        identityText.length,
+                                        MAX_IDENTITY_CHARS,
+                                    ),
                                 ),
                             )
                         )
@@ -187,7 +203,7 @@ class PersonaPackArchive @Inject constructor(
                     }
                     val identityId = if (existingIdentity != null) {
                         skipped++
-                        warnings += "已存在完全相同的身份，复用原记录"
+                        warnings += context.getString(R.string.data_persona_archive_identity_exists)
                         existingIdentity.id
                     } else {
                         identityDao.insert(
@@ -246,9 +262,22 @@ class PersonaPackArchive @Inject constructor(
                     )
                 }
             } catch (e: UnsafeArchiveException) {
-                Result.failure(IllegalArgumentException("导入失败：${e.message}", e))
+                Result.failure(
+                    IllegalArgumentException(
+                        context.getString(R.string.data_import_failed, e.message),
+                        e,
+                    )
+                )
             } catch (e: Exception) {
-                Result.failure(IllegalArgumentException("导入失败：${e.message ?: "人格包格式不正确"}", e))
+                Result.failure(
+                    IllegalArgumentException(
+                        context.getString(
+                            R.string.data_import_failed,
+                            e.message ?: context.getString(R.string.data_persona_archive_bad_pack),
+                        ),
+                        e,
+                    )
+                )
             }
         }
 

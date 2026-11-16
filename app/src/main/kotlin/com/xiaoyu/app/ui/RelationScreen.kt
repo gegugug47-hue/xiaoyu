@@ -46,11 +46,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.repo.MoodPoint
 import com.xiaoyu.app.data.repo.RelationMilestone
 import com.xiaoyu.app.data.repo.RelationSummary
@@ -76,9 +78,9 @@ fun RelationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("我们的关系") },
+                title = { Text(stringResource(R.string.relation_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.relation_back)) }
                 },
             )
         },
@@ -86,7 +88,7 @@ fun RelationScreen(
         val data = summary
         if (data == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("正在整理你们的故事…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.relation_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -146,7 +148,7 @@ private fun RelationHeader(data: RelationSummary) {
             LevelArc(progress = data.levelProgress)
             Spacer(Modifier.height(4.dp))
             Text(
-                "你们已经认识 ${data.knownDays} 天了",
+                stringResource(R.string.relation_known_days, data.knownDays),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -190,12 +192,12 @@ private fun LevelArc(progress: Float) {
 private fun RelationStats(data: RelationSummary) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatCard("认识", "${data.knownDays}", "天", Modifier.weight(1f))
-            StatCard("连续互动", "${data.streakDays}", "天", Modifier.weight(1f), flame = true)
+            StatCard(stringResource(R.string.relation_stat_known), "${data.knownDays}", stringResource(R.string.relation_unit_days), Modifier.weight(1f))
+            StatCard(stringResource(R.string.relation_stat_streak), "${data.streakDays}", stringResource(R.string.relation_unit_days), Modifier.weight(1f), flame = true)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            StatCard("说过", "${data.messageCount}", "句话", Modifier.weight(1f))
-            StatCard("她写了", "${data.diaryCount}", "篇日记", Modifier.weight(1f))
+            StatCard(stringResource(R.string.relation_stat_messages), "${data.messageCount}", stringResource(R.string.relation_unit_sentences), Modifier.weight(1f))
+            StatCard(stringResource(R.string.relation_stat_diaries), "${data.diaryCount}", stringResource(R.string.relation_unit_diaries), Modifier.weight(1f))
         }
     }
 }
@@ -263,9 +265,9 @@ private fun MoodChartCard(points: List<MoodPoint>) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("心情曲线", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.relation_mood_chart), style = MaterialTheme.typography.titleMedium)
             Text(
-                "最近 30 天",
+                stringResource(R.string.relation_mood_chart_range),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -273,7 +275,7 @@ private fun MoodChartCard(points: List<MoodPoint>) {
             if (points.size < 2) {
                 Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        "再聊几天，这里会慢慢长出一条曲线。",
+                        stringResource(R.string.relation_mood_chart_empty),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -337,7 +339,7 @@ private fun TodayMoodCard(line: String) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("她今天的心情", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text(stringResource(R.string.relation_today_mood), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
             Spacer(Modifier.height(6.dp))
             Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
         }
@@ -351,7 +353,7 @@ private fun MilestoneTimeline(items: List<RelationMilestone>) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text("纪念日", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.relation_milestones), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
             items.forEachIndexed { index, milestone ->
                 Row {
@@ -403,13 +405,13 @@ private fun MilestoneTimeline(items: List<RelationMilestone>) {
 private fun EntryRow(onOpenDiary: () -> Unit, onOpenMemory: () -> Unit, onOpenPersona: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(onClick = onOpenDiary, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
-            Text("日记本", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.relation_entry_diary), style = MaterialTheme.typography.labelLarge)
         }
         OutlinedButton(onClick = onOpenMemory, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
-            Text("她的记忆", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.relation_entry_memory), style = MaterialTheme.typography.labelLarge)
         }
         OutlinedButton(onClick = onOpenPersona, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) {
-            Text("人设", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.relation_entry_persona), style = MaterialTheme.typography.labelLarge)
         }
     }
 }
