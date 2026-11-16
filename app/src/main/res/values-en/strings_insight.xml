@@ -51,7 +51,7 @@
     <!-- Usage -->
     <string name="usage_title">Usage</string>
     <string name="usage_back">Back</string>
-    <string name="usage_guard_active">Cost guard triggered: %1$s. Chat still works, and you can turn the guard off below.</string>
+    <string name="usage_guard_active">%1$s</string>
     <string name="usage_today">Today</string>
     <string name="usage_calls">Calls</string>
     <string name="usage_estimated_cost">Est. cost</string>
@@ -61,8 +61,8 @@
     <string name="usage_cache_hit_rate">Cache hit rate</string>
     <string name="usage_last7_days">Token, last 7 days</string>
     <string name="usage_cost_guard">Cost guard</string>
-    <string name="usage_pause_background_title">Pause background generation when over limit</string>
-    <string name="usage_pause_background_desc">Model calls for life simulation / diary / proactive chat pause. Chat stays available.</string>
+    <string name="usage_pause_background_title">Tiered throttling when over limit</string>
+    <string name="usage_pause_background_desc">Warn at 60%; pause sticker tagging / image captioning at cap; chat and memory extraction never stop.</string>
     <string name="usage_daily_token_cap">Daily token cap</string>
     <string name="usage_monthly_cost_cap">Monthly cost cap (CNY)</string>
     <string name="usage_save_cap">Save caps</string>

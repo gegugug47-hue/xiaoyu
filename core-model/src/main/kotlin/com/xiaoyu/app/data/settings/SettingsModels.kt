@@ -73,13 +73,23 @@ data class DailyUsage(
     val costYuan: Double get() = costMicro / 1_000_000.0
 }
 
-/** 成本护栏状态（执行书 4.6）：triggers 为空表示未触发。 */
+/**
+ * 成本护栏级别（执行书 v3 §2.5，修正 v2 的「超 3 元即全停」）。
+ * - NONE：未到 60%，正常运行
+ * - L1_WARN：日 token 或月费 > 60%，仅提示，不停任何任务
+ * - L2_THROTTLE：> 100%，停可选后台（VISION：表情打标 / 生图描述），聊天与记忆提炼保留
+ * - L3_STOP：月费 > 150%，停全部可选后台，聊天与记忆提炼仍保留（永不断聊天）
+ */
+enum class CostGuardLevel { NONE, L1_WARN, L2_THROTTLE, L3_STOP }
+
+/** 成本护栏状态（执行书 v3 §2.5）：level=NONE 表示未触发。 */
 data class CostGuardState(
+    val level: CostGuardLevel = CostGuardLevel.NONE,
     val reason: String? = null,
     val todayTokens: Long = 0,
     val monthCostMicro: Long = 0,
 ) {
-    val active: Boolean get() = reason != null
+    val active: Boolean get() = level != CostGuardLevel.NONE
 }
 
 
@@ -99,10 +109,10 @@ data class AppSettings(
     val usage: UsageStats = UsageStats(),
     /** 最近 35 天用量（执行书 4.6），用于今日卡片与折线图 */
     val dailyUsage: List<DailyUsage> = emptyList(),
-    /** 单日 token 上限（40 万），超限后暂停后台自动生成 */
-    val dailyTokenCap: Int = 400_000,
-    /** 单月费用上限（3 元，单位 micro：1 元 = 1_000_000） */
-    val monthlyCostCapMicro: Long = 3_000_000,
+    /** 单日 token 上限（120 万，正常日均 24 万给 5 倍余量；v3 §2.5） */
+    val dailyTokenCap: Int = 1_200_000,
+    /** 单月费用上限（30 元，单位 micro：1 元 = 1_000_000；v3 §2.5） */
+    val monthlyCostCapMicro: Long = 30_000_000,
     /** 护栏开关；关闭表示「我知道我在花钱」 */
     val degradeOnCapExceeded: Boolean = true,
     /** 护栏通知去重（每天最多一次） */

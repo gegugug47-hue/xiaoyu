@@ -123,23 +123,34 @@ class SettingsRepository @Inject constructor(
         return (list.filterNot { it.date == date } + updated).sortedBy { it.date }.takeLast(35)
     }
 
-    /** 成本护栏状态（执行书 4.6）：日 token 或月费用超限时返回原因。 */
+    /**
+     * 成本护栏状态（执行书 v3 §2.5）：三级动作，永不断聊天。
+     * - L1_WARN：日 token 或月费 > 60%，仅提示
+     * - L2_THROTTLE：> 100%，停可选后台（VISION），聊天 + 记忆提炼保留
+     * - L3_STOP：月费 > 150%，停全部可选后台，聊天 + 记忆提炼仍保留
+     */
     fun guardState(): CostGuardState {
         val s = _state.value
         val today = s.dailyUsage.lastOrNull { it.date == java.time.LocalDate.now().toString() }
         val todayTokens = today?.totalTokens ?: 0L
         val monthCostMicro = kotlin.math.round(s.usage.estimatedCost * 1_000_000).toLong()
         if (!s.degradeOnCapExceeded) {
-            return CostGuardState(null, todayTokens, monthCostMicro)
+            return CostGuardState(CostGuardLevel.NONE, null, todayTokens, monthCostMicro)
         }
-        val reason = when {
-            todayTokens > s.dailyTokenCap ->
-                "今日用量 ${todayTokens} token 已超过上限 ${s.dailyTokenCap}，后台自动生成已暂停"
-            monthCostMicro > s.monthlyCostCapMicro ->
-                "本月估算费用 ${"%.2f".format(monthCostMicro / 1_000_000.0)} 元已超过上限 " +
-                    "${"%.2f".format(s.monthlyCostCapMicro / 1_000_000.0)} 元，后台自动生成已暂停"
-            else -> null
+        val dailyRatio = todayTokens.toDouble() / s.dailyTokenCap
+        val monthRatio = monthCostMicro.toDouble() / s.monthlyCostCapMicro
+        val monthYuan = "%.2f".format(monthCostMicro / 1_000_000.0)
+        val capYuan = "%.2f".format(s.monthlyCostCapMicro / 1_000_000.0)
+        val (level, reason) = when {
+            monthRatio > 1.5 -> CostGuardLevel.L3_STOP to
+                "本月费用 ¥$monthYuan 已超上限 ¥$capYuan 的 150%，可选后台已暂停，聊天与记忆不受影响"
+            dailyRatio > 1.0 || monthRatio > 1.0 -> CostGuardLevel.L2_THROTTLE to
+                "今日 token $todayTokens 或本月费用 ¥$monthYuan 已达上限 ¥$capYuan，" +
+                    "表情打标/生图描述等可选后台已暂停，聊天与记忆不受影响"
+            dailyRatio > 0.6 || monthRatio > 0.6 -> CostGuardLevel.L1_WARN to
+                "用量已达上限的 60%（今日 $todayTokens token / 本月 ¥$monthYuan），请注意控制"
+            else -> CostGuardLevel.NONE to null
         }
-        return CostGuardState(reason, todayTokens, monthCostMicro)
+        return CostGuardState(level, reason, todayTokens, monthCostMicro)
     }
 }

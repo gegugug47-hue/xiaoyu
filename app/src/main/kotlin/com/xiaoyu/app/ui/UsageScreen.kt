@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoyu.app.R
+import com.xiaoyu.app.data.settings.CostGuardLevel
 import com.xiaoyu.app.data.settings.DailyUsage
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -94,16 +95,22 @@ fun UsageScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (guard.active) {
+                val (bg, fg) = when (guard.level) {
+                    CostGuardLevel.L1_WARN -> Color(0xFFFFF3CD) to Color(0xFF6B5200)
+                    CostGuardLevel.L2_THROTTLE -> Color(0xFFFFE0B2) to Color(0xFF7A4100)
+                    CostGuardLevel.L3_STOP -> Color(0xFFFFCDD2) to Color(0xFF9A0007)
+                    else -> Color(0xFFFFF3CD) to Color(0xFF6B5200)
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFFFF3CD), RoundedCornerShape(14.dp))
+                        .background(bg, RoundedCornerShape(14.dp))
                         .padding(14.dp),
                 ) {
                     Text(
                         stringResource(R.string.usage_guard_active, guard.reason.orEmpty()),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF6B5200),
+                        color = fg,
                     )
                 }
             }

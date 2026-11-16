@@ -1,5 +1,6 @@
 package com.xiaoyu.app.data.brain
 
+import com.xiaoyu.app.data.settings.CostGuardLevel
 import com.xiaoyu.app.data.settings.ProviderConfig
 import com.xiaoyu.app.data.settings.ProviderKind
 import com.xiaoyu.app.data.settings.SettingsRepository
@@ -102,8 +103,11 @@ class BrainRouter @Inject constructor(
     }
 
     override fun chat(role: BrainRole, messages: List<SoulMessage>): Flow<BrainChunk> = flow {
-        // 成本护栏（执行书 4.6）：超限后只保证聊天可用，后台自动生成直接跳过。
-        if (role != BrainRole.CHAT && settings.guardState().active) return@flow
+        // 成本护栏（执行书 v3 §2.5）：永不断聊天与记忆提炼；可选角色（VISION）在 L2/L3 暂停。
+        val guard = settings.guardState()
+        if (role == BrainRole.VISION &&
+            (guard.level == CostGuardLevel.L2_THROTTLE || guard.level == CostGuardLevel.L3_STOP)
+        ) return@flow
         val configs = configsFor(role)
         if (configs.isEmpty()) {
             demo.chat(messages).collect { emit(it) }
@@ -169,7 +173,11 @@ class BrainRouter @Inject constructor(
     }
 
     override suspend fun completeJson(role: BrainRole, system: String?, user: String): String? {
-        if (role != BrainRole.CHAT && settings.guardState().active) return null
+        // 成本护栏：EXTRACT（记忆提炼/日记/生活模拟）永不暂停；VISION 在 L2/L3 暂停。
+        val guard = settings.guardState()
+        if (role == BrainRole.VISION &&
+            (guard.level == CostGuardLevel.L2_THROTTLE || guard.level == CostGuardLevel.L3_STOP)
+        ) return null
         val configs = configsFor(role)
         for (config in configs) {
             val provider = BrainProviderFactory.create(config, client)

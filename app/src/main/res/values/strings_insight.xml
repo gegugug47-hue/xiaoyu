@@ -51,7 +51,7 @@
     <!-- 用量 -->
     <string name="usage_title">用量统计</string>
     <string name="usage_back">返回</string>
-    <string name="usage_guard_active">成本护栏已触发：%1$s。聊天不受影响，可在下方关闭护栏。</string>
+    <string name="usage_guard_active">%1$s</string>
     <string name="usage_today">今日</string>
     <string name="usage_calls">调用次数</string>
     <string name="usage_estimated_cost">估算费用</string>
@@ -61,8 +61,8 @@
     <string name="usage_cache_hit_rate">缓存命中率</string>
     <string name="usage_last7_days">近 7 天 token</string>
     <string name="usage_cost_guard">成本护栏</string>
-    <string name="usage_pause_background_title">超限暂停后台生成</string>
-    <string name="usage_pause_background_desc">生活模拟 / 日记 / 主动聊天的模型调用会暂停，聊天仍可用。</string>
+    <string name="usage_pause_background_title">超限分级限流</string>
+    <string name="usage_pause_background_desc">达 60% 提示；达上限暂停表情打标/生图描述；聊天与记忆提炼永不中断。</string>
     <string name="usage_daily_token_cap">每日 token 上限</string>
     <string name="usage_monthly_cost_cap">每月费用上限（元）</string>
     <string name="usage_save_cap">保存上限</string>
