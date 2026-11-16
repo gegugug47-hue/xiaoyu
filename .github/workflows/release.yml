@@ -83,8 +83,8 @@ jobs:
             echo "keyPassword=$KEY_PASSWORD"
           } > key.properties
 
-      - name: Unit tests
-        run: ./gradlew :soul:test --no-daemon --console=plain
+      - name: Unit tests + coverage gate
+        run: ./gradlew :soul:check --no-daemon --console=plain
 
       # 执行书 M6-04：tag 触发 per-ABI 构建，签名后产出 app-v<版本>-<abi>.apk
       - name: Build signed APKs
