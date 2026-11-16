@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common prefix for import failures -->
+    <string name="data_import_failed">Import failed: %1$s</string>
+
+    <!-- Sticker import pipeline (StickerImporter) -->
+    <string name="data_sticker_import_skipped_over_limit">You can import up to %1$d files at a time, so the extras were skipped</string>
+    <string name="data_sticker_import_process_failed">Couldn\'t process this file. Please try a different image.</string>
+    <string name="data_sticker_import_total_too_large">This import is over %1$d MB in total. Please import in smaller batches.</string>
+    <string name="data_sticker_import_unreadable">Couldn\'t read the selected files</string>
+    <string name="data_sticker_import_zip_failed">Couldn\'t read the archive</string>
+    <string name="data_sticker_import_zip_empty">There are no importable images in the archive</string>
+    <string name="data_sticker_import_unknown_format">Unrecognized image format (HEIC and video aren\'t supported)</string>
+    <string name="data_sticker_import_unsupported_format">%1$s isn\'t supported yet. Please use PNG / JPG / WebP / GIF.</string>
+    <string name="data_sticker_import_format_unspecified">this</string>
+    <string name="data_sticker_import_decode_failed">Couldn\'t decode the image. Please try a different one.</string>
+    <string name="data_sticker_import_static_too_large">The image is still over %1$d MB after compression</string>
+    <string name="data_sticker_import_animated_edge">An animated image can\'t be longer than %1$d px on its longest side. Please crop it first.</string>
+    <string name="data_sticker_import_animated_too_large">The animation is over %1$d MB. Please use a smaller one.</string>
+    <string name="data_sticker_import_animated_too_long">The animation is longer than %1$d seconds. Please trim it first.</string>
+
+    <!-- Backup import and rollback (BackupImporter) -->
+    <string name="data_backup_import_unreadable">Couldn\'t read the backup file. Please make sure it still exists.</string>
+    <string name="data_backup_import_invalid_header">This isn\'t a valid backup file (the header is too short).</string>
+    <string name="data_backup_import_broken_header">The backup header is damaged, so its version can\'t be identified.</string>
+    <string name="data_backup_import_password_required">This backup is encrypted. Please enter the passphrase to restore it.</string>
+    <string name="data_backup_import_wrong_password">The passphrase is wrong, or the backup file is damaged.</string>
+    <string name="data_backup_import_broken_zip">This isn\'t a valid backup file (the ZIP structure is damaged).</string>
+    <string name="data_backup_import_unzip_failed">The backup is damaged and can\'t be extracted: %1$s</string>
+    <string name="data_backup_import_no_database">There is no database in this backup. It may not have been created by Xiaoyu.</string>
+    <string name="data_backup_import_db_corrupt">The database in this backup is damaged and can\'t be imported (your current data is untouched).</string>
+    <string name="data_backup_import_db_version_too_new">This backup comes from a newer version of the app (data version v%1$d, but only v%2$d is supported now). Please update the app, then restore again.</string>
+    <string name="data_backup_import_format_too_new">This backup comes from a newer version of the app (backup format v%1$d, but only v%2$d is supported now). Please update the app, then restore again.</string>
+    <string name="data_backup_import_snapshot_failed">Couldn\'t create a snapshot before importing, so the import was cancelled (your current data is untouched).</string>
+    <string name="data_backup_import_merge_failed">The merge import failed and was rolled back (your current data is untouched): %1$s</string>
+    <string name="data_backup_import_stage_failed">Couldn\'t write the pending restore file: %1$s</string>
+    <string name="data_backup_import_unknown_error">Unknown error</string>
+
+    <!-- Markdown export (MarkdownExporter) -->
+    <string name="data_export_session_not_found">This conversation couldn\'t be found.</string>
+    <string name="data_export_session_empty">This conversation has no messages to export yet.</string>
+    <string name="data_export_diary_not_found">This diary entry couldn\'t be found.</string>
+    <string name="data_export_write_failed">Export failed: couldn\'t write to the Downloads folder.</string>
+    <string name="data_export_untitled_session">Untitled Conversation</string>
+    <string name="data_export_session_heading"># Xiaoyu · Conversation Export</string>
+    <string name="data_export_line_exported_at">- Exported at: %1$s</string>
+    <string name="data_export_line_session_title">- Conversation title: %1$s</string>
+    <string name="data_export_line_message_count">- Messages: %1$d</string>
+    <string name="data_export_line_time_range">- Time range: %1$s ~ %2$s</string>
+    <string name="data_export_line_role_time">**%1$s** · %2$s</string>
+    <string name="data_export_retracted">_[Message retracted]_</string>
+    <string name="data_export_diary_heading"># Xiaoyu · Diary (%1$s)</string>
+    <string name="data_export_line_diary_date">- Diary date: %1$s</string>
+    <string name="data_export_line_mood_snapshot">- Mood snapshot: %1$s</string>
+    <string name="data_export_line_favor_snapshot">- Affection snapshot: %1$s</string>
+    <string name="data_export_line_secret_diary">- Encrypted diary: %1$s</string>
+    <string name="data_export_yes">Yes</string>
+    <string name="data_export_no">No</string>
+    <string name="data_export_sticker">[Sticker:%1$s]</string>
+    <string name="data_export_sticker_unknown">Unknown</string>
+    <string name="data_export_image">![Image](%1$s)</string>
+    <string name="data_export_voice">[Voice] %1$s</string>
+    <string name="data_export_role_me">Me</string>
+    <string name="data_export_role_system">System</string>
+    <string name="data_export_role_her">Her</string>
+
+    <!-- Sticker pack archive (StickerPackArchive) -->
+    <string name="data_sticker_archive_pack_not_found">Sticker pack not found</string>
+    <string name="data_sticker_archive_no_exportable_images">This sticker pack has no image files to export</string>
+    <string name="data_sticker_archive_export_too_large">This pack is over 30 MB. You may want to split it before exporting.</string>
+    <string name="data_sticker_archive_already_exists">A sticker pack with the same name already exists, so nothing was imported again</string>
+    <string name="data_sticker_archive_no_license">This pack doesn\'t declare a license (license=Unknown). Please verify the copyright before use.</string>
+    <string name="data_sticker_archive_entry_missing">%1$s listed in the manifest doesn\'t exist, so the whole pack was rejected</string>
+    <string name="data_sticker_archive_unsupported_format">%1$s format isn\'t supported (only WEBP/PNG/JPG/GIF), so the whole pack was rejected</string>
+    <string name="data_sticker_archive_unzip_too_large">The sticker pack is over 30 MB after extraction, so the whole pack was rejected</string>
+    <string name="data_sticker_archive_empty">There are no usable sticker images in the archive</string>
+    <string name="data_sticker_archive_bad_zip">The archive format is invalid</string>
+    <string name="data_sticker_archive_no_files_selected">No files selected</string>
+    <string name="data_sticker_archive_name_required">Sticker pack name can\'t be empty</string>
+    <string name="data_sticker_archive_webm_unsupported">%1$s is a video sticker (WEBM), which isn\'t supported yet</string>
+    <string name="data_sticker_archive_tgs_unsupported">%1$s is an animated sticker (TGS), which isn\'t supported yet</string>
+    <string name="data_sticker_archive_file_unsupported">%1$s format isn\'t supported, so it was skipped</string>
+    <string name="data_sticker_archive_file_too_large">%1$s is over 16 MB, so it was skipped</string>
+    <string name="data_sticker_archive_total_limit">The 30 MB limit was reached, so the remaining files were skipped</string>
+    <string name="data_sticker_archive_too_many_stickers">You can import up to %1$d stickers at a time, so the extras were ignored</string>
+    <string name="data_sticker_archive_no_static_images">There are no static sticker images to import</string>
+    <string name="data_sticker_archive_io_error">File read or write error</string>
+    <string name="data_sticker_archive_bad_format_version">Unsupported pack format version: %1$d</string>
+    <string name="data_sticker_archive_bad_name">Sticker pack name is invalid (1–32 characters)</string>
+    <string name="data_sticker_archive_no_stickers">The sticker pack has no stickers</string>
+    <string name="data_sticker_archive_sticker_limit">There are more than %1$d stickers</string>
+
+    <!-- Persona pack archive (PersonaPackArchive) -->
+    <string name="data_persona_archive_identity_not_found">Identity not found</string>
+    <string name="data_persona_archive_bad_version">Unsupported persona pack version: %1$d</string>
+    <string name="data_persona_archive_missing_name">The persona pack is missing a name</string>
+    <string name="data_persona_archive_empty_identity">The identity description is empty</string>
+    <string name="data_persona_archive_large_identity">The identity description is %1$d characters, over the %2$d character limit, which may dilute the persona. Once you confirm, import again with confirmLargeIdentity = true.</string>
+    <string name="data_persona_archive_identity_exists">An identical identity already exists, so the existing record was reused</string>
+    <string name="data_persona_archive_bad_pack">The persona pack format is invalid</string>
+
+    <!-- Chat pipeline (ChatRepository) -->
+    <string name="data_chat_message_not_found">Message not found</string>
+    <string name="data_chat_reply_empty">She seems to have drifted off and didn\'t say anything. Tap “Continue” to try again, or check your model settings.</string>
+
+    <!-- Relation page (RelationRepository) -->
+    <string name="data_relation_default_name">Xiaoyu</string>
+    <string name="data_relation_milestone_met_title">The day we met</string>
+    <string name="data_relation_milestone_met_detail">From this day on, she started remembering you.</string>
+    <string name="data_relation_milestone_level_title">She put you in “%1$s”</string>
+    <string name="data_relation_milestone_level_detail">Your relationship quietly moved a step forward.</string>
+    <string name="data_relation_milestone_hundred_title">100 days together</string>
+    <string name="data_relation_milestone_hundred_upcoming">%1$d days to go.</string>
+    <string name="data_relation_milestone_hundred_passed">You\'ve walked %1$d days together already.</string>
+    <string name="data_relation_milestone_diary_title">The first diary entry she wrote</string>
+    <string name="data_relation_milestone_diary_detail">Some things she didn\'t say out loud, so she wrote them down.</string>
+    <string name="data_relation_mood_line">Today, %1$s.</string>
+    <string name="data_relation_mood_line_with_fragment">Today, %1$s, %2$s</string>
+
+    <!-- Sticker import result summary (StickerImportResult) -->
+    <string name="data_sticker_import_summary_imported">Imported %1$d stickers</string>
+    <string name="data_sticker_import_summary_rejected">, %1$d files skipped</string>
+    <string name="data_sticker_import_summary_no_vision">; no vision model configured, so you can fill in tags manually later</string>
+</resources>

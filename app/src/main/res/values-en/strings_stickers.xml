@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sticker import copyright notice (compliance requirement, must stay in resources) -->
+    <string name="sticker_import_copyright">Please import only images you have the right to use. You are responsible for the copyright of what you import.</string>
+    <string name="sticker_import_copyright_extra">Please make sure you own the copyright or have permission to use these images, and don\'t import anything that infringes on others\' rights; Xiaoyu won\'t upload, share, or review your stickers.</string>
+    <string name="sticker_import_auto_tag">Auto-tag after import (requires a vision model)</string>
+
+    <!-- Sticker pack management page -->
+    <string name="sticker_manage_title">My Sticker Packs</string>
+    <string name="sticker_action_back">Back</string>
+    <string name="sticker_action_import_pack">Import Pack</string>
+    <string name="sticker_action_export">Export</string>
+    <string name="sticker_action_create">New</string>
+    <string name="sticker_action_create_pack">＋ New Sticker Pack</string>
+    <string name="sticker_action_import_images">Import Images / ZIP</string>
+    <string name="sticker_section_packs">Sticker Packs</string>
+    <string name="sticker_empty_packs">No sticker packs yet. Tap “New Sticker Pack” above to start.</string>
+    <string name="sticker_section_pack_stickers">Stickers in “%1$s” (tap one to rename, edit tags, enable, or reorder)</string>
+    <string name="sticker_empty_pack_stickers">There are no stickers in this pack yet. Let\'s import a few.</string>
+    <string name="sticker_dialog_create_pack_title">New Sticker Pack</string>
+    <string name="sticker_label_pack_name">Pack name</string>
+    <string name="sticker_action_confirm_create">Create</string>
+    <string name="sticker_action_cancel">Cancel</string>
+    <string name="sticker_dialog_rename_pack_title">Rename Sticker Pack</string>
+    <string name="sticker_label_name">Name</string>
+    <string name="sticker_action_save">Save</string>
+    <string name="sticker_dialog_import_title">Import into “%1$s”</string>
+    <string name="sticker_dialog_import_message">The system picker will open. You can pick several images or a single ZIP / .xystickers archive, and the import will run in the background.</string>
+    <string name="sticker_action_go_select">Choose Files</string>
+    <string name="sticker_dialog_delete_pack_title">Delete Sticker Pack</string>
+    <string name="sticker_dialog_delete_pack_message">Every sticker and image in “%1$s” will be deleted, and this can\'t be undone.</string>
+    <string name="sticker_dialog_delete_sticker_title">Delete Sticker</string>
+    <string name="sticker_dialog_delete_sticker_message">“%1$s” will be removed from the list and from your device, and this can\'t be undone.</string>
+
+    <!-- Storage usage -->
+    <string name="sticker_storage_title">Storage Used</string>
+    <string name="sticker_storage_stickers">Stickers</string>
+    <string name="sticker_storage_images">Images</string>
+    <string name="sticker_storage_voice">Voice</string>
+    <string name="sticker_storage_backup">Backups</string>
+    <string name="sticker_storage_total">Total</string>
+    <string name="sticker_storage_count">%1$d stickers</string>
+    <string name="sticker_storage_warn">Stickers now take up more than %1$d MB. You may want to delete packs you rarely use.</string>
+
+    <!-- Sticker pack rows and sticker editing -->
+    <string name="sticker_pack_meta">%1$d stickers · %2$s</string>
+    <string name="sticker_pack_builtin_suffix">" · Built-in"</string>
+    <string name="sticker_action_rename">Rename</string>
+    <string name="sticker_action_import">Import</string>
+    <string name="sticker_action_delete">Delete</string>
+    <string name="sticker_status_disabled">Disabled</string>
+    <string name="sticker_dialog_edit_title">Edit Sticker</string>
+    <string name="sticker_label_name_max10">Name (up to 10 characters)</string>
+    <string name="sticker_label_semantic_tags">Semantic tags (comma-separated, up to 4)</string>
+    <string name="sticker_label_mood_tags">Mood tags (joy, sad, angry…)</string>
+    <string name="sticker_label_enabled">Enabled</string>
+    <string name="sticker_action_move_up">Move Up</string>
+    <string name="sticker_action_move_down">Move Down</string>
+
+    <!-- Sticker import page -->
+    <string name="sticker_import_title">Import Stickers</string>
+    <string name="sticker_import_to_target">Import into “%1$s”</string>
+    <string name="sticker_import_hint">Supports PNG / JPG / WebP / GIF, up to %1$d at a time. You can also pick a single ZIP / .xystickers archive.</string>
+    <string name="sticker_import_pick_images">Choose from Album</string>
+    <string name="sticker_import_pick_zip">Choose Archive</string>
+    <string name="sticker_import_empty_selection">No files selected yet.</string>
+    <string name="sticker_import_selected_count">%1$d files selected</string>
+    <string name="sticker_import_remove">Remove</string>
+    <string name="sticker_import_need_pack">Please create or select a sticker pack first, then import.</string>
+    <string name="sticker_import_start">Start Import (%1$d)</string>
+    <string name="sticker_import_background_hint">The import runs in the background and progress shows in the notification bar. When it finishes, you can rename stickers or add tags on the manage page.</string>
+
+    <!-- Persona / speaking style -->
+    <string name="persona_title">Who She Is</string>
+    <string name="persona_action_back">Back</string>
+    <string name="persona_import_pack">Import Persona Pack</string>
+    <string name="persona_section_identity">Identity</string>
+    <string name="persona_identity_hint">Who she is: her age, where she lives, what she has been through. The more specific you are, the more she feels like someone with a past.</string>
+    <string name="persona_section_style">Speaking Style</string>
+    <string name="persona_style_hint">How she talks: catchphrases, tone, and how long her messages usually are. You can switch styles anytime in a conversation.</string>
+    <string name="persona_action_add">Add</string>
+    <string name="persona_action_share">Share</string>
+    <string name="persona_action_edit">Edit</string>
+    <string name="persona_action_delete">Delete</string>
+    <string name="persona_dialog_title_style">Speaking Style</string>
+    <string name="persona_dialog_title_identity">Her Identity</string>
+    <string name="persona_label_name">Name</string>
+    <string name="persona_label_description">Description</string>
+    <string name="persona_action_save">Save</string>
+    <string name="persona_action_cancel">Cancel</string>
+
+    <!-- StickerViewModel one-off messages -->
+    <string name="sticker_vm_pack_created">Sticker pack created</string>
+    <string name="sticker_vm_saved">Saved</string>
+    <string name="sticker_vm_pack_deleted">Sticker pack deleted</string>
+    <string name="sticker_vm_builtin_pack_cannot_delete">Built-in sticker packs can\'t be deleted</string>
+    <string name="sticker_vm_sticker_deleted">Sticker deleted</string>
+    <string name="sticker_vm_builtin_sticker_cannot_delete">Built-in stickers can\'t be deleted</string>
+    <string name="sticker_vm_import_started">Import started. You\'ll be notified when it\'s done.</string>
+</resources>

@@ -13,6 +13,7 @@
 
 - 国际化（M5-07）：界面文案全部抽到 Android 资源文件，按领域拆分为 `strings_chat` / `strings_settings` / `strings_stickers` / `strings_insight` / `strings_app`（app 模块）、`data` 与 `service` 各一份；`:data` 中会展示给用户的提示改为经 `@ApplicationContext` 读取资源。prompt、日志、SQL 与持久化值保持原样。
 - 覆盖率门禁（M5-08）：`:soul` 增加 `jacocoTestCoverageVerification`，行覆盖低于 80% 即失败（当前 97.2%），CI 改为执行 `:soul:check`。
+- 英文界面：为全部 631 条界面文案补齐 `values-en` 翻译，跟随系统语言自动切换；好感度等级名也改为走资源，英文界面不再出现中文。
 
 ## v1.0.0 (2026-11-15)
 

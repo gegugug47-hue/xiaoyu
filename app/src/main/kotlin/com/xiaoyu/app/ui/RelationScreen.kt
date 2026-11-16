@@ -140,7 +140,7 @@ private fun RelationHeader(data: RelationSummary) {
             Spacer(Modifier.height(10.dp))
             Text(data.identityName, style = MaterialTheme.typography.titleLarge)
             Text(
-                "「${data.level.label}」",
+                "「${stringResource(favorabilityLabelRes(data.level))}」",
                 style = MaterialTheme.typography.labelLarge,
                 color = primary,
             )

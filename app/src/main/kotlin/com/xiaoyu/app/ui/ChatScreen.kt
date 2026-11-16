@@ -297,7 +297,7 @@ private fun ChatPane(
     }
     val current = sessions.firstOrNull { it.id == sessionId }
         ?: archived.firstOrNull { it.id == sessionId }
-    val moodLabel = FavorabilityLevel.of(favorability).label
+    val moodLabel = stringResource(favorabilityLabelRes(FavorabilityLevel.of(favorability)))
 
     val hasBackground = backgroundFile != null
     val paneBg = if (hasBackground) Color.Transparent else MaterialTheme.colorScheme.background
@@ -1596,7 +1596,7 @@ private fun SessionDrawer(
         Column(Modifier.padding(horizontal = 18.dp, vertical = 22.dp)) {
             Text(stringResource(R.string.chat_her_name), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
             Text(
-                FavorabilityLevel.of(favorability).label,
+                stringResource(favorabilityLabelRes(FavorabilityLevel.of(favorability))),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1715,6 +1715,14 @@ private fun dateLabel(context: Context, timestamp: Long): String {
     val yesterday = dayFormat.format(Date(now - 24L * 60 * 60 * 1000))
     if (that == yesterday) return context.getString(R.string.chat_date_yesterday)
     return that
+}
+
+/** 好感度等级名走资源，保证英文界面不出现中文 */
+internal fun favorabilityLabelRes(level: FavorabilityLevel): Int = when (level) {
+    FavorabilityLevel.STRANGER -> R.string.chat_level_stranger
+    FavorabilityLevel.FAMILIAR -> R.string.chat_level_familiar
+    FavorabilityLevel.INTIMATE -> R.string.chat_level_intimate
+    FavorabilityLevel.BELOVED -> R.string.chat_level_beloved
 }
 
 /**

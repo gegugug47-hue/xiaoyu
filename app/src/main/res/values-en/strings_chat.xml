@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chat screen ChatScreen -->
+    <string name="chat_selected_count">%1$d selected</string>
+    <string name="chat_cancel">Cancel</string>
+    <string name="chat_select_all">Select all</string>
+    <string name="chat_delete">Delete</string>
+    <string name="chat_export">Export</string>
+    <string name="chat_her_name">Xiaoyu</string>
+    <string name="chat_title_continuous">Xiaoyu · %1$s · %2$s</string>
+    <string name="chat_title_session">%1$s · %2$s · %3$s</string>
+    <string name="chat_menu">Menu</string>
+    <string name="chat_poke">Poke</string>
+    <string name="chat_new_topic">New topic</string>
+    <string name="chat_new_chat">New chat</string>
+    <string name="chat_more">More</string>
+    <string name="chat_export_markdown">Export chat as Markdown</string>
+    <string name="chat_typing">She\'s typing…</string>
+    <string name="chat_empty_hint">Say something. She\'ll remember you.</string>
+    <string name="chat_continue">Continue</string>
+    <string name="chat_dismiss_error">Got it</string>
+    <string name="chat_reply_prefix">Reply: %1$s</string>
+    <string name="chat_self">Me</string>
+    <string name="chat_cancel_quote">Cancel quote</string>
+    <string name="chat_poke_her">Poke her</string>
+    <string name="chat_quote_reply">Quote &amp; reply</string>
+    <string name="chat_retract">Unsend</string>
+    <string name="chat_edit">Edit</string>
+    <string name="chat_copy">Copy</string>
+    <string name="chat_regenerate">Regenerate</string>
+    <string name="chat_view_versions">View earlier versions</string>
+    <string name="chat_remember">Save and let her remember</string>
+    <string name="chat_hide_message">Hide this message</string>
+    <string name="chat_multi_select">Select messages</string>
+    <string name="chat_versions_title">Earlier versions</string>
+    <string name="chat_versions_desc">%1$d versions. Tap to switch. Older ones are only folded away, never removed from your history.</string>
+    <string name="chat_version_label">Version %1$d</string>
+    <string name="chat_version_label_current">Version %1$d · Current</string>
+    <string name="chat_version_empty">(No text in this one)</string>
+    <string name="chat_hide_confirm_title">Hide this message?</string>
+    <string name="chat_hide_confirm_text">The message won\'t be truly deleted—just tucked out of the conversation.</string>
+    <string name="chat_hide">Hide</string>
+    <string name="chat_retract_confirm_title">Unsend this message?</string>
+    <string name="chat_retract_confirm_text">She\'ll see \"you unsent a message\". You can unsend within 2 minutes.</string>
+    <string name="chat_delete_selected_title">Delete %1$d selected messages?</string>
+    <string name="chat_edit_message_title">Edit message</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_search_context_prefix">Old threads pulled in: %1$s</string>
+    <string name="chat_rename_title">Name this conversation</string>
+    <string name="chat_save">Save</string>
+    <string name="chat_retracted_placeholder">You unsent a message</string>
+    <string name="chat_synthesizing">Synthesizing…</string>
+    <string name="chat_stop">Stop</string>
+    <string name="chat_read_aloud">Read aloud</string>
+    <string name="chat_edited">Edited</string>
+    <string name="chat_sending">Sending…</string>
+    <string name="chat_her_reaction">%1$s from her</string>
+    <string name="chat_switch_to_keyboard">Switch to keyboard</string>
+    <string name="chat_voice_input">Voice input</string>
+    <string name="chat_voice_hold">Hold to talk</string>
+    <string name="chat_voice_release">Release to talk</string>
+    <string name="chat_input_placeholder">Say something…</string>
+    <string name="chat_collapse_stickers">Hide stickers</string>
+    <string name="chat_open_stickers">Stickers</string>
+    <string name="chat_drawer_new_topic">Start a new topic</string>
+    <string name="chat_drawer_new_chat">Start a new chat</string>
+    <string name="chat_archive">Archive</string>
+    <string name="chat_hide_archived">Hide archived</string>
+    <string name="chat_archived_count">Archived (%1$d)</string>
+    <string name="chat_restore">Restore</string>
+    <string name="chat_relation">Our relationship</string>
+    <string name="chat_search">Old chats</string>
+    <string name="chat_gallery">Her drawings</string>
+    <string name="chat_memory">Her memories</string>
+    <string name="chat_diary">Her diary</string>
+    <string name="chat_settings">Settings</string>
+    <string name="chat_topic_divider">—— New topic ——</string>
+    <string name="chat_avatar_letter">X</string>
+
+    <!-- Sticker panel Stickers / EmojiPanel -->
+    <string name="sticker_panel_title">Stickers</string>
+    <string name="sticker_manage">Manage</string>
+    <string name="sticker_pack_all">All</string>
+    <string name="sticker_panel_empty">No stickers yet. Import a pack from “Manage”.</string>
+    <string name="sticker_emoji_category_smiley">Smileys</string>
+    <string name="sticker_emoji_category_animal">Animals</string>
+    <string name="sticker_emoji_category_food">Food</string>
+    <string name="sticker_emoji_category_activity">Activity</string>
+    <string name="sticker_emoji_category_travel">Travel</string>
+    <string name="sticker_emoji_category_object">Objects</string>
+    <string name="sticker_emoji_category_symbol">Symbols</string>
+    <string name="sticker_emoji_category_gesture">Gestures</string>
+
+    <!-- Lock screen LockScreen -->
+    <string name="lock_her_name">Xiaoyu</string>
+    <string name="lock_enter_pin">Enter PIN to unlock</string>
+    <string name="lock_pin_error">Wrong PIN. Think again.</string>
+    <string name="lock_unlock">Unlock</string>
+    <string name="lock_biometric_button">Fingerprint / face unlock</string>
+    <string name="lock_biometric_title">Unlock Xiaoyu</string>
+    <string name="lock_biometric_subtitle">Continue with fingerprint or face</string>
+    <string name="lock_use_pin">Use PIN</string>
+
+    <!-- Gallery screen GalleryScreen -->
+    <string name="gallery_title">Her drawings</string>
+    <string name="gallery_back">Back</string>
+    <string name="gallery_empty">No drawings yet.\nTry telling her \"draw a kitten\".</string>
+
+    <!-- Timeline date dividers -->
+    <string name="chat_date_today">Today</string>
+    <string name="chat_date_yesterday">Yesterday</string>
+
+    <!-- Favorability levels -->
+    <string name="chat_level_stranger">Stranger</string>
+    <string name="chat_level_familiar">Familiar</string>
+    <string name="chat_level_intimate">Close</string>
+    <string name="chat_level_beloved">Beloved</string>
+</resources>

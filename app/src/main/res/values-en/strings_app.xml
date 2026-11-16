@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Root navigation / onboarding (XiaoyuRoot) -->
+    <string name="app_onboarding_tagline">Not just an AI—she\'s someone who remembers you</string>
+    <string name="app_onboarding_bullet_memory">She remembers what you tell her, and can bring it up long after.</string>
+    <string name="app_onboarding_bullet_mood">She has her own moods and life, so her tone isn\'t always the same.</string>
+    <string name="app_onboarding_bullet_proactive">She sometimes reaches out first, like she\'s really waiting for your reply.</string>
+    <string name="app_onboarding_bullet_records">Chats only grow, never shrink. Anything you\'d rather forget can go to the recycle bin.</string>
+    <string name="app_onboarding_next">Next</string>
+    <string name="app_onboarding_model_title">Connect a model</string>
+    <string name="app_onboarding_model_desc">Add your own key and she really comes to life. Or skip for now and look around in demo mode.</string>
+    <string name="app_onboarding_base_url">API endpoint</string>
+    <string name="app_onboarding_model_name">Model name</string>
+    <string name="app_onboarding_save_continue">Save and continue</string>
+    <string name="app_onboarding_skip_demo">Skip and use demo mode</string>
+    <string name="app_onboarding_who_title">Who she is</string>
+    <string name="app_onboarding_who_desc">Pick an identity and a way of speaking. You can change both anytime in Settings.</string>
+    <string name="app_onboarding_identity_label">Identity</string>
+    <string name="app_onboarding_style_label">Speaking style</string>
+    <string name="app_onboarding_continue">Continue</string>
+    <string name="app_onboarding_name_title">What should she call you</string>
+    <string name="app_onboarding_name_desc">She\'ll remember this name. Leave it blank and she\'ll just call you “you”.</string>
+    <string name="app_onboarding_call_you_label">She calls you</string>
+    <string name="app_onboarding_call_you_hint">e.g. Sunny</string>
+    <string name="app_onboarding_call_her_label">What you call her (optional)</string>
+    <string name="app_onboarding_call_her_hint">e.g. Xiaoyu</string>
+    <string name="app_onboarding_notify_title">Let her find you</string>
+    <string name="app_onboarding_notify_desc">She may reach out when the time feels right. Allow notifications so you don\'t miss her messages. Saying no is fine too—you\'ll still see everything in the app.</string>
+    <string name="app_onboarding_bullet_notify">Notifications: get an alert when she messages you first.</string>
+    <string name="app_onboarding_bullet_alarm">Exact alarms: so good mornings, good nights and little moments aren\'t delayed by the system.</string>
+    <string name="app_onboarding_bullet_battery">Battery optimization exemption: on aggressive devices, she stays reachable.</string>
+    <string name="app_onboarding_enable_notify">Turn on notifications</string>
+    <string name="app_onboarding_skip_notify">Not now, continue</string>
+    <string name="app_onboarding_tips_title">Three quick tips</string>
+    <string name="app_onboarding_bullet_long_press">Long-press a message to quote, edit or unsend it; her memory gets corrected too.</string>
+    <string name="app_onboarding_bullet_records_bin">Chats are never deleted—removing one just sends it to the recycle bin, where you can always get it back.</string>
+    <string name="app_onboarding_bullet_settings">In Settings you can change her identity and speaking style, and back up or restore your data.</string>
+    <string name="app_onboarding_start_chat">Start chatting with her</string>
+    <string name="app_onboarding_reset_hint">Clearing app data lets you go through onboarding again.</string>
+
+    <!-- AppViewModel prompts and toasts -->
+    <string name="vm_local_ai_unreachable">Can\'t reach the local AI service (%1$s). Make sure the gateway is running and your phone and computer are on the same Wi-Fi.</string>
+    <string name="vm_local_ai_not_ready">Gateway connected, but neither ComfyUI nor TTS is ready. Start the services on your computer.</string>
+    <string name="vm_local_ai_image_unavailable">Gateway connected and TTS is available. ComfyUI isn\'t ready, so image generation is unavailable for now.</string>
+    <string name="vm_local_ai_tts_unavailable">Gateway connected and ComfyUI is available. TTS isn\'t ready, so read-aloud is unavailable for now.</string>
+    <string name="vm_local_ai_ok">Local AI service is connected: image generation and voice both work.</string>
+    <string name="vm_local_ai_not_configured">Local AI service isn\'t set up. Enter your computer\'s gateway address and token in Settings.</string>
+    <string name="vm_tts_failed">Speech synthesis failed. Make sure the TTS service and the gateway are both running on your computer.</string>
+    <string name="vm_voice_play_failed">Playback failed.</string>
+    <string name="vm_image_generate_failed">Image generation failed. Make sure ComfyUI and the gateway are both running on your computer.</string>
+    <string name="vm_voice_input_unavailable">No voice input is available on this device. Enable your keyboard\'s voice service in system settings first.</string>
+    <string name="vm_regenerate_failed">Couldn\'t regenerate</string>
+    <string name="vm_poke_limit">She doesn\'t want to be poked right now. Try again a bit later</string>
+    <string name="vm_poke_failed">Couldn\'t poke</string>
+    <string name="vm_message_saved_memory">She\'ll remember that</string>
+    <string name="vm_send_failed">Couldn\'t send the message</string>
+    <string name="vm_retract_too_late">You can only unsend your own messages within 2 minutes</string>
+    <string name="vm_edit_resend_failed">Couldn\'t resend the edit</string>
+    <string name="vm_resend_failed">Couldn\'t resend</string>
+    <string name="vm_continue_failed">Couldn\'t continue</string>
+
+    <!-- Online status -->
+    <string name="vm_status_online">Online</string>
+    <string name="vm_status_sleeping">Sleeping</string>
+    <string name="vm_status_away">Away</string>
+    <string name="vm_status_busy">Busy</string>
+
+    <!-- Chat background -->
+    <string name="vm_background_open_failed">Can\'t open this image. Try another one.</string>
+    <string name="vm_background_updated">Chat background updated</string>
+    <string name="vm_background_reset">Default background restored</string>
+
+    <!-- Diary / backup / export -->
+    <string name="vm_diary_locked">She\'s not quite ready to show you this diary yet. Get a little closer first.</string>
+    <string name="vm_backup_created">Backed up: %1$s</string>
+    <string name="vm_backup_created_encrypted">Backed up: %1$s (encrypted)</string>
+    <string name="vm_backup_failed">Backup failed. Check your available storage.</string>
+    <string name="vm_backup_exported">Backup exported</string>
+    <string name="vm_backup_exported_encrypted">Backup exported (encrypted)</string>
+    <string name="vm_backup_export_failed">Export failed</string>
+    <string name="vm_backup_imported_restart">Backup imported. It takes effect after you restart the app (a rollback snapshot was created automatically).</string>
+    <string name="vm_backup_merged">Merged %1$d items</string>
+    <string name="vm_exported_to">Exported to %1$s</string>
+
+    <!-- Persona packs / sticker packs -->
+    <string name="vm_persona_export_failed">Couldn\'t export persona pack: %1$s</string>
+    <string name="vm_unknown_error">Unknown error</string>
+    <string name="vm_share_persona">Share persona pack</string>
+    <string name="vm_persona_created">Persona pack created (%1$d KB)</string>
+    <string name="vm_persona_read_failed">Couldn\'t read the persona pack. Please choose the file again.</string>
+    <string name="vm_persona_too_large">The identity profile is too large and needs confirmation</string>
+    <string name="vm_persona_imported">Imported \"%1$s\"</string>
+    <string name="vm_persona_imported_styles">, %1$d styles</string>
+    <string name="vm_persona_imported_prompts">, %1$d templates (not applied automatically)</string>
+    <string name="vm_import_failed">Import failed</string>
+    <string name="vm_sticker_export_failed">Couldn\'t export sticker pack: %1$s</string>
+    <string name="vm_share_sticker">Share sticker pack</string>
+    <string name="vm_sticker_read_failed">Couldn\'t read the sticker pack. Please choose the file again.</string>
+    <string name="vm_sticker_already_exists">\"%1$s\" is already on this device</string>
+    <string name="vm_sticker_imported">Imported sticker pack \"%1$s\" with %2$d stickers</string>
+
+    <!-- Image understanding / sharing -->
+    <string name="vm_vision_looking">She\'s taking a close look…</string>
+    <string name="vm_vision_done">She\'s finished looking at this image</string>
+    <string name="vm_no_share_app">No app is available to share with</string>
+</resources>

@@ -109,4 +109,10 @@
     <!-- 时间线日期分隔 -->
     <string name="chat_date_today">今天</string>
     <string name="chat_date_yesterday">昨天</string>
+
+    <!-- 好感度等级 -->
+    <string name="chat_level_stranger">陌生</string>
+    <string name="chat_level_familiar">熟悉</string>
+    <string name="chat_level_intimate">亲密</string>
+    <string name="chat_level_beloved">挚爱</string>
 </resources>

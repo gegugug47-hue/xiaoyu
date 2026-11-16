@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- M5-07: All out-of-app copy such as system notifications lives in resources, so a values-en can be added later without touching code -->
+    <string name="notify_channel_proactive">Messages from her</string>
+    <string name="notify_channel_proactive_desc">Messages Xiaoyu sends when she thinks of you — you can reply right from the notification</string>
+    <string name="notify_channel_task">Background task results</string>
+    <string name="notify_channel_task_desc">Gentle alerts when the diary, life snippets and memory tidy-up are done</string>
+    <string name="notify_channel_backup">Backup</string>
+    <string name="notify_channel_backup_desc">Weekly notices when an automatic backup succeeds or fails</string>
+    <string name="notify_channel_system">System alerts</string>
+    <string name="notify_channel_system_desc">Usage guardrails, low battery and other things worth your attention</string>
+    <string name="notify_reply_label">Reply to her…</string>
+    <string name="notify_reply_action">Reply</string>
+    <string name="notify_app_name">Xiaoyu</string>
+    <string name="notify_sender_her">Her</string>
+    <string name="notify_sender_me">You</string>
+    <string name="notify_conversation_title">Chat with Xiaoyu</string>
+    <string name="notify_hidden_text">Xiaoyu sent a message</string>
+
+    <!-- Home screen widget -->
+    <string name="svc_widget_brand">Xiaoyu</string>
+    <string name="svc_widget_empty_line">She\'s daydreaming by the window — tap to chat a little</string>
+    <string name="svc_widget_favorability">Affection</string>
+</resources>

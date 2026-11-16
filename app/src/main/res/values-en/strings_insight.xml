@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Memory -->
+    <string name="memory_title">Her Memory</string>
+    <string name="memory_back">Back</string>
+    <string name="memory_add_card">New</string>
+    <string name="memory_tab_short_term">Short-term %1$d</string>
+    <string name="memory_tab_long_cards">Long-term %1$d</string>
+    <string name="memory_tab_bin">Trash %1$d</string>
+    <string name="memory_empty_short_term">No short-term memories yet. Once a chat wraps up, she\'ll write down what mattered.</string>
+    <string name="memory_meta_importance_strength">Importance %1$d · Strength %2$d</string>
+    <string name="memory_empty_long_cards">Long-term cards build up as you spend time together. Say \"remember…\" and she\'ll keep it for good.</string>
+    <string name="memory_meta_from_user">You asked her to remember this</string>
+    <string name="memory_meta_learned">Picked up along the way</string>
+    <string name="memory_empty_bin">Trash is empty. Forgotten fragments land here first, then fade away after 30 days.</string>
+    <string name="memory_meta_in_bin">Moved to Trash</string>
+    <string name="memory_restore">Restore</string>
+    <string name="memory_edit">Edit</string>
+    <string name="memory_delete_permanently">Delete forever</string>
+    <string name="memory_delete">Delete</string>
+    <string name="memory_dialog_edit_memory">Edit memory</string>
+    <string name="memory_label_content">Content</string>
+    <string name="memory_label_tags">Tags (comma-separated)</string>
+    <string name="memory_importance_value">Importance: %1$d</string>
+    <string name="memory_save">Save</string>
+    <string name="memory_cancel">Cancel</string>
+    <string name="memory_dialog_create_card">New card</string>
+    <string name="memory_dialog_edit_card">Edit card</string>
+
+    <!-- Relationship -->
+    <string name="relation_title">Our Relationship</string>
+    <string name="relation_back">Back</string>
+    <string name="relation_loading">Putting your story together…</string>
+    <string name="relation_known_days">You\'ve known each other for %1$d days</string>
+    <string name="relation_stat_known">Known</string>
+    <string name="relation_unit_days">days</string>
+    <string name="relation_stat_streak">Streak</string>
+    <string name="relation_stat_messages">Messages</string>
+    <string name="relation_unit_sentences">sentences</string>
+    <string name="relation_stat_diaries">She wrote</string>
+    <string name="relation_unit_diaries">diaries</string>
+    <string name="relation_mood_chart">Mood Curve</string>
+    <string name="relation_mood_chart_range">Last 30 days</string>
+    <string name="relation_mood_chart_empty">Talk a few more days, and a curve will slowly grow here.</string>
+    <string name="relation_today_mood">Her mood today</string>
+    <string name="relation_milestones">Anniversaries</string>
+    <string name="relation_entry_diary">Diary</string>
+    <string name="relation_entry_memory">Her Memory</string>
+    <string name="relation_entry_persona">Persona</string>
+
+    <!-- Usage -->
+    <string name="usage_title">Usage</string>
+    <string name="usage_back">Back</string>
+    <string name="usage_guard_active">Cost guard triggered: %1$s. Chat still works, and you can turn the guard off below.</string>
+    <string name="usage_today">Today</string>
+    <string name="usage_calls">Calls</string>
+    <string name="usage_estimated_cost">Est. cost</string>
+    <string name="usage_background_tokens">Background</string>
+    <string name="usage_this_month">This month</string>
+    <string name="usage_chat_background_calls">Chat / background calls</string>
+    <string name="usage_cache_hit_rate">Cache hit rate</string>
+    <string name="usage_last7_days">Token, last 7 days</string>
+    <string name="usage_cost_guard">Cost guard</string>
+    <string name="usage_pause_background_title">Pause background generation when over limit</string>
+    <string name="usage_pause_background_desc">Model calls for life simulation / diary / proactive chat pause. Chat stays available.</string>
+    <string name="usage_daily_token_cap">Daily token cap</string>
+    <string name="usage_monthly_cost_cap">Monthly cost cap (CNY)</string>
+    <string name="usage_save_cap">Save caps</string>
+    <string name="usage_guard_off_warning">Turning the guard off allows spending with no limit. Please be careful.</string>
+    <string name="usage_price_note">Pricing comes from assets/cost_table.json. Unknown models are counted as 0 and marked \"Unpriced\". Ollama and demo mode are free.</string>
+
+    <!-- Diagnostics -->
+    <string name="diag_title">Diagnostics</string>
+    <string name="diag_back">Back</string>
+    <string name="diag_export_success">Exported: %1$s</string>
+    <string name="diag_export_failed">Export failed</string>
+    <string name="diag_export">Export diagnostic bundle</string>
+    <string name="diag_clear">Clear</string>
+    <string name="diag_db_notice_title">Database self-check notice</string>
+    <string name="diag_got_it">Got it</string>
+    <string name="diag_crash_logs">Crash logs</string>
+    <string name="diag_crash_recent">Latest %1$d</string>
+    <string name="diag_crash_empty">No crashes recorded.</string>
+    <string name="diag_snapshots_empty_title">No requests yet</string>
+    <string name="diag_snapshots_empty_desc">Chat with her for a while, and the prompt sections, raw text and post-processing events of your last 50 model requests will show up here.</string>
+    <string name="diag_copied_curl">curl copied, with $XY_API_KEY as the key placeholder</string>
+    <string name="diag_error">Error</string>
+    <string name="diag_token_usage">prompt ≈ %1$d · output ≈ %2$d · %3$dms</string>
+    <string name="diag_params">Parameters</string>
+    <string name="diag_error_detail">Error: %1$s</string>
+    <string name="diag_events">Events: %1$s</string>
+    <string name="diag_prompt_sections">Prompt sections</string>
+    <string name="diag_raw_response">Raw model output</string>
+    <string name="diag_empty_placeholder">(empty)</string>
+    <string name="diag_copy_curl">Copy curl</string>
+    <string name="diag_collapse">Collapse</string>
+    <string name="diag_expand_hint">Tap to expand</string>
+
+    <!-- Diary -->
+    <string name="diary_title">Her Diary</string>
+    <string name="diary_back">Back</string>
+    <string name="diary_empty">The diary is still empty.\nOnce you\'ve been through something together, she\'ll write a little at night.</string>
+    <string name="diary_locked_content_description">Locked</string>
+    <string name="diary_locked">This page is locked.</string>
+    <string name="diary_try_unlock">Try to open it</string>
+    <string name="diary_export_markdown">Export Markdown</string>
+    <string name="diary_close">Close</string>
+    <string name="diary_open">Open it</string>
+
+    <!-- Search -->
+    <string name="search_title">Look Back</string>
+    <string name="search_back">Back</string>
+    <string name="search_hint">Search what was said…</string>
+    <string name="search_action">Search</string>
+    <string name="search_loading">Looking back…</string>
+    <string name="search_no_result">No conversations found for \"%1$s\".</string>
+    <string name="search_empty_hint">Enter a keyword to dig up related moments from your past chats.\nPick one, and she\'ll answer based on that old conversation.</string>
+    <string name="search_role_me">Me</string>
+    <string name="search_role_her">Her</string>
+    <string name="search_role_system">System</string>
+</resources>
