@@ -1,5 +1,41 @@
 # 更新日志
 
+## v1.2.0 (2026-11-16)
+
+落地工程执行书 v3.0 的 30 项改进，一次性大版本更新。
+
+### 新增
+
+- **三级成本护栏（v3 §2.5 / H-3）**：日 token 120 万、月费用 30 元；L1 提示（>60%）仅黄条、L2 限流（>100%）停 VISION、L3 停后台（月费>150%）；聊天与记忆提炼永不中断。
+- **危机关怀（v3 §8.2 / H-4）**：`CrisisDetector` 命中自伤关键词直接关怀回复、不调模型，记忆提炼时过滤。
+- **注入防御（v3 H-24 / §14）**：`InjectionGuard.sanitize` 剥离 `[xy:*]` 协议 token，人格包导入命中注入直接拒绝。
+- **连续超长回复自适应（v3 §4.4）**：`LengthGuard` 连续 3 条超长回复自动注入「简短点」约束。
+- **记忆提炼防编造与限流（v3 H-14）**：提炼 prompt 加「绝对不要编造」+ 最多 12 条；`MemoryExtractionParser` 过滤 3~120 字、按重要性取前 12。
+- **增量提炼游标**：`sessions.extract_cursor`，≥60 条或 ≥4h 且 ≥10 条触发，提炼后前移游标（DB v6→7）。
+- **归因情绪事件（v3 H-9 / 4.10.3）**：`EmotionAttributor` 检测触发词落 `emotion_events` 表，强度半衰期衰减、被再次提及时回升（DB v7→8）。
+- **纠偏条（v3 H-11 / 4.11）**：`CorrectionEngine` 检测「不像她」落 `corrections` 表，风格补丁注入 prompt，顶部纠偏条可撤销（DB v8→9）。
+- **记忆图谱（v3 H-12 / 7.5）**：关系页 Canvas 绘制记忆节点，strength 映射颜色深浅、importance 映射节点大小。
+- **她的一天（v3 H-12 / 7.6）**：独立页面，按时间线展示今日生活碎片。
+- **卡片消息（v3 ADR-15 / 7.4.5）**：`CardFactory` 生成日记/约定/她的一天/记忆回溯结构化卡片，`CardBubble` 渲染，`type=card`。
+- **聊天背景 WCAG 对比度守卫（v3 H-24 / 14.6）**：`LegibilityGuard` 采样背景亮度，自动抬升暗化蒙层到满足 WCAG AA（4.5:1）的下限。
+- **设计系统 Token 化（v3 H-24 / 14.2）**：`Tokens.kt` 统一间距/圆角/海拔/动效时长；`HardcodeCheck` 扫描硬编码 `.dp`。
+- **在线状态推导（v3 1.3#35）**：`PresenceEngine` 基于精力+时段+生活碎片推导在线/忙碌/睡觉/离开，顶栏色点展示。
+- **消息密度三档（v3 H-22 / 1.3#48）**：紧凑/标准/宽松，控制气泡上下间距。
+- **语音转文字输入（v3 H-21 / 7.9）**：`RecognizerIntent` 按住说话，结果回填输入框。
+- **断点续跑机制（v3 H-1 / P-4）**：`docs/spec/STATUS.json` + `TASKS.json` 记录任务进度，跨会话不丢。
+
+### 变更
+
+- **表情短名制（v3 H-6）**：`[xy:s=名字]` 替代编号制，prompt 列表与模板同步更新，`StickerRepository.resolve` 已支持按名查找。
+- **价目表外置（v3 H-3 / §2.5）**：`cost_table.json` 记录各模型单价，ollama 标 `unpriced`，`CostTable.isPriced()` 检查。
+- **调度主轨（v3 §11）**：`WorkScheduler` 注释改为 WorkManager 主轨；无精确闹钟权限时跳过主动消息排期。
+- **连续同作者消息合并（v3 H-22）**：间隔<2分钟省略头像、收紧间距。
+- **未读分割线（v3 H-22）**：发言时标记 `lastReadMessageId`，时间线插入「以下为新消息」。
+
+### 安全
+
+- 人格包导入时对 identity/style 做 `InjectionGuard.sanitize`，命中注入模式直接跳过。
+
 ## v1.1.0 (2026-11-16)
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.1.0

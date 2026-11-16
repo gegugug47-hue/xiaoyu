@@ -75,6 +75,7 @@
     <string name="chat_diary">她的日记</string>
     <string name="chat_settings">设置</string>
     <string name="chat_topic_divider">—— 新的话题 ——</string>
+    <string name="chat_unread_divider">以下为新消息</string>
     <string name="chat_avatar_letter">渔</string>
 
     <!-- 表情面板 Stickers / EmojiPanel -->

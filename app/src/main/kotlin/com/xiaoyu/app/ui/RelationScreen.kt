@@ -73,6 +73,7 @@ fun RelationScreen(
     onOpenPersona: () -> Unit,
 ) {
     val summary by viewModel.relation.collectAsStateWithLifecycle()
+    val memories by viewModel.shortMemories.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { viewModel.refreshRelation() }
 
     Scaffold(
@@ -105,6 +106,7 @@ fun RelationScreen(
             MoodChartCard(data.moodPoints)
             TodayMoodCard(data.moodLine)
             MilestoneTimeline(data.milestones)
+            MemoryGraphCard(memories)
             EntryRow(onOpenDiary = onOpenDiary, onOpenMemory = onOpenMemory, onOpenPersona = onOpenPersona)
             Spacer(Modifier.height(8.dp))
         }

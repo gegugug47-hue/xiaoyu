@@ -148,13 +148,13 @@ class MemorySubsystemTest {
 
     @Test
     fun `记忆类型支持中文标签与英文枚举`() {
-        val raw = """[{"content":"一","type":"约定"},{"content":"二","type":"agreement"},{"content":"三","type":"未知"},{"content":"四"}]"""
+        val raw = """[{"content":"约定看电影","type":"约定"},{"content":"爱喝美式","type":"agreement"},{"content":"周末散步","type":"未知"},{"content":"喜欢吃辣","type":""}]"""
         val parsed = MemoryExtractionParser.parseMemories(raw)
         assertEquals(
             listOf(MemoryType.AGREEMENT, MemoryType.AGREEMENT, MemoryType.EVENT, MemoryType.EVENT),
             parsed.map { it.type },
         )
-        assertEquals("一", parsed[0].content)
+        assertEquals("约定看电影", parsed[0].content)
     }
 
     @Test

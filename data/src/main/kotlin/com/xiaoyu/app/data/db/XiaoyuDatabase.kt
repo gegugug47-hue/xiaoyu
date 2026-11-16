@@ -162,6 +162,54 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/** v3 H-14：sessions 表加增量提炼游标。 */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `sessions` ADD COLUMN `extract_cursor` INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** v3 H-9 / 4.10.3：新增情绪归因事件表。 */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `emotion_events` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `emotion` TEXT NOT NULL,
+                `trigger` TEXT NOT NULL,
+                `intensity` REAL NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                `last_mention_at` INTEGER NOT NULL,
+                `session_id` INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_emotion_events_emotion` ON `emotion_events` (`emotion`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_emotion_events_created_at` ON `emotion_events` (`created_at`)")
+    }
+}
+
+/** v3 H-11 / 4.11：新增纠偏记录表。 */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `corrections` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `intent` TEXT NOT NULL,
+                `patch` TEXT NOT NULL,
+                `trigger` TEXT NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                `revoked` INTEGER NOT NULL DEFAULT 0,
+                `session_id` INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_corrections_created_at` ON `corrections` (`created_at`)")
+    }
+}
+
 @Database(
     entities = [
         SessionEntity::class,
@@ -179,10 +227,12 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         MoodEntity::class,
         FavorabilityEntity::class,
         LifeFragmentEntity::class,
+        EmotionEventEntity::class,
+        CorrectionEntity::class,
         SettingEntity::class,
         DraftEntity::class,
     ],
-    version = 6,
+    version = 9,
     exportSchema = true,
 )
 abstract class XiaoyuDatabase : RoomDatabase() {
@@ -198,6 +248,8 @@ abstract class XiaoyuDatabase : RoomDatabase() {
     abstract fun moodDao(): MoodDao
     abstract fun favorabilityDao(): FavorabilityDao
     abstract fun lifeFragmentDao(): LifeFragmentDao
+    abstract fun emotionEventDao(): EmotionEventDao
+    abstract fun correctionDao(): CorrectionDao
     abstract fun settingDao(): SettingDao
     abstract fun draftDao(): DraftDao
 

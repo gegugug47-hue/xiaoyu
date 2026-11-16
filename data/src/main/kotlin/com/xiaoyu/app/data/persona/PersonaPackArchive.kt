@@ -11,6 +11,7 @@ import com.xiaoyu.app.data.db.IdentityEntity
 import com.xiaoyu.app.data.db.StyleDao
 import com.xiaoyu.app.data.db.StyleEntity
 import com.xiaoyu.app.data.prompt.PromptAssetSource
+import com.xiaoyu.soul.safety.InjectionGuard
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -177,7 +178,10 @@ class PersonaPackArchive @Inject constructor(
                     if (identityText.isBlank()) {
                         error(context.getString(R.string.data_persona_archive_empty_identity))
                     }
-                    if (identityText.length > MAX_IDENTITY_CHARS && !confirmLargeIdentity) {
+                    // v3 §8.3 / H-7：人格包内容进 prompt 前清洗协议 token，注入模式需人工确认
+                    val sanitizedIdentity = InjectionGuard.sanitize(identityText)
+                        ?: error(context.getString(R.string.data_persona_archive_suspicious))
+                    if (sanitizedIdentity.length > MAX_IDENTITY_CHARS && !confirmLargeIdentity) {
                         return@withContext Result.success(
                             ImportResult(
                                 identityId = null,
@@ -186,7 +190,7 @@ class PersonaPackArchive @Inject constructor(
                                 warnings = listOf(
                                     context.getString(
                                         R.string.data_persona_archive_large_identity,
-                                        identityText.length,
+                                        sanitizedIdentity.length,
                                         MAX_IDENTITY_CHARS,
                                     ),
                                 ),
@@ -199,7 +203,7 @@ class PersonaPackArchive @Inject constructor(
                     var skipped = 0
 
                     val existingIdentity = identityDao.all().firstOrNull {
-                        it.name == manifest.name && it.contentMd.trim() == identityText
+                        it.name == manifest.name && it.contentMd.trim() == sanitizedIdentity
                     }
                     val identityId = if (existingIdentity != null) {
                         skipped++
@@ -209,7 +213,7 @@ class PersonaPackArchive @Inject constructor(
                         identityDao.insert(
                             IdentityEntity(
                                 name = manifest.name,
-                                contentMd = identityText,
+                                contentMd = sanitizedIdentity,
                                 createdAt = now,
                                 updatedAt = now,
                             )
@@ -231,15 +235,24 @@ class PersonaPackArchive @Inject constructor(
                             .substringBeforeLast('.')
                             .replace(Regex("^\\d+-"), "")
                             .ifBlank { "导入风格" }
+                        // v3 §8.3 / H-7：风格文本同样清洗协议 token
+                        val sanitized = InjectionGuard.sanitize(content) ?: run {
+                            skipped++
+                            warnings += context.getString(
+                                R.string.data_persona_archive_suspicious_style,
+                                name,
+                            )
+                            return@forEach
+                        }
                         val duplicate = allStyles.firstOrNull {
-                            it.name == name && it.contentMd.trim() == content
+                            it.name == name && it.contentMd.trim() == sanitized
                         }
                         if (duplicate != null) {
                             skipped++
                             styleIds += duplicate.id
                         } else {
                             styleIds += styleDao.insert(
-                                StyleEntity(name = name, contentMd = content, createdAt = now, updatedAt = now)
+                                StyleEntity(name = name, contentMd = sanitized, createdAt = now, updatedAt = now)
                             )
                         }
                     }

@@ -92,7 +92,7 @@ class WorkScheduler @Inject constructor(
         wm().enqueueUniquePeriodicWork("weekly_backup", ExistingPeriodicWorkPolicy.KEEP, request)
     }
 
-    // ---------------- 精确闹钟（执行书 8.2：AlarmManager 主轨 + WorkManager 副轨） ----------------
+    // ---------------- 精确闹钟（v3 ADR-10：WorkManager 为主轨，精确闹钟为可选增强） ----------------
 
     /** 是否具备精确闹钟权限；Android 12+ 未授权时只能退化调度。 */
     fun canScheduleExactAlarms(): Boolean {
@@ -101,9 +101,9 @@ class WorkScheduler @Inject constructor(
     }
 
     /**
-     * 预约一次闹钟：主轨用 setExactAndAllowWhileIdle（可在 Doze 下唤醒）；
+     * 预约一次闹钟：有精确权限时用 setExactAndAllowWhileIdle（可在 Doze 下唤醒）；
      * 无权限或抛 SecurityException 时退化为 setWindow(±10 分钟) 并打日志。
-     * 返回是否按精确闹钟预约。
+     * 仅作为 WorkManager 主轨之上的准点增强，核心体验不依赖它。
      */
     fun scheduleAlarm(kind: String, triggerAtMillis: Long, slotKey: String? = null): Boolean {
         val manager = context.getSystemService(AlarmManager::class.java) ?: return false
@@ -150,8 +150,9 @@ class WorkScheduler @Inject constructor(
         scheduleAlarm(ALARM_PROACTIVE, triggerAtMillis, slotKey)
     }
 
-    /** 开机 / 升级后按已排期时刻重排今天的主动消息闹钟（执行书 8.2）。 */
+    /** 开机 / 升级后重排今天的主动消息精确闹钟（WorkManager 任务自身持久，无需重排）。 */
     fun rearmProactiveAlarms(slots: List<Long>) {
+        if (!canScheduleExactAlarms()) return
         val now = System.currentTimeMillis()
         slots.filter { it > now + 60_000 }.forEach { at ->
             val day = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault()).toLocalDate()

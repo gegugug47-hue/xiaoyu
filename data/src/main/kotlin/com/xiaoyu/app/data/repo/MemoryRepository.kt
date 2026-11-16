@@ -21,6 +21,7 @@ import com.xiaoyu.soul.memory.MemoryRecall
 import com.xiaoyu.soul.memory.MemoryTier
 import com.xiaoyu.soul.memory.MemoryType
 import com.xiaoyu.soul.memory.PromotionRule
+import com.xiaoyu.soul.safety.CrisisDetector
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -48,12 +49,18 @@ class MemoryRepository @Inject constructor(
 
     suspend fun cards(): List<FactCard> = cardDao.all().map { it.toSoul() }
 
-    /** 会话结束提炼（PRD 5.2）；返回是否成功。 */
+    /** 会话结束提炼 / 增量提炼（PRD 5.2 / v3 H-14）；返回是否成功。 */
     suspend fun extractSession(sessionId: Long, title: String): Boolean {
         val session = sessionDao.byId(sessionId) ?: return false
-        val messages = messageDao.visibleForSession(sessionId)
+        // v3 H-14：仅提炼游标之后的消息，实现会话内增量提炼
+        val cursor = session.extractCursor
+        val allVisible = messageDao.visibleForSession(sessionId)
+            .filterNot { it.role == ROLE_USER && CrisisDetector.check(it.content) }
+        val messages = allVisible.filter { it.createdAt > cursor }
         if (messages.isEmpty()) {
             sessionDao.setExtractState(sessionId, "done")
+            // 没有新消息也前移游标，避免重复判定
+            allVisible.lastOrNull()?.let { sessionDao.updateExtractCursor(sessionId, it.createdAt) }
             return true
         }
         val prompt = soul.extractMemoriesPrompt(title, messages.map { it.toSoulMessage() })
@@ -83,6 +90,8 @@ class MemoryRepository @Inject constructor(
                 )
             )
         }
+        // v3 H-14：提炼完成后游标前移到本轮最后一条消息
+        messages.lastOrNull()?.let { sessionDao.updateExtractCursor(sessionId, it.createdAt) }
         sessionDao.setExtractState(sessionId, "done")
         return true
     }

@@ -20,6 +20,7 @@ import com.xiaoyu.app.data.brain.ProviderHealth
 import com.xiaoyu.app.data.db.DiaryEntity
 import com.xiaoyu.app.data.db.FactCardEntity
 import com.xiaoyu.app.data.db.IdentityEntity
+import com.xiaoyu.app.data.db.LifeFragmentEntity
 import com.xiaoyu.app.data.db.MemoryEntity
 import com.xiaoyu.app.data.db.MessageEntity
 import com.xiaoyu.app.data.db.RequestSnapshotEntity
@@ -44,10 +45,14 @@ import com.xiaoyu.app.data.settings.AppLockMode
 import com.xiaoyu.app.data.settings.AppSettings
 import com.xiaoyu.app.data.settings.ChatMode
 import com.xiaoyu.app.data.settings.CostGuardState
+import com.xiaoyu.app.data.settings.MessageDensity
 import com.xiaoyu.app.data.settings.SettingsRepository
 import com.xiaoyu.soul.core.BrainRole
 import com.xiaoyu.soul.memory.MemoryType
 import com.xiaoyu.soul.mood.FavorabilityLevel
+import com.xiaoyu.soul.mood.PresenceEngine
+import com.xiaoyu.soul.mood.PresenceResult
+import com.xiaoyu.soul.mood.PresenceStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -148,6 +153,15 @@ class AppViewModel @Inject constructor(
     val binMemories: StateFlow<List<MemoryEntity>> = memoryRepo.observeBin()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** v3 H-12 / 7.6：「她的一天」——今天产生的生活碎片时间线。 */
+    val todayLife: StateFlow<List<LifeFragmentEntity>> = run {
+        val todayStart = java.time.ZonedDateTime.now()
+            .toLocalDate().atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
+        stateRepo.observeLifeSince(todayStart)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }
+
     val factCards: StateFlow<List<FactCardEntity>> = memoryRepo.observeCards()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -166,6 +180,16 @@ class AppViewModel @Inject constructor(
     val showTopicDividers: StateFlow<Boolean> = settings
         .map { it.showTopicDividers }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** v3 H-22：最后一条已读消息 id，用于「以下为新消息」分割线。 */
+    val lastReadMessageId: StateFlow<Long> = settings
+        .map { it.lastReadMessageId }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
+    /** v3 H-22 / 1.3#48：消息密度三档，控制气泡上下间距。 */
+    val messageDensity: StateFlow<MessageDensity> = settings
+        .map { MessageDensity.from(it.messageDensity) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MessageDensity.STANDARD)
 
     /** 当前聊天背景图片；未设置时为 null。 */
     val chatBackgroundFile: StateFlow<File?> = settings
@@ -575,6 +599,12 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch { chatRepo.hideMessage(id) }
     }
 
+    /** v3 H-22：标记消息已读，更新未读分割线位置。 */
+    fun markChatRead(messageId: Long) {
+        if (messageId <= 0) return
+        viewModelScope.launch { settingsRepo.update { it.copy(lastReadMessageId = messageId) } }
+    }
+
     /** 多选软删（M3-07）。 */
     fun hideMessages(ids: Set<Long>) {
         viewModelScope.launch { chatRepo.hideMessages(ids.toList()) }
@@ -805,20 +835,40 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch { draftRepo.save(identityId, content) }
     }
 
-    // ---- 在线状态（执行书 1.3 #32）：由 energy + 时段推导 ----
-    val onlineStatus: StateFlow<String> = stateRepo.observeMood()
-        .map { row -> deriveOnlineStatus(row?.energy ?: 60, java.time.LocalTime.now().hour) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), appContext.getString(R.string.vm_status_online))
-
-    private fun deriveOnlineStatus(energy: Int, hour: Int): String = when {
-        energy < 25 -> if (hour in 0..6 || hour >= 23) {
-            appContext.getString(R.string.vm_status_sleeping)
-        } else {
-            appContext.getString(R.string.vm_status_away)
+    // ---- 在线状态（执行书 v3 1.3#35）：由 energy + 时段 + 生活碎片推导 ----
+    private val _presence = stateRepo.observeMood()
+        .map { row ->
+            PresenceEngine.derive(
+                energy = row?.energy ?: 60,
+                hourOfDay = java.time.LocalTime.now().hour,
+            )
         }
-        energy < 50 -> appContext.getString(R.string.vm_status_busy)
-        else -> appContext.getString(R.string.vm_status_online)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
+            PresenceResult(PresenceStatus.ONLINE, ""))
+
+    val onlineStatus: StateFlow<String> = _presence
+        .map { presenceLabel(it.status) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000),
+            appContext.getString(R.string.vm_status_online))
+
+    /** 在线状态点颜色（十六进制），供顶栏小圆点展示。 */
+    val presenceDotColor: StateFlow<String> = _presence
+        .map { it.status.dotColor }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PresenceStatus.ONLINE.dotColor)
+
+    private fun presenceLabel(status: PresenceStatus): String = when (status) {
+        PresenceStatus.ONLINE -> appContext.getString(R.string.vm_status_online)
+        PresenceStatus.BUSY -> appContext.getString(R.string.vm_status_busy)
+        PresenceStatus.SLEEPING -> appContext.getString(R.string.vm_status_sleeping)
+        PresenceStatus.AWAY -> appContext.getString(R.string.vm_status_away)
     }
+
+    // ---- 纠偏条（v3 H-11 / 4.11）----
+    val latestCorrection: StateFlow<com.xiaoyu.app.data.db.CorrectionEntity?> =
+        chatRepo.latestCorrection()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun revokeCorrection() = viewModelScope.launch { chatRepo.revokeLatestCorrection() }
 
     /** 刷新关系页（进入页面时调用）。 */
     fun refreshRelation() {

@@ -141,7 +141,9 @@ import com.xiaoyu.app.data.repo.ROLE_USER
 import com.xiaoyu.app.data.repo.STATUS_FAILED
 import com.xiaoyu.app.data.repo.STATUS_SENDING
 import com.xiaoyu.app.data.repo.TYPE_STICKER
+import com.xiaoyu.app.data.repo.TYPE_CARD
 import com.xiaoyu.app.data.settings.ChatMode
+import com.xiaoyu.app.data.settings.MessageDensity
 import com.xiaoyu.app.ui.theme.LocalBubbleColors
 import com.xiaoyu.app.ui.theme.XiaoyuTheme
 import com.xiaoyu.soul.mood.FavorabilityLevel
@@ -162,6 +164,7 @@ fun ChatScreen(
     onOpenSearch: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenRelation: () -> Unit,
+    onOpenLifeDay: () -> Unit,
     onOpenStickers: () -> Unit,
 ) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
@@ -205,6 +208,7 @@ fun ChatScreen(
             onOpenSearch = { scope.launch { drawerState.close() }; onOpenSearch() },
             onOpenGallery = { scope.launch { drawerState.close() }; onOpenGallery() },
             onOpenRelation = { scope.launch { drawerState.close() }; onOpenRelation() },
+            onOpenLifeDay = { scope.launch { drawerState.close() }; onOpenLifeDay() },
         )
     }
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
@@ -215,7 +219,8 @@ fun ChatScreen(
             ChatBackground(
                 file = file,
                 blurDp = backgroundBlur,
-                dim = backgroundDim + if (darkTheme) 0.12f else 0f,
+                dim = backgroundDim,
+                darkTheme = darkTheme,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -276,6 +281,8 @@ private fun ChatPane(
     val favorability by viewModel.favorability.collectAsStateWithLifecycle()
     val allMessages by viewModel.allMessages.collectAsStateWithLifecycle()
     val showTopicDividers by viewModel.showTopicDividers.collectAsStateWithLifecycle()
+    val lastReadMessageId by viewModel.lastReadMessageId.collectAsStateWithLifecycle()
+    val messageDensity by viewModel.messageDensity.collectAsStateWithLifecycle()
     val archived by viewModel.archivedSessions.collectAsStateWithLifecycle()
     val backgroundFile by viewModel.chatBackgroundFile.collectAsStateWithLifecycle()
     val pendingSearchContext by viewModel.pendingSearchContext.collectAsStateWithLifecycle()
@@ -378,10 +385,19 @@ private fun ChatPane(
                     title = {
                         // 单行标题：系统字体放大到 2x 也不会被 64dp 的顶栏裁掉
                         val online by viewModel.onlineStatus.collectAsStateWithLifecycle()
+                        val dotColor by viewModel.presenceDotColor.collectAsStateWithLifecycle()
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             // 双击她的头像 = 戳一下（M3-05 / 执行书 6.3.7）
                             HerAvatar(onPoke = { viewModel.poke() })
                             Spacer(Modifier.width(8.dp))
+                            // v3 1.3#35：在线状态色点（绿=在线 / 橙=忙碌 / 灰=睡觉/离开）
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(android.graphics.Color.parseColor("#$dotColor")))
+                            )
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = if (isContinuous) {
                                     stringResource(R.string.chat_title_continuous, moodLabel, online)
@@ -457,8 +473,8 @@ private fun ChatPane(
                     displayMessages.associate { it.id to it.content }
                 }
                 val context = LocalContext.current
-                val timeline = remember(displayMessages, showTopicDividers, isContinuous) {
-                    if (isContinuous) buildTimeline(context, displayMessages, showTopicDividers) else emptyList()
+                val timeline = remember(displayMessages, showTopicDividers, isContinuous, lastReadMessageId) {
+                    if (isContinuous) buildTimeline(context, displayMessages, showTopicDividers, lastReadMessageId) else emptyList()
                 }
                 LaunchedEffect(displayMessages.size, streaming.isNotEmpty(), typing) {
                     val extra = (if (typing) 1 else 0) + (if (streaming.isNotEmpty()) 1 else 0)
@@ -473,6 +489,15 @@ private fun ChatPane(
                             listState.animateScrollToItem(target)
                         }
                     }
+                }
+
+                // v3 H-11 / 4.11：纠偏条——有未撤销的纠偏时顶部展示，可撤销
+                val latestCorrection by viewModel.latestCorrection.collectAsStateWithLifecycle()
+                latestCorrection?.let { corr ->
+                    CorrectionBanner(
+                        trigger = corr.trigger,
+                        onRevoke = { viewModel.revokeCorrection() },
+                    )
                 }
 
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
@@ -497,6 +522,10 @@ private fun ChatPane(
                                         key = "topic-${item.anchorId}",
                                         contentType = "topic",
                                     ) { TopicDividerText(onImage = backgroundFile != null) }
+                                    is TimelineItem.UnreadDivider -> item(
+                                        key = "unread-${item.anchorId}",
+                                        contentType = "unread",
+                                    ) { UnreadDividerText(onImage = backgroundFile != null) }
                                     is TimelineItem.Msg -> item(
                                         key = "m-${item.message.id}",
                                         contentType = "msg",
@@ -504,6 +533,8 @@ private fun ChatPane(
                                         MessageRow(
                                             message = item.message,
                                             sticker = item.message.stickerId?.let(stickerById::get),
+                                            grouped = item.grouped,
+                                            density = messageDensity,
                                             maxBubbleWidth = bubbleMaxWidth,
                                             onHide = { viewModel.hideMessage(item.message.id) },
                                             onLongPress = { menuMessage = item.message },
@@ -530,6 +561,7 @@ private fun ChatPane(
                                 MessageRow(
                                     message = message,
                                     sticker = message.stickerId?.let(stickerById::get),
+                                    density = messageDensity,
                                     maxBubbleWidth = bubbleMaxWidth,
                                     onHide = { viewModel.hideMessage(message.id) },
                                     onLongPress = { menuMessage = message },
@@ -675,6 +707,8 @@ private fun ChatPane(
                     onToggleStickers = { showStickers = !showStickers },
                     onCloseStickers = { showStickers = false },
                     onSend = { text ->
+                        // v3 H-22：发言时标记当前最新消息为已读
+                        allMessages.maxOfOrNull { it.id }?.let { viewModel.markChatRead(it) }
                         viewModel.send(text)
                     },
                 )
@@ -961,6 +995,10 @@ private fun RenameSessionDialog(initial: String, onDismiss: () -> Unit, onConfir
 private fun MessageRow(
     message: MessageEntity,
     sticker: StickerEntity? = null,
+    /** v3 H-22：与上一条同作者且间隔<2分钟，省略头像、收紧间距 */
+    grouped: Boolean = false,
+    /** v3 H-22 / 1.3#48：消息密度，控制气泡上下间距 */
+    density: MessageDensity = MessageDensity.STANDARD,
     maxBubbleWidth: Dp,
     onHide: () -> Unit,
     onLongPress: () -> Unit = {},
@@ -1003,7 +1041,10 @@ private fun MessageRow(
     }
 
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        // v3 H-22 / 1.3#48：连续同作者消息间距减半，正常间距由消息密度档位决定
+        modifier = Modifier.fillMaxWidth().padding(
+            top = if (grouped) (density.verticalPaddingDp / 2).dp else density.verticalPaddingDp.dp
+        ),
         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Column(
@@ -1094,6 +1135,9 @@ private fun MessageRow(
                     if (message.type == TYPE_STICKER) {
                         // 表情消息：无气泡、无背景（执行书 7.4.4）
                         StickerArt(sticker = sticker, size = 132.dp)
+                    } else if (message.type == TYPE_CARD) {
+                        // v3 ADR-15 / 7.4.5：结构化卡片消息
+                        CardBubble(rawContent = message.content)
                     } else {
                         Bubble(text = message.content, isUser = isUser)
                     }
@@ -1192,6 +1236,31 @@ private fun MessageRow(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/** v3 H-11 / 4.11：纠偏条——提示已记录风格纠偏，可点击撤销。 */
+@Composable
+private fun CorrectionBanner(trigger: String, onRevoke: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "已记录「$trigger」纠偏，她会调整语气",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onRevoke) {
+                Text("撤销", style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -1590,6 +1659,7 @@ private fun SessionDrawer(
     onOpenSearch: () -> Unit,
     onOpenGallery: () -> Unit,
     onOpenRelation: () -> Unit,
+    onOpenLifeDay: () -> Unit,
 ) {
     var showArchived by remember { mutableStateOf(false) }
     ModalDrawerSheet(drawerContainerColor = MaterialTheme.colorScheme.surface) {
@@ -1646,6 +1716,7 @@ private fun SessionDrawer(
         Divider(color = MaterialTheme.colorScheme.surfaceVariant)
         Column(Modifier.padding(vertical = 8.dp)) {
             DrawerEntry(stringResource(R.string.chat_relation), onOpenRelation)
+            DrawerEntry(stringResource(R.string.life_day_title), onOpenLifeDay)
             DrawerEntry(stringResource(R.string.chat_search), onOpenSearch)
             DrawerEntry(stringResource(R.string.chat_gallery), onOpenGallery)
             DrawerEntry(stringResource(R.string.chat_memory), onOpenMemory)
@@ -1702,7 +1773,9 @@ private fun DrawerEntry(label: String, onClick: () -> Unit) {
 private sealed interface TimelineItem {
     data class DateHeader(val label: String, val anchorId: Long) : TimelineItem
     data class TopicDivider(val anchorId: Long) : TimelineItem
-    data class Msg(val message: MessageEntity) : TimelineItem
+    data class UnreadDivider(val anchorId: Long) : TimelineItem
+    /** grouped=true 表示与上一条同作者且间隔<2分钟，渲染时省略头像、收紧间距（v3 H-22 / 1.3#4） */
+    data class Msg(val message: MessageEntity, val grouped: Boolean = false) : TimelineItem
 }
 
 private val dayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
@@ -1728,12 +1801,22 @@ internal fun favorabilityLabelRes(level: FavorabilityLevel): Int = when (level) 
 /**
  * 把跨会话的消息流压成带日期分隔线 +（可选）话题分隔线的时间线。
  * - 日期按天聚合：今天 / 昨天 / 具体日期；
- * - 话题分隔线落在会话切换处，用新会话第一条消息 id 锚定，保证 LazyColumn key 稳定。
+ * - 话题分隔线落在会话切换处，用新会话第一条消息 id 锚定，保证 LazyColumn key 稳定；
+ * - v3 H-22：连续同作者且间隔 <2 分钟标记 grouped，渲染时省略头像；
+ * - v3 H-22：在 lastReadMessageId 之后插入「以下为新消息」分割线。
  */
-private fun buildTimeline(context: Context, messages: List<MessageEntity>, showTopicDividers: Boolean): List<TimelineItem> {
+private fun buildTimeline(
+    context: Context,
+    messages: List<MessageEntity>,
+    showTopicDividers: Boolean,
+    lastReadMessageId: Long = 0,
+): List<TimelineItem> {
     val out = ArrayList<TimelineItem>(messages.size * 2)
     var lastDay = ""
     var lastSession: Long? = null
+    var lastRole: String? = null
+    var lastTime: Long = 0
+    var unreadInserted = false
     for (msg in messages) {
         val day = dayFormat.format(Date(msg.createdAt))
         if (day != lastDay) {
@@ -1743,8 +1826,16 @@ private fun buildTimeline(context: Context, messages: List<MessageEntity>, showT
         if (showTopicDividers && lastSession != null && lastSession != msg.sessionId) {
             out.add(TimelineItem.TopicDivider(msg.id))
         }
+        // v3 H-22 / 1.3#5：未读分割线插在最后一条已读消息之后
+        if (!unreadInserted && lastReadMessageId > 0 && msg.id > lastReadMessageId) {
+            unreadInserted = true
+            out.add(TimelineItem.UnreadDivider(msg.id))
+        }
+        val grouped = lastRole == msg.role && (msg.createdAt - lastTime) < 2 * 60 * 1000L
+        lastRole = msg.role
+        lastTime = msg.createdAt
         lastSession = msg.sessionId
-        out.add(TimelineItem.Msg(msg))
+        out.add(TimelineItem.Msg(msg, grouped))
     }
     return out
 }
@@ -1796,6 +1887,23 @@ private fun TopicDividerText(onImage: Boolean = false) {
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         textAlign = TextAlign.Center,
     )
+}
+
+/** v3 H-22 / 1.3#5：未读分割线「以下为新消息」。 */
+@Composable
+private fun UnreadDividerText(onImage: Boolean = false) {
+    val bg = if (onImage) MaterialTheme.colorScheme.surface.copy(alpha = 0.7f) else MaterialTheme.colorScheme.primaryContainer
+    val fg = if (onImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimaryContainer
+    Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+        Text(
+            stringResource(R.string.chat_unread_divider),
+            modifier = Modifier
+                .background(bg, RoundedCornerShape(50))
+                .padding(horizontal = 12.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = fg,
+        )
+    }
 }
 
 // 供 Android Studio 预览手机/平板两种宽度下的气泡与分隔线样式

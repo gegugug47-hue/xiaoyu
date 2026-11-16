@@ -102,6 +102,10 @@ data class AppSettings(
     val dndStartHour: Int = 23,
     val dndEndHour: Int = 8,
     val proactiveEnabled: Boolean = true,
+    /** v3 §12.9 / H-23：表情开关，默认 none（不发），用户手动开启后才注入表情目录 */
+    val stickersEnabled: Boolean = false,
+    /** v3 H-22 / 1.3#5：最后一条已读消息 id，用于聊天页「以下为新消息」分割线 */
+    val lastReadMessageId: Long = 0,
     /** 每天最多主动消息条数（1~3），由好感度决定，此处仅存当日计划日期 */
     val proactivePlannedDate: String? = null,
     val proactiveSentDate: String? = null,
@@ -164,6 +168,8 @@ data class AppSettings(
     val fontScale: Float = 1.0f,
     /** 气泡主题：BRAND（品牌青灰）/ MINT（薄荷绿）/ WARM（暖橙奶油） */
     val bubbleStyle: String = "BRAND",
+    /** v3 H-22 / 1.3#48：消息密度三档，控制气泡上下内边距 */
+    val messageDensity: String = "STANDARD",
     /** 引导里填的「她怎么称呼你」（执行书 6.10），空串表示没填 */
     val userNickname: String = "",
     /** 你希望她怎么自称（例如「我」「小鱼」），空串用身份默认 */
@@ -199,5 +205,23 @@ enum class ChatMode {
         fun from(value: String?): ChatMode = runCatching {
             valueOf(requireNotNull(value).uppercase())
         }.getOrDefault(CONTINUOUS)
+    }
+}
+
+/**
+ * 消息密度三档（执行书 v3 H-22 / 1.3#48）：控制聊天气泡的上下内边距。
+ * - COMPACT：紧凑，适合密集阅读
+ * - STANDARD：标准（默认）
+ * - COZY：宽松，呼吸感更强
+ */
+enum class MessageDensity(val label: String, val verticalPaddingDp: Int) {
+    COMPACT("紧凑", 6),
+    STANDARD("标准", 10),
+    COZY("宽松", 14);
+
+    companion object {
+        fun from(value: String?): MessageDensity = runCatching {
+            valueOf(requireNotNull(value).uppercase())
+        }.getOrDefault(STANDARD)
     }
 }

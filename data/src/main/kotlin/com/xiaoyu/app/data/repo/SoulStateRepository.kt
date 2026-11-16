@@ -226,6 +226,10 @@ class SoulStateRepository @Inject constructor(
     suspend fun recentLife(limit: Int = 5): List<LifeFragmentEntity> =
         lifeDao.recent(System.currentTimeMillis(), limit)
 
+    /** v3 H-12 / 7.6：观察指定时间之后的生活碎片流。 */
+    fun observeLifeSince(since: Long): kotlinx.coroutines.flow.Flow<List<LifeFragmentEntity>> =
+        lifeDao.observeSince(since)
+
     // ---------------- 日记 ----------------
 
     fun observeDiaries(): Flow<List<DiaryEntity>> = diaryDao.observeAll()

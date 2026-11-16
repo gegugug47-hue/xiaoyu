@@ -95,8 +95,10 @@
     <string name="data_persona_archive_bad_version">不支持的人格包版本：%1$d</string>
     <string name="data_persona_archive_missing_name">人格包缺少名字</string>
     <string name="data_persona_archive_empty_identity">身份设定是空的</string>
+    <string name="data_persona_archive_suspicious">身份设定中包含可疑的注入指令，已拒绝导入</string>
     <string name="data_persona_archive_large_identity">身份设定有 %1$d 字，超过 %2$d 字，可能稀释人格。确认后请带 confirmLargeIdentity = true 重新导入。</string>
     <string name="data_persona_archive_identity_exists">已存在完全相同的身份，复用原记录</string>
+    <string name="data_persona_archive_suspicious_style">风格「%1$s」包含可疑指令，已跳过</string>
     <string name="data_persona_archive_bad_pack">人格包格式不正确</string>
 
     <!-- 聊天链路（ChatRepository） -->

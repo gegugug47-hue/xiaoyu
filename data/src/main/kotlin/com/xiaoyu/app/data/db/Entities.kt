@@ -19,6 +19,8 @@ data class SessionEntity(
     /** pending / done / failed（PRD 4.2 / 5.2） */
     @ColumnInfo(name = "extracted_state") val extractedState: String = "pending",
     @ColumnInfo(name = "extract_attempts") val extractAttempts: Int = 0,
+    /** v3 §4.7.1 / H-14：增量提炼游标，记录上次提炼到的消息时间戳，0 表示从未提炼 */
+    @ColumnInfo(name = "extract_cursor") val extractCursor: Long = 0,
     val archived: Boolean = false,
 )
 
@@ -219,6 +221,42 @@ data class LifeFragmentEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     val used: Boolean = false,
     @ColumnInfo(name = "expire_at") val expireAt: Long,
+)
+
+/**
+ * 情绪归因事件（执行书 v3 H-9 / 4.10.3）。
+ * 记录触发某种情绪的关键词，强度随时间半衰期衰减，被再次提及时回升。
+ * 用于在对话中自然回应「上次你说的那件事还难受吗」之类的共情。
+ */
+@Entity(tableName = "emotion_events", indices = [Index("emotion"), Index("created_at")])
+data class EmotionEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** 情绪类别：开心 / 难过 / 生气 / 焦虑 / 感动 … */
+    val emotion: String,
+    /** 触发词或短语（用户原话里的关键词） */
+    val trigger: String,
+    /** 初始强度 0~1 */
+    val intensity: Float,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    /** 最近一次被提及的时间，用于「提起回升」 */
+    @ColumnInfo(name = "last_mention_at") val lastMentionAt: Long,
+    @ColumnInfo(name = "session_id") val sessionId: Long? = null,
+)
+
+/**
+ * 纠偏记录（执行书 v3 H-11 / 4.11）。
+ * 用户说「不像她」时落一条风格补丁，可撤销（revoked=1）。
+ * 仅最近一条未撤销的补丁会注入 prompt。
+ */
+@Entity(tableName = "corrections", indices = [Index("created_at")])
+data class CorrectionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val intent: String,
+    val patch: String,
+    val trigger: String,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "revoked") val revoked: Boolean = false,
+    @ColumnInfo(name = "session_id") val sessionId: Long? = null,
 )
 
 /** settings 表：敏感值（API Key / 电脑地址）一律加密后落库（PRD 2.1-4）。 */

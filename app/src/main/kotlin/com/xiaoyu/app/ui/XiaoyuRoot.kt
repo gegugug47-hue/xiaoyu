@@ -69,7 +69,7 @@ import com.xiaoyu.app.R
 
 enum class Screen {
     Chat, Memory, Diary, Settings, Persona, Search, Gallery, Relation, Diagnostics, Usage,
-    StickerManage, StickerImport,
+    StickerManage, StickerImport, LifeDay,
 }
 
 @Composable
@@ -161,6 +161,7 @@ fun XiaoyuRoot(viewModel: AppViewModel = hiltViewModel()) {
                             onOpenSearch = { go(Screen.Search) },
                             onOpenGallery = { go(Screen.Gallery) },
                             onOpenRelation = { go(Screen.Relation) },
+                            onOpenLifeDay = { go(Screen.LifeDay) },
                             onOpenStickers = { go(Screen.StickerManage) },
                         )
                         Screen.Memory -> CenteredWidth { MemoryScreen(viewModel = viewModel, onBack = back) }
@@ -231,6 +232,9 @@ fun XiaoyuRoot(viewModel: AppViewModel = hiltViewModel()) {
                                 onOpenMemory = { go(Screen.Memory) },
                                 onOpenPersona = { go(Screen.Persona) },
                             )
+                        }
+                        Screen.LifeDay -> CenteredWidth {
+                            LifeDayScreen(viewModel = viewModel, onBack = back)
                         }
                     }
                 }

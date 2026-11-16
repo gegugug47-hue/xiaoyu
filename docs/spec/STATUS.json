@@ -1,0 +1,20 @@
+{
+  "version": "1.2.0",
+  "phase": "ALL_DONE",
+  "updatedAt": "2026-11-16",
+  "summary": {
+    "total": 30,
+    "done": 30,
+    "todo": 0
+  },
+  "byPriority": {
+    "P0": { "total": 4, "done": 4 },
+    "P1": { "total": 15, "done": 15 },
+    "P2": { "total": 11, "done": 11 }
+  },
+  "releasePlan": {
+    "strategy": "all-at-once",
+    "note": "全部 30 条完成后统一发 v1.2.0，不再逐条发版",
+    "pendingTag": "v1.2.0"
+  }
+}

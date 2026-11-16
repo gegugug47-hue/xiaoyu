@@ -17,10 +17,11 @@ object MemoryExtractionParser {
 
     fun parseMemories(raw: String?): List<ExtractedMemory> {
         val array = extractArray(raw) ?: return emptyList()
-        return array.mapNotNull { element ->
+        val parsed = array.mapNotNull { element ->
             val obj = element as? JsonObject ?: return@mapNotNull null
             val content = obj.str("content")?.trim().orEmpty()
-            if (content.isEmpty()) return@mapNotNull null
+            // v3 §4.7.2：提炼条目内容 3-120 字，过短或过长都丢弃
+            if (content.length !in 3..120) return@mapNotNull null
             val importance = (obj.int("importance", 3)).coerceIn(1, 5)
             val tags = obj.stringList("tags")
             ExtractedMemory(
@@ -30,6 +31,8 @@ object MemoryExtractionParser {
                 tags = tags.ifEmpty { emptyList() },
             )
         }.distinctBy { it.content }
+        // v3 §4.7.2：单轮最多 12 条，超出按 importance 取前 12
+        return parsed.sortedByDescending { it.importance }.take(12)
     }
 
     fun parseCardMerge(raw: String?): ExtractedCard? {

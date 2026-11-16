@@ -1,0 +1,15 @@
+{
+  "tasks": [
+    { "id": 20, "title": "归因情绪事件", "status": "DONE", "complexity": "medium" },
+    { "id": 21, "title": "纠偏条", "status": "DONE", "complexity": "large" },
+    { "id": 22, "title": "记忆图谱", "status": "DONE", "complexity": "medium" },
+    { "id": 23, "title": "她的一天", "status": "DONE", "complexity": "medium" },
+    { "id": 24, "title": "卡片消息", "status": "DONE", "complexity": "large" },
+    { "id": 25, "title": "聊天背景自定义 + WCAG 对比度守卫", "status": "DONE", "complexity": "medium" },
+    { "id": 26, "title": "设计系统 token 化", "status": "DONE", "complexity": "large" },
+    { "id": 27, "title": "在线状态推导", "status": "DONE", "complexity": "small" },
+    { "id": 28, "title": "消息密度三档", "status": "DONE", "complexity": "small" },
+    { "id": 29, "title": "语音转文字输入", "status": "DONE", "complexity": "small" },
+    { "id": 30, "title": "STATUS.json + TASKS.json 断点续跑", "status": "DONE", "complexity": "small" }
+  ]
+}

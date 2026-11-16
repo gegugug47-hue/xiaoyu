@@ -9,12 +9,17 @@ import com.xiaoyu.app.data.db.EmbeddingDao
 import com.xiaoyu.app.data.db.FactCardDao
 import com.xiaoyu.app.data.db.FavorabilityDao
 import com.xiaoyu.app.data.db.IdentityDao
+import com.xiaoyu.app.data.db.EmotionEventDao
+import com.xiaoyu.app.data.db.CorrectionDao
 import com.xiaoyu.app.data.db.LifeFragmentDao
 import com.xiaoyu.app.data.db.MIGRATION_1_2
 import com.xiaoyu.app.data.db.MIGRATION_2_3
 import com.xiaoyu.app.data.db.MIGRATION_3_4
 import com.xiaoyu.app.data.db.MIGRATION_4_5
 import com.xiaoyu.app.data.db.MIGRATION_5_6
+import com.xiaoyu.app.data.db.MIGRATION_6_7
+import com.xiaoyu.app.data.db.MIGRATION_7_8
+import com.xiaoyu.app.data.db.MIGRATION_8_9
 import com.xiaoyu.app.data.db.MemoryDao
 import com.xiaoyu.app.data.db.MessageDao
 import com.xiaoyu.app.data.db.MoodDao
@@ -45,7 +50,7 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): XiaoyuDatabase =
         Room.databaseBuilder(context, XiaoyuDatabase::class.java, "xiaoyu.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
 
     @Provides
@@ -83,6 +88,12 @@ object AppModule {
 
     @Provides
     fun lifeFragmentDao(db: XiaoyuDatabase): LifeFragmentDao = db.lifeFragmentDao()
+
+    @Provides
+    fun emotionEventDao(db: XiaoyuDatabase): EmotionEventDao = db.emotionEventDao()
+
+    @Provides
+    fun correctionDao(db: XiaoyuDatabase): CorrectionDao = db.correctionDao()
 
     @Provides
     fun settingDao(db: XiaoyuDatabase): SettingDao = db.settingDao()

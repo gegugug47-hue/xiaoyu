@@ -119,7 +119,7 @@ class DailyPlanWorker(
         var life = now.toLocalDate().atTime(8, 5).atZone(zone)
         if (!life.isAfter(now)) life = life.plusDays(1)
         scheduler.scheduleLife(Duration.between(now, life).toMillis(), life.toLocalDate().toString())
-        // 精确闹钟主轨：早安 / 晚安（无权限时 scheduleAlarm 内部自动退化）
+        // 早安 / 晚安闹钟：精确闹钟为可选增强，无权限时 scheduleAlarm 内部退化为 ±10 分钟窗口
         scheduler.scheduleNextDailyAlarms()
 
         val today = now.toLocalDate()
@@ -140,9 +140,12 @@ class DailyPlanWorker(
                 val at = instant.toEpochMilli()
                 if (at > nowMillis + 60_000) {
                     val slotKey = "$today-$at"
-                    // WorkManager 兜底 + AlarmManager 主轨（同槽位 key，触发时互相顶替）
+                    // v3 ADR-10 / H-5：WorkManager 为主轨（跨重启持久、不依赖精确闹钟权限）；
+                    // 精确闹钟仅在系统授权时叠加，作为"准点推送"的可选增强。
                     scheduler.scheduleProactive(at - nowMillis, slotKey)
-                    scheduler.scheduleProactiveAlarm(at, slotKey)
+                    if (scheduler.canScheduleExactAlarms()) {
+                        scheduler.scheduleProactiveAlarm(at, slotKey)
+                    }
                     plannedSlots += at
                 }
             }

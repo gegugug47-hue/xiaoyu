@@ -34,14 +34,15 @@ class StickerPromptTest {
         StickerCatalogEntry(index = index, id = "builtin-fish-$index", name = name, tags = tags)
 
     @Test
-    fun `表情目录按序号渲染并带标签`() {
+    fun `表情目录按语义名渲染并带标签`() {
         val assembly = PromptAssembler(PromptLibrary()).assemble(
             context(listOf(sticker(1, "开心到转圈", listOf("开心", "兴奋")))),
         )
         val block = assembly.blocks.firstOrNull { it.key == "stickers" }
         assertNotNull(block)
-        assertTrue(block.content.contains("1 开心到转圈 [开心,兴奋]"))
-        assertTrue(block.content.contains("[xy:s=编号]"))
+        // v3 H-6：用语义名而非数字编号
+        assertTrue(block.content.contains("开心到转圈 [开心,兴奋]"))
+        assertTrue(block.content.contains("[xy:s=名字]"))
         assertFalse(block.content.contains("{{"))
     }
 

@@ -1,7 +1,11 @@
 {
-  "deepseek-chat": { "input": 0.27, "output": 1.10, "cached_input": 0.027 },
-  "deepseek-reasoner": { "input": 0.135, "output": 0.55 },
-  "qwen-plus": { "input": 0.8, "output": 2.0 },
-  "qwen-turbo": { "input": 0.3, "output": 0.6 },
-  "ollama": { "input": 0, "output": 0 }
+  "currency": "CNY",
+  "checked_at": "2026-11-16",
+  "models": {
+    "deepseek-chat": { "input": 0.27, "output": 1.10, "cached_input": 0.027 },
+    "deepseek-reasoner": { "input": 0.135, "output": 0.55 },
+    "qwen-plus": { "input": 0.8, "output": 2.0 },
+    "qwen-turbo": { "input": 0.3, "output": 0.6 },
+    "ollama": { "input": 0, "output": 0, "unpriced": true }
+  }
 }

@@ -30,6 +30,8 @@
     <!-- 关系 -->
     <string name="relation_title">我们的关系</string>
     <string name="relation_back">返回</string>
+    <!-- 她的一天 -->
+    <string name="life_day_title">她的一天</string>
     <string name="relation_loading">正在整理你们的故事…</string>
     <string name="relation_known_days">你们已经认识 %1$d 天了</string>
     <string name="relation_stat_known">认识</string>

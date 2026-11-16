@@ -23,6 +23,8 @@ const val ROLE_NOTICE = "system_notice"
 /** 消息类型（执行书 7.4.4）。 */
 const val TYPE_TEXT = "text"
 const val TYPE_STICKER = "sticker"
+/** v3 ADR-15 / 7.4.5：结构化卡片消息（日记/约定/她的一天/记忆回溯），content 为 JSON。 */
+const val TYPE_CARD = "card"
 
 /** 消息发送状态（执行书 M1-09）。 */
 const val STATUS_SENDING = "sending"

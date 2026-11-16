@@ -94,10 +94,11 @@ class PromptAssembler(
         val stickerBlock = if (context.stickerCatalog.isEmpty()) "" else library.render(
             PromptKeys.STICKERS,
             mapOf(
+                // v3 H-6 / ADR-05：用语义名而非数字编号，降低模型幻觉率
                 "stickers" to context.stickerCatalog.joinToString("\n") { entry ->
                     val tags = entry.tags.take(2).joinToString(",")
-                    if (tags.isBlank()) "${entry.index} ${entry.name}"
-                    else "${entry.index} ${entry.name} [$tags]"
+                    if (tags.isBlank()) entry.name
+                    else "${entry.name} [$tags]"
                 },
             ),
         )

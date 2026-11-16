@@ -6,6 +6,8 @@ import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.brain.BrainGateway
 import com.xiaoyu.app.data.db.MessageEntity
 import com.xiaoyu.app.data.db.MessageFtsEntity
+import com.xiaoyu.app.data.db.EmotionEventEntity
+import com.xiaoyu.app.data.db.CorrectionEntity
 import com.xiaoyu.app.data.db.RequestSnapshotDao
 import com.xiaoyu.app.data.db.RequestSnapshotEntity
 import com.xiaoyu.app.data.db.SessionDao
@@ -18,13 +20,17 @@ import com.xiaoyu.soul.core.BrainException
 import com.xiaoyu.soul.core.BrainRole
 import com.xiaoyu.soul.core.MessageRole
 import com.xiaoyu.soul.core.SoulMessage
+import com.xiaoyu.soul.emotion.EmotionAttributor
+import com.xiaoyu.soul.correction.CorrectionEngine
 import com.xiaoyu.soul.engine.SoulEngine
 import com.xiaoyu.soul.memory.ExplicitMemoryDetector
 import com.xiaoyu.soul.memory.MemoryExtractionParser
 import com.xiaoyu.soul.pacing.ReplyPacer
+import com.xiaoyu.soul.postprocess.LengthGuard
 import com.xiaoyu.soul.postprocess.PostEvent
 import com.xiaoyu.soul.postprocess.PostProcessPipeline
 import com.xiaoyu.soul.postprocess.XyTokenParser
+import com.xiaoyu.soul.safety.CrisisDetector
 import com.xiaoyu.soul.prompt.PromptContext
 import com.xiaoyu.soul.sticker.StickerCooldown
 import com.xiaoyu.soul.util.TokenEstimator
@@ -89,11 +95,15 @@ class ChatRepository @Inject constructor(
     private val diagnosticsRepo: DiagnosticsRepository,
     private val snapshotDao: RequestSnapshotDao,
     private val searchRepo: SearchRepository,
+    private val emotionEventDao: com.xiaoyu.app.data.db.EmotionEventDao,
+    private val correctionDao: com.xiaoyu.app.data.db.CorrectionDao,
     @ApplicationContext private val appContext: Context,
 ) {
     private val staleSessionMillis = 30 * 60 * 1000L
     /** AI 发表情冷却（执行书 7.4.7），跨会话共享。 */
     private val stickerCooldown = StickerCooldown(4)
+    /** v3 §4.4：连续超长回复的自适应反馈，跨会话共享。 */
+    private val lengthGuard = LengthGuard()
 
     fun observeMessages(sessionId: Long): Flow<List<MessageEntity>> = messageDao.observeVisible(sessionId)
 
@@ -347,7 +357,82 @@ class ChatRepository @Inject constructor(
         val session = sessionDao.byId(sessionId) ?: error("会话不存在")
         if (session.endedAt != null) sessionDao.reopen(sessionId)
         val content = text.trim()
+        // v3 §8.2 / H-4 危机关怀：命中自伤倾向不走模型，直接关怀回复，且不进记忆提炼
+        if (CrisisDetector.check(content)) {
+            return crisisReplyFlow(sessionId, content)
+        }
+        // v3 H-9 / 4.10.3：情绪归因——检测触发词并记录事件（半衰期衰减 + 提起回升）
+        recordEmotionIfAny(sessionId, content)
+        // v3 H-11 / 4.11：纠偏检测——用户说「不像她」时落一条可撤销的风格补丁
+        recordCorrectionIfAny(sessionId, content)
         return replyFlow(sessionId, content, continueMode = false, transientContext = transientContext, quoteToId = quoteToId)
+    }
+
+    /** v3 H-9：命中情绪触发词则落一条 emotion_events，强度半衰期衰减，再次提及时回升。 */
+    private suspend fun recordEmotionIfAny(sessionId: Long, text: String) {
+        val detection = EmotionAttributor.detect(text) ?: return
+        val now = System.currentTimeMillis()
+        emotionEventDao.insert(
+            EmotionEventEntity(
+                emotion = detection.emotion,
+                trigger = detection.trigger,
+                intensity = detection.intensity,
+                createdAt = now,
+                lastMentionAt = now,
+                sessionId = sessionId,
+            )
+        )
+    }
+
+    /** v3 H-11：命中纠偏触发词则落一条 corrections，最近一条未撤销的会注入 prompt。 */
+    private suspend fun recordCorrectionIfAny(sessionId: Long, text: String) {
+        val correction = CorrectionEngine.detect(text) ?: return
+        val now = System.currentTimeMillis()
+        correctionDao.insert(
+            CorrectionEntity(
+                intent = correction.intent.name,
+                patch = correction.patch,
+                trigger = correction.trigger,
+                createdAt = now,
+                revoked = false,
+                sessionId = sessionId,
+            )
+        )
+    }
+
+    /** v3 H-11：观察最近一条未撤销的纠偏（供 UI 展示纠偏条）。 */
+    fun latestCorrection(): kotlinx.coroutines.flow.Flow<CorrectionEntity?> =
+        correctionDao.observeLatestActive()
+
+    /** v3 H-11：撤销最近一条纠偏（用户点击「撤销」）。 */
+    suspend fun revokeLatestCorrection() {
+        correctionDao.latestActive()?.let { correctionDao.revoke(it.id) }
+    }
+
+    /** 危机命中：落用户消息 + 关怀回复，不调用模型，返回已完成流。 */
+    private fun crisisReplyFlow(sessionId: Long, userText: String): Flow<ChatEvent> = flow {
+        val now = System.currentTimeMillis()
+        insertMessage(
+            MessageEntity(
+                sessionId = sessionId,
+                role = ROLE_USER,
+                content = XyTokenParser.escapeUserText(userText),
+                createdAt = now,
+                status = STATUS_SENT,
+            )
+        )
+        val reply = CrisisDetector.careReply(userName = null)
+        insertMessage(
+            MessageEntity(
+                sessionId = sessionId,
+                role = ROLE_ASSISTANT,
+                content = reply,
+                createdAt = now + 1,
+                status = STATUS_SENT,
+            )
+        )
+        sessionDao.touch(sessionId, now + 1)
+        emit(ChatEvent.Completed)
     }
 
     /** 回复中断后的“继续”（PRD 4.1）。 */
@@ -502,6 +587,9 @@ class ChatRepository @Inject constructor(
         val directives = mutableListOf<String>()
         var userMessageId: Long? = null
 
+        // v3 §4.4：连续超长回复累计 3 次后，本轮追加长度约束
+        lengthGuard.directive()?.let { directives += it }
+
         if (userText != null) {
             userMessageId = insertMessage(
                 MessageEntity(
@@ -526,6 +614,11 @@ class ChatRepository @Inject constructor(
         // 翻旧账临时上下文：仅本轮生效，不进记忆系统（PRD US-020）
         if (!transientContext.isNullOrBlank()) {
             directives += "[本轮特别说明] 用户翻出了一段旧对话，希望你基于这段历史来回答。旧对话内容如下：\n$transientContext\n请自然地结合这段历史回应，不要显得是在检索资料。"
+        }
+
+        // v3 H-11 / 4.11：纠偏风格补丁——最近一条未撤销的纠偏会注入本轮 prompt
+        correctionDao.latestActive()?.let { corr ->
+            directives += "[风格纠偏] ${corr.patch}"
         }
 
         settings.current().pendingDiaryMentionId?.let { diaryId ->
@@ -555,16 +648,18 @@ class ChatRepository @Inject constructor(
 
         val config = settings.current()
         // L3 表情目录：空表时为空，PromptAssembler 会整段省略（7.4.2）
-        val stickerCatalog = stickerRepo.catalogForPrompt(40)
+        // v3 §12.9 / H-23：默认 none，用户开启后才注入表情目录
+        val stickerCatalog = if (settings.current().stickersEnabled) stickerRepo.catalogForPrompt(40) else emptyList()
         if (config.segmentSending) directives += SEGMENT_DIRECTIVE
+        // v3 §4.14 / H-10：深夜 + 低精力时自然收束，说晚安结束本轮（不依赖沉浸模式开关）
+        if (ReplyPacer.shouldSaySleepy(hour, mood.energy, Random.Default)) {
+            val line = ReplyPacer.sleepyLine(Random.Default)
+            persistAssistant(sessionId, line)
+            emit(ChatEvent.Delta(line))
+            emit(ChatEvent.Completed)
+            return@flow
+        }
         if (config.immersiveEnabled) {
-            if (ReplyPacer.shouldSaySleepy(hour, mood.energy, Random.Default)) {
-                val line = ReplyPacer.sleepyLine(Random.Default)
-                persistAssistant(sessionId, line)
-                emit(ChatEvent.Delta(line))
-                emit(ChatEvent.Completed)
-                return@flow
-            }
             val delayMs = ReplyPacer.delayMillis(
                 intensity = config.immersiveIntensity,
                 energy = mood.energy,
@@ -714,6 +809,11 @@ class ChatRepository @Inject constructor(
         sessionDao.touch(sessionId, System.currentTimeMillis())
         stateRepo.drainEnergy(1)
 
+        // v3 §4.4：记录本轮回复长度，连续超长则下一轮追加约束
+        if (failure == null) {
+            lengthGuard.record(lastVisible.length, lastVisible.contains("|||"))
+        }
+
         when {
             failure != null -> {
                 userMessageId?.let { messageDao.updateStatus(it, STATUS_FAILED) }
@@ -737,6 +837,25 @@ class ChatRepository @Inject constructor(
         // 等本轮回复落库后再排队提炼，避免 Worker 读不到刚生成的那条回复
         if (memoRequested && failure == null) {
             Log.d(TAG, "模型标记了值得记住的内容，已排入记忆提炼: session=$sessionId")
+            scheduler.scheduleExtraction(sessionId)
+        }
+
+        // v3 H-14：会话内增量提炼——未提炼消息 ≥60 条，或 ≥4 小时且 ≥10 条时触发
+        if (failure == null) {
+            scheduleIncrementalExtractionIfDue(sessionId)
+        }
+    }
+
+    /** 增量提炼触发判定（v3 H-14）：≥60 条或 ≥4h 且 ≥10 条未提炼消息。 */
+    private suspend fun scheduleIncrementalExtractionIfDue(sessionId: Long) {
+        val session = sessionDao.byId(sessionId) ?: return
+        if (session.endedAt != null) return
+        val unextracted = messageDao.countSince(sessionId, session.extractCursor)
+        val hoursSinceCursor =
+            (System.currentTimeMillis() - session.extractCursor) / 3_600_000L
+        val due = unextracted >= 60 || (hoursSinceCursor >= 4 && unextracted >= 10)
+        if (due) {
+            Log.d(TAG, "增量提炼触发: session=$sessionId unextracted=$unextracted hours=$hoursSinceCursor")
             scheduler.scheduleExtraction(sessionId)
         }
     }

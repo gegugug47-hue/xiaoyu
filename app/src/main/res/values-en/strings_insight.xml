@@ -30,6 +30,7 @@
     <!-- Relationship -->
     <string name="relation_title">Our Relationship</string>
     <string name="relation_back">Back</string>
+    <string name="life_day_title">Her Day</string>
     <string name="relation_loading">Putting your story together…</string>
     <string name="relation_known_days">You\'ve known each other for %1$d days</string>
     <string name="relation_stat_known">Known</string>

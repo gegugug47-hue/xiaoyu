@@ -95,8 +95,10 @@
     <string name="data_persona_archive_bad_version">Unsupported persona pack version: %1$d</string>
     <string name="data_persona_archive_missing_name">The persona pack is missing a name</string>
     <string name="data_persona_archive_empty_identity">The identity description is empty</string>
+    <string name="data_persona_archive_suspicious">The identity contains suspicious injection directives and was rejected</string>
     <string name="data_persona_archive_large_identity">The identity description is %1$d characters, over the %2$d character limit, which may dilute the persona. Once you confirm, import again with confirmLargeIdentity = true.</string>
     <string name="data_persona_archive_identity_exists">An identical identity already exists, so the existing record was reused</string>
+    <string name="data_persona_archive_suspicious_style">Style "%1$s" contains suspicious directives and was skipped</string>
     <string name="data_persona_archive_bad_pack">The persona pack format is invalid</string>
 
     <!-- Chat pipeline (ChatRepository) -->

@@ -57,6 +57,10 @@ interface SessionDao {
     @Query("UPDATE sessions SET last_message_at = :at WHERE id = :id")
     suspend fun touch(id: Long, at: Long)
 
+    /** v3 H-14：增量提炼游标前移到指定时间戳。 */
+    @Query("UPDATE sessions SET extract_cursor = :cursor WHERE id = :id")
+    suspend fun updateExtractCursor(id: Long, cursor: Long)
+
     @Query("UPDATE sessions SET archived = 0, ended_at = NULL, extracted_state = 'pending' WHERE id = :id")
     suspend fun reopen(id: Long)
 
@@ -78,6 +82,10 @@ interface MessageDao {
 
     @Query("SELECT * FROM messages WHERE session_id = :sessionId AND hidden = 0 ORDER BY created_at ASC, id ASC")
     suspend fun visibleForSession(sessionId: Long): List<MessageEntity>
+
+    /** v3 H-14：统计游标之后的可见消息数，用于增量提炼触发判定。 */
+    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId AND hidden = 0 AND created_at > :cursor")
+    suspend fun countSince(sessionId: Long, cursor: Long): Int
 
     @Query("SELECT * FROM messages WHERE session_id = :sessionId AND hidden = 0 AND retracted = 0 ORDER BY created_at DESC, id DESC LIMIT :limit")
     suspend fun latestForSession(sessionId: Long, limit: Int): List<MessageEntity>
@@ -428,6 +436,10 @@ interface LifeFragmentDao {
     @Query("SELECT * FROM life_fragments WHERE expire_at > :now ORDER BY used ASC, created_at DESC LIMIT :limit")
     suspend fun recent(now: Long, limit: Int): List<LifeFragmentEntity>
 
+    /** v3 H-12 / 7.6：观察指定时间之后的生活碎片，供「她的一天」时间线实时更新。 */
+    @Query("SELECT * FROM life_fragments WHERE created_at >= :since ORDER BY created_at DESC")
+    fun observeSince(since: Long): kotlinx.coroutines.flow.Flow<List<LifeFragmentEntity>>
+
     @Query("SELECT * FROM life_fragments WHERE id = :id")
     suspend fun byId(id: Long): LifeFragmentEntity?
 
@@ -439,6 +451,45 @@ interface LifeFragmentDao {
 
     @Query("DELETE FROM life_fragments WHERE expire_at <= :now")
     suspend fun purgeExpired(now: Long)
+}
+
+/** v3 H-9 / 4.10.3：情绪归因事件 DAO。 */
+@Dao
+interface EmotionEventDao {
+    @Insert
+    suspend fun insert(event: EmotionEventEntity): Long
+
+    @Query("SELECT * FROM emotion_events ORDER BY created_at DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<EmotionEventEntity>
+
+    @Query("SELECT * FROM emotion_events WHERE emotion = :emotion ORDER BY created_at DESC LIMIT :limit")
+    suspend fun byEmotion(emotion: String, limit: Int): List<EmotionEventEntity>
+
+    @Query("UPDATE emotion_events SET last_mention_at = :at WHERE id = :id")
+    suspend fun touch(id: Long, at: Long)
+
+    @Query("DELETE FROM emotion_events WHERE created_at < :before")
+    suspend fun purgeOlderThan(before: Long)
+}
+
+/** v3 H-11 / 4.11：纠偏记录 DAO。 */
+@Dao
+interface CorrectionDao {
+    @Insert
+    suspend fun insert(correction: CorrectionEntity): Long
+
+    @Query("SELECT * FROM corrections WHERE revoked = 0 ORDER BY created_at DESC LIMIT 1")
+    suspend fun latestActive(): CorrectionEntity?
+
+    /** v3：观察最近一条未撤销的纠偏，供 UI 展示纠偏条。 */
+    @Query("SELECT * FROM corrections WHERE revoked = 0 ORDER BY created_at DESC LIMIT 1")
+    fun observeLatestActive(): kotlinx.coroutines.flow.Flow<CorrectionEntity?>
+
+    @Query("SELECT * FROM corrections ORDER BY created_at DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<CorrectionEntity>
+
+    @Query("UPDATE corrections SET revoked = 1 WHERE id = :id")
+    suspend fun revoke(id: Long)
 }
 
 @Dao

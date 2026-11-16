@@ -1,5 +1,6 @@
 package com.xiaoyu.app.ui
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.compose.foundation.Image
@@ -29,12 +30,16 @@ import kotlin.math.max
 /**
  * 聊天区背景：整块铺满图片 + 可调模糊与暗化蒙层。
  * 模糊仅 Android 12+ 生效，低版本自动退化为暗化蒙层，不影响文字可读性。
+ *
+ * v3 H-24 / 14.6：暗化蒙层透明度会经 LegibilityGuard 校验，
+ * 自动抬到保证 WCAG AA（4.5:1）对比度的下限，避免文字糊在背景里。
  */
 @Composable
 fun ChatBackground(
     file: File,
     blurDp: Float,
     dim: Float,
+    darkTheme: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val image by rememberFileImage(file)
@@ -47,19 +52,27 @@ fun ChatBackground(
                 Modifier
             }
             Image(
-                bitmap = bitmap,
+                bitmap = bitmap.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().clipToBounds().then(blurModifier),
             )
+            // v3：用原图（非模糊后）计算所需最小暗化，保证文字对比度
+            val minDim = LegibilityGuard.minDimForContrast(bitmap, darkTheme)
+            val effectiveDim = max(dim, minDim)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = effectiveDim.coerceIn(0f, 0.85f))),
+            )
         } else {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)))
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = dim.coerceIn(0f, 0.85f))),
+            )
         }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = dim.coerceIn(0f, 0.85f))),
-        )
     }
 }
 
@@ -74,15 +87,15 @@ fun FileImage(
     val image by rememberFileImage(file, maxEdge)
     val bitmap = image
     if (bitmap != null) {
-        Image(bitmap = bitmap, contentDescription = null, contentScale = contentScale, modifier = modifier)
+        Image(bitmap = bitmap.asImageBitmap(), contentDescription = null, contentScale = contentScale, modifier = modifier)
     } else {
         Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant))
     }
 }
 
 @Composable
-private fun rememberFileImage(file: File, maxEdge: Int = MAX_DISPLAY_EDGE): State<ImageBitmap?> =
-    produceState<ImageBitmap?>(null, file.path, file.lastModified(), maxEdge) {
+private fun rememberFileImage(file: File, maxEdge: Int = MAX_DISPLAY_EDGE): State<Bitmap?> =
+    produceState<Bitmap?>(null, file.path, file.lastModified(), maxEdge) {
         value = withContext(Dispatchers.IO) {
             runCatching {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -94,7 +107,7 @@ private fun rememberFileImage(file: File, maxEdge: Int = MAX_DISPLAY_EDGE): Stat
                 BitmapFactory.decodeFile(
                     file.path,
                     BitmapFactory.Options().apply { inSampleSize = sample },
-                )?.asImageBitmap()
+                )
             }.getOrNull()
         }
     }
