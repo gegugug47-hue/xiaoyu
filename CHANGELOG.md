@@ -1,5 +1,9 @@
 # 更新日志
 
+## v1.0.1 (2026-11-16)
+
+- Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.0.1
+
 ## v1.0.0 (2026-11-15)
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.0.0
