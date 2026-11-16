@@ -143,6 +143,11 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
+          # 已在版本发布前手写好同版本条目时跳过，避免重复插入标题
+          if grep -q "^## v${version} " CHANGELOG.md; then
+            echo "CHANGELOG 已存在 v${version} 条目，跳过自动插入"
+            exit 0
+          fi
           date_utc="$(date -u +%Y-%m-%d)"
           tmp="$(mktemp)"
           {

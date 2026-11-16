@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "2.0.0",
   "phase": "ALL_DONE",
   "updatedAt": "2026-11-16",
   "summary": {
@@ -14,7 +14,7 @@
   },
   "releasePlan": {
     "strategy": "all-at-once",
-    "note": "全部 30 条完成后统一发 v1.2.0，不再逐条发版",
-    "pendingTag": "v1.2.0"
+    "note": "全部 30 条完成后统一发 v2.0.0，不再逐条发版",
+    "releasedTag": "v2.0.0"
   }
 }
