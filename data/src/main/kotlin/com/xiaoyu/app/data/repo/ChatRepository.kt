@@ -584,6 +584,8 @@ class ChatRepository @Inject constructor(
         var failure: BrainException? = null
         var lastVisible = ""
         val pendingStickers = mutableListOf<String>()
+        /** 模型本轮是否打了 `[xy:memo]` 标记（PRD 5.2），回复落库后再排队提炼。 */
+        var memoRequested = false
 
         /** 一段文字落库后再落表情，保证气泡顺序是「先说话，后甩表情」。 */
         suspend fun flushStickers() {
@@ -625,7 +627,7 @@ class ChatRepository @Inject constructor(
                 }
                 is PostEvent.Signal -> applySignal(ev.emotion)
                 is PostEvent.Action -> actions += ev.text
-                PostEvent.Memo -> Unit // TODO(spec-gap): 投递记忆提炼任务
+                PostEvent.Memo -> memoRequested = true
                 is PostEvent.SoftWarning -> Log.d(TAG, "AI 腔命中: ${ev.phrase}")
                 is PostEvent.Blocked -> Log.w(TAG, "禁词拦截: ${ev.level} ${ev.phrase}")
             }
@@ -730,6 +732,12 @@ class ChatRepository @Inject constructor(
                 userMessageId?.let { messageDao.updateStatus(it, STATUS_SENT) }
                 emit(ChatEvent.Completed)
             }
+        }
+
+        // 等本轮回复落库后再排队提炼，避免 Worker 读不到刚生成的那条回复
+        if (memoRequested && failure == null) {
+            Log.d(TAG, "模型标记了值得记住的内容，已排入记忆提炼: session=$sessionId")
+            scheduler.scheduleExtraction(sessionId)
         }
     }
 
