@@ -4,6 +4,11 @@
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.1.0
 
+
+## v1.1.0 (2026-11-16)
+
+- Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.1.0
+
 ### 修复
 
 - **成本护栏阈值修正（v3 §2.5 / H-3）**：原默认值日 token 上限 40 万、月费用上限 3 元，与「月成本 ≤10 元」自相矛盾，实际会导致上线第一周就天天触发熔断、日记/主动聊天/生活模拟全部停摆。现调整为日 token 120 万、月费用 30 元（正常日均 24 万 token 给 5 倍余量）。
