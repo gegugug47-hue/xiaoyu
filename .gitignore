@@ -35,3 +35,6 @@ keys/
 # 本地预览/截图可能含私人对话，不入库（M6-06）
 /.preview/
 /.screenshots/
+
+# build logs
+build-*.txt
