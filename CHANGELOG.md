@@ -89,11 +89,6 @@
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.1.0
 
-
-## v1.1.0 (2026-11-16)
-
-- Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.1.0
-
 ### 修复
 
 - **成本护栏阈值修正（v3 §2.5 / H-3）**：原默认值日 token 上限 40 万、月费用上限 3 元，与「月成本 ≤10 元」自相矛盾，实际会导致上线第一周就天天触发熔断、日记/主动聊天/生活模拟全部停摆。现调整为日 token 120 万、月费用 30 元（正常日均 24 万 token 给 5 倍余量）。
@@ -112,27 +107,23 @@
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.0.2
 
+### 修复
+
+- **记忆提炼漏触发**：`PostEvent.Memo` 的回复落库后现在会排入记忆提炼队列，此前这类回复不会进入长期记忆，导致她说过的「我记得」缺少来源。
 
 ## v1.0.1 (2026-11-16)
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.0.1
 
+### 变更
+
+- **界面文案资源化（M5-07）**：界面文案全部抽到 Android 资源文件，按领域拆分为 `strings_chat` / `strings_settings` / `strings_stickers` / `strings_insight` / `strings_app`（app 模块）、`data` 与 `service` 各一份；`:data` 中面向用户的提示改为经 `@ApplicationContext` 读取资源。prompt、日志、SQL 与持久化值保持原样。
+- **英文界面**：为全部界面文案补齐 `values-en` 翻译，跟随系统语言自动切换；好感度等级名也改为走资源，英文界面不再出现中文。
+- **覆盖率门禁（M5-08）**：`:soul` 增加 `jacocoTestCoverageVerification`，行覆盖低于 80% 即失败，CI 改为执行 `:soul:check`。
+
 ## v1.0.0 (2026-11-15)
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v1.0.0
-
-
-本文件格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
-
-## Unreleased
-
-### 变更
-
-- 国际化（M5-07）：界面文案全部抽到 Android 资源文件，按领域拆分为 `strings_chat` / `strings_settings` / `strings_stickers` / `strings_insight` / `strings_app`（app 模块）、`data` 与 `service` 各一份；`:data` 中会展示给用户的提示改为经 `@ApplicationContext` 读取资源。prompt、日志、SQL 与持久化值保持原样。
-- 覆盖率门禁（M5-08）：`:soul` 增加 `jacocoTestCoverageVerification`，行覆盖低于 80% 即失败（当前 97.2%），CI 改为执行 `:soul:check`。
-- 英文界面：为全部 631 条界面文案补齐 `values-en` 翻译，跟随系统语言自动切换；好感度等级名也改为走资源，英文界面不再出现中文。
-
-## v1.0.0 (2026-11-15)
 
 首次开源发布。
 
