@@ -1,4 +1,4 @@
-package com.xiaoyu.app.work
+﻿package com.xiaoyu.app.work
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -125,7 +125,9 @@ class DailyPlanWorker(
         val today = now.toLocalDate()
         val s = settings.current()
         if (s.proactiveEnabled && s.proactivePlannedDate != today.toString()) {
+            // v3 §7.13 / B-22：每日主动上限由设置决定（1~3），覆盖好感度默认值
             val count = ProactivePlanner.dailyCount(state.favorabilityValue(), Random.Default)
+                .coerceAtMost(s.proactiveDailyLimit.coerceIn(ProactivePlanner.MIN_DAILY_CAP, ProactivePlanner.MAX_DAILY_CAP))
             val instants = ProactivePlanner.planDay(
                 date = today,
                 count = count,
@@ -209,6 +211,8 @@ class ProactiveWorker(
         val settings = ep.settingsRepository().apply { ensureLoaded() }
         val s = settings.current()
         if (!s.proactiveEnabled) return Result.success()
+        // v3 §8.2：L2/L3 危机后 48 小时内，主动消息总闸关闭（连模型都不请求）
+        if (ProactivePlanner.pausedBySafety(s.proactivePausedUntilMs)) return Result.success()
 
         val now = ZonedDateTime.now()
         val hour = now.hour
@@ -216,7 +220,7 @@ class ProactiveWorker(
 
         val today = now.toLocalDate()
         val sentToday = if (s.proactiveSentDate == today.toString()) s.proactiveSentCount else 0
-        if (sentToday >= 3) return Result.success()
+        if (ProactivePlanner.dailyCapReached(sentToday, s.proactiveDailyLimit)) return Result.success()
 
         val persona = ep.personaRepository()
         val identity = persona.identities().firstOrNull() ?: return Result.success()
@@ -264,8 +268,11 @@ class ProactiveWorker(
             val pushed = ep.notifier().notifyProactive(
                 text = text,
                 sessionId = sessionId,
-                hideContent = AppLockMode.from(s.appLockMode) != AppLockMode.OFF,
+                hideContent = !s.notifyShowContent || AppLockMode.from(s.appLockMode) != AppLockMode.OFF,
                 userText = ep.chatRepository().lastUserMessageText(sessionId),
+                sound = s.notifySound,
+                vibrate = s.notifyVibrate,
+                hideOnLockScreen = s.notifyHideOnLockScreen,
             )
             if (pushed) {
                 // 后台存活自检用：记录最近一次成功推送时间

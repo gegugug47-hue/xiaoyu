@@ -47,6 +47,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,9 @@ import com.xiaoyu.app.R
 import com.xiaoyu.app.data.repo.MoodPoint
 import com.xiaoyu.app.data.repo.RelationMilestone
 import com.xiaoyu.app.data.repo.RelationSummary
+import com.xiaoyu.app.ui.components.YuEmptyView
+import com.xiaoyu.app.ui.illustrations.YuIllustrationKind
+import com.xiaoyu.app.ui.theme.LocalYuMotion
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -89,7 +96,11 @@ fun RelationScreen(
         val data = summary
         if (data == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.relation_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.relation_loading),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
             return@Scaffold
         }
@@ -102,11 +113,18 @@ fun RelationScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             RelationHeader(data)
-            RelationStats(data)
-            MoodChartCard(data.moodPoints)
-            TodayMoodCard(data.moodLine)
-            MilestoneTimeline(data.milestones)
-            MemoryGraphCard(memories)
+            if (data.messageCount == 0 && data.diaryCount == 0 && data.milestones.isEmpty() && memories.isEmpty()) {
+                YuEmptyView(
+                    kind = YuIllustrationKind.RELATION,
+                    message = stringResource(R.string.relation_empty),
+                )
+            } else {
+                RelationStats(data)
+                MoodChartCard(data.moodPoints)
+                TodayMoodCard(data.moodLine)
+                MilestoneTimeline(data.milestones)
+                MemoryGraphCard(memories)
+            }
             EntryRow(onOpenDiary = onOpenDiary, onOpenMemory = onOpenMemory, onOpenPersona = onOpenPersona)
             Spacer(Modifier.height(8.dp))
         }
@@ -212,8 +230,9 @@ private fun StatCard(
     modifier: Modifier = Modifier,
     flame: Boolean = false,
 ) {
+    val statDescription = stringResource(R.string.relation_stat_a11y, label, value, unit)
     Card(
-        modifier = modifier,
+        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = statDescription },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
@@ -240,13 +259,18 @@ private fun StatCard(
 /** 连续互动的小火苗，轻微呼吸动画。 */
 @Composable
 private fun FlameDot(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "flame")
-    val scale by transition.animateFloat(
-        initialValue = 0.78f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "flame-scale",
-    )
+    val scale = if (LocalYuMotion.current.reduced) {
+        1f
+    } else {
+        val transition = rememberInfiniteTransition(label = "flame")
+        val animatedScale by transition.animateFloat(
+            initialValue = 0.78f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+            label = "flame-scale",
+        )
+        animatedScale
+    }
     Canvas(modifier.size(14.dp)) {
         val w = size.width
         val h = size.height
@@ -358,7 +382,15 @@ private fun MilestoneTimeline(items: List<RelationMilestone>) {
             Text(stringResource(R.string.relation_milestones), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
             items.forEachIndexed { index, milestone ->
-                Row {
+                val milestoneDesc = stringResource(
+                    R.string.life_day_a11y_item,
+                    milestone.date.format(fullDateFormat),
+                    milestone.title,
+                    milestone.detail,
+                )
+                Row(
+                    modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = milestoneDesc },
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(16.dp)) {
                         Box(
                             Modifier
@@ -394,7 +426,7 @@ private fun MilestoneTimeline(items: List<RelationMilestone>) {
                         Text(
                             milestone.date.format(fullDateFormat),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

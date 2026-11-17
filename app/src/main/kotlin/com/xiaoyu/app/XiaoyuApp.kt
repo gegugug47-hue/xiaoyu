@@ -1,9 +1,13 @@
 package com.xiaoyu.app
 
 import android.app.Application
+import android.os.StrictMode
 import android.util.Log
 import com.xiaoyu.app.data.backup.BackupRepository
 import com.xiaoyu.app.data.db.DatabaseSelfCheck
+import com.xiaoyu.app.perf.DbIndexProbe
+import com.xiaoyu.app.perf.FrameStats
+import com.xiaoyu.app.perf.StartupTimer
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
 import javax.inject.Inject
@@ -15,6 +19,10 @@ class XiaoyuApp : Application() {
     lateinit var bootstrapper: AppBootstrapper
 
     override fun onCreate() {
+        // 冷启动计时要在任何初始化之前开始（执行书 v3 §1.5 / C-02）。
+        StartupTimer.install(this)
+        // Debug 打开 StrictMode，只记日志不崩溃（C-09：主线程无 >5ms IO）。
+        enableStrictModeIfDebug()
         // 崩溃日志先装，尽量覆盖后续所有初始化异常（M5-05）。
         CrashLogger.install(this)
         applyPendingRestore()
@@ -23,6 +31,26 @@ class XiaoyuApp : Application() {
         }
         super.onCreate()
         bootstrapper.start()
+        // 帧间隔统计只挂一次 Choreographer 回调，开销可忽略（C-03）。
+        FrameStats.install()
+        // 消息表索引护栏：仅 Debug，后台线程，失败只记日志（C-01）。
+        DbIndexProbe.verify(this)
+    }
+
+    private fun enableStrictModeIfDebug() {
+        if (!BuildConfig.DEBUG) return
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy.Builder()
+                .detectAll()
+                .penaltyLog()
+                .build(),
+        )
+        StrictMode.setVmPolicy(
+            StrictMode.VmPolicy.Builder()
+                .detectAll()
+                .penaltyLog()
+                .build(),
+        )
     }
 
     /**

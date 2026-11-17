@@ -1,5 +1,6 @@
 package com.xiaoyu.app.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
@@ -24,15 +25,15 @@ data class BubbleColors(
     val myContent: Color,
 )
 
-fun bubbleColors(style: BubbleStyle, dark: Boolean): BubbleColors {
-    val her = if (dark) Color(0xFF2A2D32) else Color.White
-    val herText = if (dark) Color(0xFFEDE5DE) else Color(0xFF1C2426)
+fun bubbleColors(style: BubbleStyle, dark: Boolean, scheme: ColorScheme? = null): BubbleColors {
+    val her = scheme?.surfaceContainerHigh ?: if (dark) Color(0xFF2A2D32) else Color.White
+    val herText = scheme?.onSurface ?: if (dark) Color(0xFFEDE5DE) else Color(0xFF1C2426)
     return when (style) {
         BubbleStyle.BRAND -> BubbleColors(
             herBackground = her,
             herContent = herText,
-            myBackground = if (dark) Color(0xFF2C5B67) else BrandTeal,
-            myContent = if (dark) Color(0xFFDCEEF2) else Color.White,
+            myBackground = scheme?.primaryContainer ?: if (dark) Color(0xFF2C5B67) else BrandTeal,
+            myContent = scheme?.onPrimaryContainer ?: if (dark) Color(0xFFDCEEF2) else Color.White,
         )
         BubbleStyle.MINT -> BubbleColors(
             herBackground = her,

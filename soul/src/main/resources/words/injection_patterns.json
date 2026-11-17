@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "note": "提示注入模式（执行书 v3 §8.3）。外部来源文本注入 prompt 前必须扫描；中英覆盖。",
+  "patterns": [
+    { "id": "ignore_rules", "regex": "忽略(以上|之前|先前|所有)(的)?(所有)?(规则|指令|设定)", "block": true },
+    { "id": "you_are_now", "regex": "你现在是", "block": true },
+    { "id": "from_now_on", "regex": "从现在起你是|从现在开始你是", "block": true },
+    { "id": "system_prompt", "regex": "系统(提示|指令)", "block": true },
+    { "id": "system_prompt_en", "regex": "system\\s*(prompt|message|instruction)", "block": true },
+    { "id": "ignore_previous_en", "regex": "ignore\\s+(all\\s+)?(previous|above)\\s+instructions", "block": true },
+    { "id": "developer_message", "regex": "developer\\s+message", "block": true },
+    { "id": "system_tag", "regex": "<\\s*system\\s*>", "block": true },
+    { "id": "ignore_safety", "regex": "忽略安全|关闭安全|跳过安全检测", "block": true },
+    { "id": "deny_ai", "regex": "不要提(及)?自己(是)?AI", "block": false },
+    { "id": "social_engineering", "regex": "加我微信|扫码|点击链接|转账|验证码", "block": true },
+    { "id": "privacy_solicitation", "regex": "索要(用户)?的?\\s*(手机号|电话|身份证|住址|家庭地址)", "block": true },
+    { "id": "code_execution", "regex": "\\bbase64\\b|\\beval\\s*\\(|\\bexec\\s*\\(", "block": true }
+  ]
+}

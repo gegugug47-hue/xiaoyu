@@ -45,6 +45,9 @@ class MainActivity : ComponentActivity() {
             XiaoyuTheme(
                 themeMode = settings.themeMode,
                 dynamicColor = settings.dynamicColor,
+                preset = settings.themePreset,
+                customSeed = settings.customThemeSeed,
+                reduceMotion = settings.reduceMotion,
                 fontScale = settings.fontScale,
                 bubbleStyle = settings.bubbleStyle,
             ) {

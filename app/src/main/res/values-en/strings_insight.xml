@@ -31,7 +31,22 @@
     <string name="relation_title">Our Relationship</string>
     <string name="relation_back">Back</string>
     <string name="life_day_title">Her Day</string>
+    <string name="life_day_empty">No life moments today yet. She\'ll keep recording in the background~</string>
+    <string name="life_day_type_daily">Daily</string>
+    <string name="life_day_a11y_item">%1$s, %2$s, %3$s</string>
+
+    <!-- Memory graph (accessibility) -->
+    <string name="memory_graph_title">Memory graph</string>
+    <string name="memory_graph_subtitle">Darker = stronger, larger = more important</string>
+    <string name="memory_graph_empty">No memories yet. Keep chatting and they\'ll grow~</string>
+    <string name="memory_graph_desc">Memory graph with %1$d nodes. Strongest memory: “%2$s”</string>
+    <string name="relation_stat_a11y">%1$s: %2$s %3$s</string>
+    <string name="diag_tab_prompt">Prompt</string>
+    <string name="diag_tab_raw">Raw reply</string>
+    <string name="diag_tab_event">Event</string>
+    <string name="diag_tab_error">Error</string>
     <string name="relation_loading">Putting your story together…</string>
+    <string name="relation_empty">Your story is just beginning. After a few chats, memories and anniversaries will grow here.</string>
     <string name="relation_known_days">You\'ve known each other for %1$d days</string>
     <string name="relation_stat_known">Known</string>
     <string name="relation_unit_days">days</string>
@@ -79,6 +94,32 @@
     <string name="diag_clear">Clear</string>
     <string name="diag_db_notice_title">Database self-check notice</string>
     <string name="diag_got_it">Got it</string>
+    <string name="diag_tab_perf">Performance</string>
+    <!-- Performance (spec v3 §1.5) -->
+    <string name="perf_intro">Cold start, frame timing and memory are measured on this device only. Nothing is uploaded.</string>
+    <string name="perf_startup">Cold start</string>
+    <string name="perf_startup_none">No first frame recorded in this process yet</string>
+    <string name="perf_ms">%1$d ms</string>
+    <string name="perf_frame">Frame interval</string>
+    <string name="perf_frame_value">p50 %1$s ms · p95 %2$s ms (%3$d frames)</string>
+    <string name="perf_frame_none">Not enough samples yet, scroll a bit and come back</string>
+    <string name="perf_memory">Memory PSS</string>
+    <string name="perf_memory_value">%1$s MB (Java %2$s MB · Native %3$s MB)</string>
+    <string name="perf_memory_none">Cannot read process memory</string>
+    <string name="perf_target_startup">Target &lt; 1.5s</string>
+    <string name="perf_target_frame">Target p95 &lt; 16.7ms (60fps)</string>
+    <string name="perf_target_memory">Target &lt; 220MB</string>
+    <string name="perf_pass">On target</string>
+    <string name="perf_fail">Over budget</string>
+    <string name="perf_unknown">No data</string>
+    <string name="perf_export">Export report</string>
+    <string name="perf_export_success">Exported: %1$s</string>
+    <string name="perf_export_failed">Export failed</string>
+    <string name="perf_honest_note">Note: startup and frame numbers are real device measurements. The 500k-message stress test has not been run; only the message table paging indexes are verified in Debug builds.</string>
+    <string name="perf_report_title">Xiaoyu App performance report</string>
+    <string name="perf_report_time">Time: %1$s</string>
+    <string name="perf_report_device">Device: %1$s (API %2$d)</string>
+    <string name="perf_report_line">%1$s: %2$s (%3$s, %4$s)</string>
     <string name="diag_crash_logs">Crash logs</string>
     <string name="diag_crash_recent">Latest %1$d</string>
     <string name="diag_crash_empty">No crashes recorded.</string>

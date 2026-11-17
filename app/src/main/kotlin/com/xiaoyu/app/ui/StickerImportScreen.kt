@@ -179,7 +179,7 @@ fun StickerImportScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    "${index + 1}. ${fileName(uri)}",
+                                    "${index + 1}. ${fileName(uri, stringResource(R.string.sticker_import_file_fallback))}",
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -240,5 +240,5 @@ fun StickerImportScreen(
 }
 
 /** 选择器返回的 URI 没有直接文件名，取最后一段做展示即可。 */
-private fun fileName(uri: Uri): String =
-    uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "已选文件"
+private fun fileName(uri: Uri, fallback: String): String =
+    uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: fallback

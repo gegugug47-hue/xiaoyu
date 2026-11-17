@@ -1,5 +1,52 @@
 # 更新日志
 
+## v2.1.0 (2026-11-17)
+
+- Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v2.1.0
+
+承接 v2.0.0 的二次差距审计，按五批次落地工程执行书 v3.0 的安全底线、自定义聊天背景、设计系统、IM 手感与其余项，共 60+ 项改进。
+
+### 安全
+
+- **三级危机体系（§8.1/8.2）**：新增 `SafetyGate` 接口与 `DefaultSafetyGate`，`CrisisLevel` 分级 NONE / L1_DISTRESS / L2_SELF_HARM_IDEA / L3_IMMINENT；L1 追加「先接住情绪」指令，L2 首次弹 CARE 卡 + 48h 暂停主动消息 + 当晚提炼跳过，L3 不走模型、固定现实导向回复 + 热线、会话标记 `closed_by='safety'` 且不触发收束。
+- **热线资源外置**：`words/hotlines.json` 收录 110/120/12356/12355/400-161-9995 及北上广深杭号码，含 priority 与默认展示策略；`words/care_keywords.json` 分级词表支持否定与引述降级，避免误判。
+- **输出侧防线**：`SafetyGate.screenOutput` 在 assistant 文本入库前拦截伤害性输出，命中替换为关怀兜底文案并记事件。
+- **事件留痕**：新增 `safety_events` 表（DB 9→10），只存等级与命中词，不存原文。
+- **注入防御三件套**：`InjectionGuard` 增加 `PromptZone` 8 类与 `sanitizeForeign/scanForeign/scanOwn`，用户输入只转义不改写，人格包/表情名/记忆文本/引擎输出命中即拒绝；`injection_patterns.json` 补隐私索要规则。
+- **安全用例固化**：`SafetyCaseCatalogTest` 以中文用例名覆盖 §8.6 的 S-1~S-14；`ProactivePlanner.pausedBySafety/dailyCapReached` 让「危机后不主动」「每日上限」可断言。
+
+### 新增
+
+- **自定义聊天背景全量（§14.6）**：新增 `chat_backgrounds` 表（DB 10→11）与 `ChatBackgroundRepository`，每个身份独立背景；五种来源（主题/纯色/渐变/图片/纹理）、五层渲染（素材→效果→遮罩→暗角→气泡）、18 项参数与三档预设（清透/柔和/沉浸）。
+- **背景设置页**：3 条示例气泡实时预览、全部滑杆（模糊六档吸附、亮度、饱和度、遮罩色与浓度、暗角、气泡透明度、缩放锚点、视差、深色单独设置、自动保持可读）、「只对她 / 所有她」，应用前不写库。
+- **可读性守卫五步**：合成气泡有效背景色计算 WCAG 对比度（正文 4.5 / 辅助 3.0），依次抬气泡不透明度、加遮罩、加文字阴影，仍不合格仅提示建议，绝不强制换回默认图；设置页实时读数与「自动修正」。
+- **API 分级模糊**：API 33+ 实时模糊，26–32 走 `files/bg/cache/` 预渲染（六档、LRU 40MB），低端机模糊上限 18dp；原图 sha1 命名、12MB 上限、全局 3 张配额，备份含原图不含缓存。
+- **设计系统**：11 档 `YuType` 字号行高、四套主题预设（晨雾/昼白/暮青/夜航）、HEX/HSV 取色器与自定义 seed、Material You 默认开启、六档动效与减少动效开关。
+- **自适应布局**：`YuBreakpoints` 三档断点与双栏布局、`YuWindowAdaptive` 单手偏移与折叠悬停检测、`PaletteExtractor` 图片主色提取。
+- **性能基线（§1.5）**：`StartupTimer` 冷启动计时、`FrameStats` 帧间隔 p50/p95、`MemoryProbe` PSS 对照 220MB、`DbIndexProbe` 索引校验；诊断页新增「性能」页签并可导出报告；Debug 开启 StrictMode。
+- **首次引导（§7.12）**：6 步可滑动引导（欢迎→起名与称呼→主题→模型→通知→完成），支持跳过；老用户升级不重复弹出。
+- **图片统一压缩**：`ImageCompressor` 做 EXIF 摆正与两段解码，头像 512、表情 512、生图 2048、背景 2560。
+- **IM 手感**：顶栏「对方正在输入…」、底部 FAB 回到最新、双击气泡 reaction、6 个快捷表情、>3 个折叠「+N」、herReaction 本地触发、表情双 tab 面板、设置页搜索框、诊断四页签、搜索多关键词高亮。
+- **通知专项（§7.13）**：主动开关、免打扰时段、显示正文、锁屏隐藏、声音、震动、每日上限 1/2/3 条；三条通知渠道对应声音震动组合；inline reply 改为「发送中进度→成功取消/失败留痕」。
+- **语音输出**：`SystemTts` 中文朗读，语速音调可调，120 字分段连续播报，可停止，无引擎时静默降级。
+- **自绘图标**：`YuIcons` 提供 8 个 24dp `ImageVector`，替换聊天顶栏与输入栏高频图标。
+- **无障碍（§7.15）**：消息气泡合并播报发送者/正文/时间/已读/双 reaction，在线状态点、FAB、背景滑杆 `stateDescription`、记忆图谱整图描述；触控热区统一 48dp；固定高度改 `heightIn`，`fontScale=2.0` 不截断。
+- **国际化**：新增 117 组中英文案并补齐 30 条历史缺失英文，`values` 与 `values-en` 均 680 条键、零缺口。
+
+### 变更
+
+- 消息合并阈值由 120 秒改为 60 秒；时间行改为间隔 5 分钟以上才显示，格式由 `MM-dd HH:mm` 简化为 `HH:mm`。
+- 长按菜单补全为常用 4 项 +「更多」二级，含保存图片、历史版本、让她记住、朗读等；删除仍为 `hidden=1` 软删。
+- 输入栏支持 1~5 行自适应，粘贴 800 字以上提示拆分发送。
+- 手势：下拉进入翻旧账搜索、上滑加载历史、会话行左滑归档、双击输入栏全屏输入。
+- `HardcodeCheck` 增加 `Color(0x...)` 扫描与主题白名单；`Tokens` 新增 48dp 触控常量。
+
+### 说明
+
+- 真机侧数据（启动耗时、帧率、PSS、TalkBack 走查）尚未采集；50 万条消息压测未执行，仅做索引校验护栏。
+- 渐变预设内置 4 组（文档列 12 组）；`bubbleBlur` 仅下发参数未做真背景采样；右滑置顶、三指沉浸手势未做；自绘图标仅覆盖聊天高频 8 个。
+- 各批次偏差与剩余项详见 `docs/spec/V3-GAP-AUDIT.md`。
+
 ## v2.0.0 (2026-11-16)
 
 - Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v2.0.0

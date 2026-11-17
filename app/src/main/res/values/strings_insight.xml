@@ -32,7 +32,18 @@
     <string name="relation_back">返回</string>
     <!-- 她的一天 -->
     <string name="life_day_title">她的一天</string>
+    <string name="life_day_empty">今天还没有生活碎片，她会在后台慢慢记录～</string>
+    <string name="life_day_type_daily">日常</string>
+    <string name="life_day_a11y_item">%1$s，%2$s，%3$s</string>
+
+    <!-- 记忆图谱（无障碍描述） -->
+    <string name="memory_graph_title">记忆图谱</string>
+    <string name="memory_graph_subtitle">颜色越深 = 记忆越强，节点越大 = 越重要</string>
+    <string name="memory_graph_empty">还没有记忆，多聊聊就会慢慢长出来～</string>
+    <string name="memory_graph_desc">记忆图谱，共 %1$d 个节点，最强的一条是「%2$s」</string>
+    <string name="relation_stat_a11y">%1$s：%2$s %3$s</string>
     <string name="relation_loading">正在整理你们的故事…</string>
+    <string name="relation_empty">你们的故事才刚刚开始。聊几次天之后，这里会长出回忆与纪念日。</string>
     <string name="relation_known_days">你们已经认识 %1$d 天了</string>
     <string name="relation_stat_known">认识</string>
     <string name="relation_unit_days">天</string>
@@ -73,6 +84,11 @@
 
     <!-- 诊断 -->
     <string name="diag_title">诊断</string>
+    <string name="diag_tab_prompt">Prompt</string>
+    <string name="diag_tab_raw">原文</string>
+    <string name="diag_tab_event">事件</string>
+    <string name="diag_tab_error">错误</string>
+    <string name="diag_tab_perf">性能</string>
     <string name="diag_back">返回</string>
     <string name="diag_export_success">已导出：%1$s</string>
     <string name="diag_export_failed">导出失败</string>
@@ -80,6 +96,31 @@
     <string name="diag_clear">清空</string>
     <string name="diag_db_notice_title">数据库自检提示</string>
     <string name="diag_got_it">我知道了</string>
+    <!-- 性能（执行书 v3 §1.5） -->
+    <string name="perf_intro">冷启动、帧间隔与内存都是本机实测，不上报任何数据。</string>
+    <string name="perf_startup">冷启动</string>
+    <string name="perf_startup_none">本次进程还没记录到首帧</string>
+    <string name="perf_ms">%1$d ms</string>
+    <string name="perf_frame">帧间隔</string>
+    <string name="perf_frame_value">p50 %1$s ms · p95 %2$s ms（%3$d 帧）</string>
+    <string name="perf_frame_none">样本不足，多滑动几下再回来</string>
+    <string name="perf_memory">内存 PSS</string>
+    <string name="perf_memory_value">%1$s MB（Java %2$s MB · Native %3$s MB）</string>
+    <string name="perf_memory_none">无法读取当前进程内存</string>
+    <string name="perf_target_startup">目标 &lt; 1.5s</string>
+    <string name="perf_target_frame">目标 p95 &lt; 16.7ms（60fps）</string>
+    <string name="perf_target_memory">目标 &lt; 220MB</string>
+    <string name="perf_pass">达标</string>
+    <string name="perf_fail">超标</string>
+    <string name="perf_unknown">暂无数据</string>
+    <string name="perf_export">导出报告</string>
+    <string name="perf_export_success">已导出：%1$s</string>
+    <string name="perf_export_failed">导出失败</string>
+    <string name="perf_honest_note">说明：启动与帧率是设备实测值；50 万条消息压测尚未执行，只在 Debug 启动时校验了消息表分页索引。</string>
+    <string name="perf_report_title">小鱼 App 性能报告</string>
+    <string name="perf_report_time">时间：%1$s</string>
+    <string name="perf_report_device">设备：%1$s（API %2$d）</string>
+    <string name="perf_report_line">%1$s：%2$s（%3$s，%4$s）</string>
     <string name="diag_crash_logs">崩溃日志</string>
     <string name="diag_crash_recent">最近 %1$d 条</string>
     <string name="diag_crash_empty">没有崩溃记录。</string>

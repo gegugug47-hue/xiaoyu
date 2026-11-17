@@ -96,6 +96,12 @@ data class CostGuardState(
 @Serializable
 data class AppSettings(
     val onboarded: Boolean = false,
+    /**
+     * v3 §7.12：新版 6 步首次引导是否已完成。
+     * 与 [onboarded] 并存：老用户 [onboarded]=true 而此值为 false 时，用「是否已有会话」兜底，
+     * 升级后不会被重新弹引导。
+     */
+    val onboardingDone: Boolean = false,
     val brain: BrainSettings = BrainSettings(),
     val immersiveEnabled: Boolean = false,
     val immersiveIntensity: Float = 1.0f,
@@ -110,6 +116,11 @@ data class AppSettings(
     val proactivePlannedDate: String? = null,
     val proactiveSentDate: String? = null,
     val proactiveSentCount: Int = 0,
+    /**
+     * v3 §8.2：危机（L2 及以上）后主动消息总闸的暂停截止时间（epoch millis）。
+     * > now 时 ProactiveWorker 与主动消息落库都跳过；0 表示未暂停。
+     */
+    val proactivePausedUntilMs: Long = 0,
     val usage: UsageStats = UsageStats(),
     /** 最近 35 天用量（执行书 4.6），用于今日卡片与折线图 */
     val dailyUsage: List<DailyUsage> = emptyList(),
@@ -129,6 +140,20 @@ data class AppSettings(
     val pendingSessionExtractions: List<Long> = emptyList(),
     val pendingPromotions: Boolean = false,
     val notifyProactive: Boolean = true,
+    /** v3 §7.13 / B-22：通知是否显示正文（关闭后只显示「小鱼发来一条消息」） */
+    val notifyShowContent: Boolean = true,
+    /** v3 §7.13 / B-22：锁屏上隐藏通知正文（VISIBILITY_SECRET） */
+    val notifyHideOnLockScreen: Boolean = false,
+    /** v3 §7.13 / B-22：主动消息通知是否播放提示音 */
+    val notifySound: Boolean = true,
+    /** v3 §7.13 / B-22：主动消息通知是否震动 */
+    val notifyVibrate: Boolean = true,
+    /** v3 §7.13 / B-22：每日主动条数上限（1~3，越界按 1/3 钳制） */
+    val proactiveDailyLimit: Int = 3,
+    /** v3 §7.9 / B-31：系统 TTS 朗读语速（0.5~2.0，1.0 为正常） */
+    val ttsSpeechRate: Float = 1.0f,
+    /** v3 §7.9 / B-31：系统 TTS 朗读音调（0.5~1.5，1.0 为正常） */
+    val ttsPitch: Float = 1.0f,
     /** 主动聊天是否已在聊天中自然分享过加密日记 */
     val secretSharedDiaryId: Long? = null,
     /** 分段发送：把一条长回复拆成多条短消息连发（执行书 3.2.4，默认开） */
@@ -162,8 +187,14 @@ data class AppSettings(
     val autoLockSeconds: Int = 60,
     /** 外观：主题模式 SYSTEM（默认）/ LIGHT / DARK（执行书 6.1） */
     val themeMode: String = "SYSTEM",
-    /** Android 12+ 动态取色开关（默认关，使用品牌色） */
-    val dynamicColor: Boolean = false,
+    /** Android 12+ Material You 动态取色；开启时覆盖预设和自定义种子 */
+    val dynamicColor: Boolean = true,
+    /** 主题预设 MIST / DAY / DUSK / NIGHT */
+    val themePreset: String = "DAY",
+    /** 自定义主题种子 #RRGGBB；非空时覆盖预设 */
+    val customThemeSeed: String? = null,
+    /** 减少动效；系统动画时长为 0 时也会自动命中 */
+    val reduceMotion: Boolean = false,
     /** 全局字号缩放：0.9 / 1.0 / 1.15 / 1.3 */
     val fontScale: Float = 1.0f,
     /** 气泡主题：BRAND（品牌青灰）/ MINT（薄荷绿）/ WARM（暖橙奶油） */

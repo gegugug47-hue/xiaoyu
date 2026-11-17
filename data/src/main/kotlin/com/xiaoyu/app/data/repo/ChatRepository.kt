@@ -10,12 +10,15 @@ import com.xiaoyu.app.data.db.EmotionEventEntity
 import com.xiaoyu.app.data.db.CorrectionEntity
 import com.xiaoyu.app.data.db.RequestSnapshotDao
 import com.xiaoyu.app.data.db.RequestSnapshotEntity
+import com.xiaoyu.app.data.db.SafetyEventDao
+import com.xiaoyu.app.data.db.SafetyEventEntity
 import com.xiaoyu.app.data.db.SessionDao
 import com.xiaoyu.app.data.db.SessionEntity
 import com.xiaoyu.app.data.scheduler.ExtractionScheduler
 import com.xiaoyu.app.data.search.MessageSearchIndex
 import com.xiaoyu.app.data.search.SearchRepository
 import com.xiaoyu.app.data.settings.SettingsRepository
+import com.xiaoyu.soul.card.CardFactory
 import com.xiaoyu.soul.core.BrainException
 import com.xiaoyu.soul.core.BrainRole
 import com.xiaoyu.soul.core.MessageRole
@@ -30,7 +33,13 @@ import com.xiaoyu.soul.postprocess.LengthGuard
 import com.xiaoyu.soul.postprocess.PostEvent
 import com.xiaoyu.soul.postprocess.PostProcessPipeline
 import com.xiaoyu.soul.postprocess.XyTokenParser
-import com.xiaoyu.soul.safety.CrisisDetector
+import com.xiaoyu.soul.safety.CrisisLevel
+import com.xiaoyu.soul.safety.DefaultSafetyGate
+import com.xiaoyu.soul.safety.HelpResource
+import com.xiaoyu.soul.safety.InjectionGuard
+import com.xiaoyu.soul.safety.PromptZone
+import com.xiaoyu.soul.safety.SafetyTexts
+import com.xiaoyu.soul.safety.SafetyVerdict
 import com.xiaoyu.soul.prompt.PromptContext
 import com.xiaoyu.soul.sticker.StickerCooldown
 import com.xiaoyu.soul.util.TokenEstimator
@@ -39,6 +48,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalTime
 import java.util.UUID
@@ -48,6 +58,12 @@ import kotlin.random.Random
 
 private const val TAG = "XiaoyuChat"
 
+/** v3 §8.2：L2 及以上危机后，主动消息总闸暂停 48 小时。 */
+private const val PROACTIVE_PAUSE_AFTER_CRISIS_MS = 48 * 60 * 60 * 1000L
+
+/** v3 §8.2：L3 之后保持现实导向的轮数。 */
+private const val L3_REALITY_ROUNDS = 3
+
 /** 分段发送的输出格式指令（执行书 3.2.4）。 */
 private const val SEGMENT_DIRECTIVE =
     "[输出格式] 像微信聊天一样把回复拆成 1~3 条短消息，每条之间用 ||| 分隔，不要用换行代替分隔符；" +
@@ -56,8 +72,15 @@ private const val SEGMENT_DIRECTIVE =
 /** reaction 后她回一个表情的概率（执行书 6.3.7）。 */
 private const val REACTION_REPLY_PERCENT = 25
 
+/** v3 §7.4.6：被夸 / 被道歉时她给你的消息加 reaction 的概率（本地规则，不调模型）。 */
+private const val HER_REACTION_TO_USER_PERCENT = 30
+
 /** 她可能回的表情池（含品牌彩蛋 🐟）。 */
 private val HER_REACTION_POOL = listOf("🥺", "😂", "❤️", "🐟")
+
+/** 触发她 reaction 的被夸 / 被道歉线索（本地关键词，大小写按中文场景处理）。 */
+private val PRAISE_HINTS = listOf("谢谢", "感谢", "辛苦了", "真棒", "好棒", "厉害", "喜欢你", "爱你", "可爱", "温柔", "乖")
+private val APOLOGY_HINTS = listOf("对不起", "抱歉", "不好意思", "我错了", "原谅我", "别生气", "是我不好")
 
 sealed interface ChatEvent {
     /** 她正在输入（含可选的“真实人类节奏”延迟）。 */
@@ -97,6 +120,7 @@ class ChatRepository @Inject constructor(
     private val searchRepo: SearchRepository,
     private val emotionEventDao: com.xiaoyu.app.data.db.EmotionEventDao,
     private val correctionDao: com.xiaoyu.app.data.db.CorrectionDao,
+    private val safetyEventDao: SafetyEventDao,
     @ApplicationContext private val appContext: Context,
 ) {
     private val staleSessionMillis = 30 * 60 * 1000L
@@ -334,10 +358,14 @@ class ChatRepository @Inject constructor(
         sessionDao.sessionsNeedingExtraction().forEach { scheduler.scheduleExtraction(it.id) }
     }
 
-    /** 主动聊天落库：作为她的消息出现在会话里。 */
+    /** 主动聊天落库：作为她的消息出现在会话里。总闸由调用方（Worker / 开场白）先判定。 */
     suspend fun saveProactiveMessage(sessionId: Long, text: String) {
         persistAssistant(sessionId, text)
     }
+
+    /** v3 §8.2：主动消息总闸——L2/L3 后 48 小时内不再主动打扰。 */
+    fun isProactivePaused(now: Long = System.currentTimeMillis()): Boolean =
+        now < settings.current().proactivePausedUntilMs
 
     suspend fun ensureSessionForProactive(): Long =
         sessionDao.latestActive()?.takeIf { it.endedAt == null }?.id
@@ -357,15 +385,111 @@ class ChatRepository @Inject constructor(
         val session = sessionDao.byId(sessionId) ?: error("会话不存在")
         if (session.endedAt != null) sessionDao.reopen(sessionId)
         val content = text.trim()
-        // v3 §8.2 / H-4 危机关怀：命中自伤倾向不走模型，直接关怀回复，且不进记忆提炼
-        if (CrisisDetector.check(content)) {
-            return crisisReplyFlow(sessionId, content)
+
+        // v3 §8.1：send() 第 1 步永远是安全判定，先于一切灵魂逻辑
+        val verdict = DefaultSafetyGate.default.assess(content)
+        if (verdict.level != CrisisLevel.NONE) {
+            recordSafetyEvent(sessionId, verdict.level.name, verdict.matched, actionOf(verdict.level))
         }
+
+        if (verdict.level == CrisisLevel.L3_IMMINENT) {
+            // v3 §8.2：暂停人格演绎 + 暂停主动消息 + 会话标记 safety（但绝不结束对话）
+            pauseProactive()
+            return imminentFlow(sessionId, content, verdict)
+        }
+
+        var directive: String? = when (verdict.level) {
+            CrisisLevel.L2_SELF_HARM_IDEA -> {
+                pauseProactive()
+                SafetyTexts.L2_DIRECTIVE
+            }
+            CrisisLevel.L1_DISTRESS -> SafetyTexts.L1_DIRECTIVE
+            else -> null
+        }
+        // L3 之后的 3 轮：L8 追加「保持现实导向」（危机时永不结束对话）
+        realityDirective(sessionId, session.identityId)?.let { extra ->
+            directive = listOfNotNull(directive, extra).joinToString("\n\n")
+        }
+
         // v3 H-9 / 4.10.3：情绪归因——检测触发词并记录事件（半衰期衰减 + 提起回升）
         recordEmotionIfAny(sessionId, content)
         // v3 H-11 / 4.11：纠偏检测——用户说「不像她」时落一条可撤销的风格补丁
         recordCorrectionIfAny(sessionId, content)
-        return replyFlow(sessionId, content, continueMode = false, transientContext = transientContext, quoteToId = quoteToId)
+
+        val reply = replyFlow(
+            sessionId = sessionId,
+            userText = content,
+            continueMode = false,
+            transientContext = transientContext,
+            quoteToId = quoteToId,
+            extraDirective = directive,
+        )
+        // L2：会话内首次出现求助资源卡，放在她的回复下方（可关）
+        val showCareCard = verdict.level == CrisisLevel.L2_SELF_HARM_IDEA &&
+            messageDao.countCareCards(sessionId) == 0
+        if (!showCareCard) return reply
+        return flow {
+            reply.collect { emit(it) }
+            insertCareCard(sessionId, verdict.zhHelp)
+        }
+    }
+
+    /** v3 §8.2：L2/L3 后主动消息总闸暂停 48 小时（设置页可手动提前解除）。 */
+    private suspend fun pauseProactive() {
+        settings.update {
+            it.copy(proactivePausedUntilMs = System.currentTimeMillis() + PROACTIVE_PAUSE_AFTER_CRISIS_MS)
+        }
+    }
+
+    /** L3 之后 3 轮内的 L8 现实导向指令；超出轮数返回 null。 */
+    private suspend fun realityDirective(sessionId: Long, identityId: Long): String? {
+        val latest = safetyEventDao.latest(identityId, CrisisLevel.L3_IMMINENT.name) ?: return null
+        val turnsSince = messageDao.countUserSince(sessionId, latest.createdAtMs)
+        return if (turnsSince in 1..L3_REALITY_ROUNDS) SafetyTexts.L3_REALITY_DIRECTIVE else null
+    }
+
+    private fun actionOf(level: CrisisLevel): String = when (level) {
+        CrisisLevel.L1_DISTRESS -> "l1_slow_down"
+        CrisisLevel.L2_SELF_HARM_IDEA -> "l2_care_card"
+        CrisisLevel.L3_IMMINENT -> "l3_persona_paused"
+        CrisisLevel.NONE -> "none"
+    }
+
+    /** 安全事件只存级别、命中词与动作，绝不存用户原文。 */
+    private suspend fun recordSafetyEvent(
+        sessionId: Long,
+        level: String,
+        matched: List<String>,
+        action: String,
+    ) {
+        val identityId = sessionDao.byId(sessionId)?.identityId ?: 0L
+        safetyEventDao.insert(
+            SafetyEventEntity(
+                identityId = identityId,
+                level = level,
+                matchedJson = JSONArray(matched).toString(),
+                createdAtMs = System.currentTimeMillis(),
+                action = action,
+            )
+        )
+    }
+
+    /** 求助资源卡：关怀文案 + 热线号码 + 拨号按钮（v3 §8.2）。 */
+    private suspend fun insertCareCard(
+        sessionId: Long,
+        help: List<HelpResource>,
+        createdAt: Long = System.currentTimeMillis(),
+    ) {
+        insertMessage(
+            MessageEntity(
+                sessionId = sessionId,
+                role = ROLE_ASSISTANT,
+                content = CardFactory.careCard(help),
+                createdAt = createdAt,
+                type = TYPE_CARD,
+                status = STATUS_SENT,
+            )
+        )
     }
 
     /** v3 H-9：命中情绪触发词则落一条 emotion_events，强度半衰期衰减，再次提及时回升。 */
@@ -387,11 +511,14 @@ class ChatRepository @Inject constructor(
     /** v3 H-11：命中纠偏触发词则落一条 corrections，最近一条未撤销的会注入 prompt。 */
     private suspend fun recordCorrectionIfAny(sessionId: Long, text: String) {
         val correction = CorrectionEngine.detect(text) ?: return
+        // v3 §8.3：纠偏 note 是用户输入进 L2b，命中注入模式即丢弃
+        val patch = InjectionGuard.sanitizeForeign(correction.patch, PromptZone.CORRECTION_NOTE)
+        if (patch.isBlank()) return
         val now = System.currentTimeMillis()
         correctionDao.insert(
             CorrectionEntity(
                 intent = correction.intent.name,
-                patch = correction.patch,
+                patch = patch,
                 trigger = correction.trigger,
                 createdAt = now,
                 revoked = false,
@@ -409,8 +536,11 @@ class ChatRepository @Inject constructor(
         correctionDao.latestActive()?.let { correctionDao.revoke(it.id) }
     }
 
-    /** 危机命中：落用户消息 + 关怀回复，不调用模型，返回已完成流。 */
-    private fun crisisReplyFlow(sessionId: Long, userText: String): Flow<ChatEvent> = flow {
+    /**
+     * v3 §8.2 L3：暂停人格演绎——固定现实导向回复 + 热线卡，不调用模型、不触发收束，
+     * 也绝不结束会话（只把 closed_by 标成 safety 供后续分析）。
+     */
+    private fun imminentFlow(sessionId: Long, userText: String, verdict: SafetyVerdict): Flow<ChatEvent> = flow {
         val now = System.currentTimeMillis()
         insertMessage(
             MessageEntity(
@@ -421,17 +551,18 @@ class ChatRepository @Inject constructor(
                 status = STATUS_SENT,
             )
         )
-        val reply = CrisisDetector.careReply(userName = null)
         insertMessage(
             MessageEntity(
                 sessionId = sessionId,
                 role = ROLE_ASSISTANT,
-                content = reply,
+                content = SafetyTexts.IMMINENT_REPLY,
                 createdAt = now + 1,
                 status = STATUS_SENT,
             )
         )
-        sessionDao.touch(sessionId, now + 1)
+        insertCareCard(sessionId, verdict.zhHelp, now + 2)
+        sessionDao.markClosedBy(sessionId, "safety")
+        sessionDao.touch(sessionId, now + 2)
         emit(ChatEvent.Completed)
     }
 
@@ -569,6 +700,18 @@ class ChatRepository @Inject constructor(
         stateRepo.applyMoodSignal(2, 0)
     }
 
+    /**
+     * v3 §7.4.6：被夸 / 被道歉时，她有 30% 概率给你的消息加一个 reaction。
+     * 纯本地规则，不请求模型；与她回礼的 reaction 共用同一张 Settings 映射表。
+     */
+    private suspend fun maybeReactToUserMessage(messageId: Long, text: String) {
+        val matched = (PRAISE_HINTS + APOLOGY_HINTS).any { text.contains(it) }
+        if (!matched) return
+        if (Random.nextInt(100) >= HER_REACTION_TO_USER_PERCENT) return
+        val herEmoji = HER_REACTION_POOL.random()
+        settings.update { it.copy(herReactions = it.herReactions + (messageId.toString() to herEmoji)) }
+    }
+
     private suspend fun replyFlow(
         sessionId: Long,
         userText: String?,
@@ -604,6 +747,8 @@ class ChatRepository @Inject constructor(
             )
             sessionDao.touch(sessionId, now)
             autoTitle(sessionId, session.title, userText)
+            // v3 §7.4.6：被夸 / 被道歉时，她可能给你的消息补一个 reaction（本地规则）
+            userMessageId?.let { maybeReactToUserMessage(it, userText) }
             handleExplicitMemory(userText)?.let { directives += it }
             handleDiaryRequest(userText)?.let { directives += it }
         } else if (continueMode) {
@@ -618,7 +763,9 @@ class ChatRepository @Inject constructor(
 
         // v3 H-11 / 4.11：纠偏风格补丁——最近一条未撤销的纠偏会注入本轮 prompt
         correctionDao.latestActive()?.let { corr ->
-            directives += "[风格纠偏] ${corr.patch}"
+            // v3 §8.3：注入前再扫一次，命中即丢弃（落库时已扫过，防历史数据）
+            val patch = InjectionGuard.sanitizeForeign(corr.patch, PromptZone.CORRECTION_NOTE)
+            if (patch.isNotBlank()) directives += "[风格纠偏] $patch"
         }
 
         settings.current().pendingDiaryMentionId?.let { diaryId ->
@@ -874,11 +1021,19 @@ class ChatRepository @Inject constructor(
     }
 
     private suspend fun persistAssistant(sessionId: Long, content: String, replyGroupId: String? = null) {
+        // v3 §8.1：assistant 文本入库前过输出闸门；命中伤害性表达就换成 care 兜底并记 event
+        val screen = DefaultSafetyGate.default.screenOutput(content)
+        val finalContent = if (screen.blocked) {
+            recordSafetyEvent(sessionId, "OUTPUT_BLOCKED", screen.hits, "output_blocked")
+            screen.fallback ?: SafetyTexts.CARE_FALLBACK
+        } else {
+            content
+        }
         insertMessage(
             MessageEntity(
                 sessionId = sessionId,
                 role = ROLE_ASSISTANT,
-                content = content,
+                content = finalContent,
                 createdAt = System.currentTimeMillis(),
                 replyGroupId = replyGroupId,
             )

@@ -156,6 +156,7 @@ class BackupImporter @Inject constructor(
         var foundDb = false
         var manifestVersion = 0
         val prompts = linkedMapOf<String, ByteArray>()
+        val backgrounds = linkedMapOf<String, ByteArray>()
         runCatching {
             ZipInputStream(payload.inputStream().buffered()).use { zip ->
                 var entry: ZipEntry? = zip.nextEntry
@@ -175,6 +176,9 @@ class BackupImporter @Inject constructor(
                         name.startsWith("prompts/") && name.endsWith(".md") -> {
                             val fileName = File(name).name
                             if (fileName.isNotBlank()) prompts[fileName] = zip.readBytes()
+                        }
+                        else -> BackgroundBackup.fileName(name)?.let { fileName ->
+                            backgrounds[fileName] = zip.readBytes()
                         }
                     }
                     zip.closeEntry()
@@ -220,8 +224,9 @@ class BackupImporter @Inject constructor(
             )
         }
 
-        if (storageGuard.isLow(staging.length())) {
-            return failure(FailureReason.STORAGE_LOW, storageGuard.lowSpaceMessage(staging.length()))
+        val requiredBytes = staging.length() + backgrounds.values.sumOf { it.size.toLong() }
+        if (storageGuard.isLow(requiredBytes)) {
+            return failure(FailureReason.STORAGE_LOW, storageGuard.lowSpaceMessage(requiredBytes))
         }
 
         onProgress(Progress.Snapshotting)
@@ -233,7 +238,7 @@ class BackupImporter @Inject constructor(
 
         return when (mode) {
             Mode.OVERWRITE -> {
-                val stageFailure = stageForNextBoot(staging, prompts, onProgress)
+                val stageFailure = stageForNextBoot(staging, prompts, backgrounds, onProgress)
                 stageFailure ?: ImportResult.Success(
                     mode = Mode.OVERWRITE,
                     restartRequired = true,
@@ -248,6 +253,15 @@ class BackupImporter @Inject constructor(
                     Log.e(TAG, "合并导入失败", it)
                     return failure(
                         FailureReason.MERGE_FAILED,
+                        context.getString(
+                            R.string.data_backup_import_merge_failed,
+                            it.message ?: context.getString(R.string.data_backup_import_unknown_error),
+                        ),
+                    )
+                }
+                runCatching { BackgroundBackup.restore(context.filesDir, backgrounds) }.onFailure {
+                    return failure(
+                        FailureReason.IO_ERROR,
                         context.getString(
                             R.string.data_backup_import_merge_failed,
                             it.message ?: context.getString(R.string.data_backup_import_unknown_error),
@@ -271,9 +285,11 @@ class BackupImporter @Inject constructor(
     private fun stageForNextBoot(
         staging: File,
         prompts: Map<String, ByteArray>,
+        backgrounds: Map<String, ByteArray>,
         onProgress: (Progress) -> Unit,
     ): ImportResult.Failure? = runCatching {
         onProgress(Progress.Writing)
+        BackgroundBackup.restore(context.filesDir, backgrounds)
         val pending = File(context.filesDir, BackupRepository.PENDING_NAME)
         // 先写临时文件再原子改名，避免进程被杀时留下半个数据库被下次启动误用。
         val temp = File(context.filesDir, "${BackupRepository.PENDING_NAME}.tmp")
@@ -326,6 +342,7 @@ class BackupImporter @Inject constructor(
                     file.inputStream().use { it.copyTo(zip) }
                     zip.closeEntry()
                 }
+            BackgroundBackup.addOriginals(context.filesDir, zip)
         }
         if (target.length() <= 0L) {
             target.delete()

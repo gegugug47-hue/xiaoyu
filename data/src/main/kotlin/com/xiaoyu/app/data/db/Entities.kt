@@ -22,6 +22,8 @@ data class SessionEntity(
     /** v3 §4.7.1 / H-14：增量提炼游标，记录上次提炼到的消息时间戳，0 表示从未提炼 */
     @ColumnInfo(name = "extract_cursor") val extractCursor: Long = 0,
     val archived: Boolean = false,
+    /** v3 §8.2：会话关闭原因（`safety` 表示危机触发）。不结束对话，只做标记。 */
+    @ColumnInfo(name = "closed_by") val closedBy: String? = null,
 )
 
 /**
@@ -325,4 +327,62 @@ data class EmbeddingEntity(
     val vector: ByteArray,
     val model: String,
     @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+/**
+ * 自定义聊天背景（执行书 v3 §14.6.2 参数表 18 项 + 深色独立一套）。
+ * 每身份一行（`identity_id` 唯一）；列名与参数表键名一一对应，
+ * `dark_json` 存深色模式那套参数的 JSON（非空即启用）。
+ */
+@Entity(
+    tableName = "chat_backgrounds",
+    indices = [Index(value = ["identity_id"], unique = true)],
+)
+data class ChatBackgroundEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "identity_id") val identityId: Long,
+    val source: String,
+    @ColumnInfo(name = "image_sha1") val imageSha1: String?,
+    @ColumnInfo(name = "gradient_json") val gradientJson: String?,
+    val texture: String,
+    @ColumnInfo(name = "solid_hex") val solidHex: String,
+    val scale: String,
+    val zoom: Int,
+    val anchor: String,
+    @ColumnInfo(name = "blur_dp") val blurDp: Int,
+    val brightness: Int,
+    val saturation: Int,
+    @ColumnInfo(name = "scrim_tone") val scrimTone: String,
+    @ColumnInfo(name = "scrim_hex") val scrimHex: String?,
+    @ColumnInfo(name = "scrim_alpha") val scrimAlpha: Int,
+    val vignette: Int,
+    @ColumnInfo(name = "bubble_alpha") val bubbleAlpha: Int,
+    @ColumnInfo(name = "bubble_underlay") val bubbleUnderlay: Boolean,
+    @ColumnInfo(name = "bubble_blur") val bubbleBlur: Boolean,
+    val parallax: Int,
+    @ColumnInfo(name = "legibility_auto") val legibilityAuto: Boolean,
+    @ColumnInfo(name = "dark_json") val darkJson: String?,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/**
+ * 安全事件（执行书 v3 §8.1 / F-05）。
+ * 只记级别、命中的词表条目与处理动作，**绝不存用户原文**；
+ * 用于「危机后 3 轮保持现实导向」的判定与诊断，不参与人格演绎。
+ */
+@Entity(
+    tableName = "safety_events",
+    indices = [Index("identity_id"), Index("created_at_ms")],
+)
+data class SafetyEventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "identity_id") val identityId: Long,
+    /** CrisisLevel.name / OUTPUT_BLOCKED */
+    val level: String,
+    /** 命中的词表条目（JSON 数组），不含原文语境。 */
+    @ColumnInfo(name = "matched_json") val matchedJson: String,
+    @ColumnInfo(name = "created_at_ms") val createdAtMs: Long,
+    /** l1_slow_down / l2_care_card / l3_persona_paused / output_blocked */
+    val action: String,
 )

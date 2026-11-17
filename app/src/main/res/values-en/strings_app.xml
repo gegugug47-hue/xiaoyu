@@ -50,6 +50,8 @@
     <string name="vm_image_generate_failed">Image generation failed. Make sure ComfyUI and the gateway are both running on your computer.</string>
     <string name="vm_voice_input_unavailable">No voice input is available on this device. Enable your keyboard\'s voice service in system settings first.</string>
     <string name="vm_regenerate_failed">Couldn\'t regenerate</string>
+    <string name="vm_image_saved">Image saved to gallery</string>
+    <string name="vm_image_save_failed">Couldn\'t save image</string>
     <string name="vm_poke_limit">She doesn\'t want to be poked right now. Try again a bit later</string>
     <string name="vm_poke_failed">Couldn\'t poke</string>
     <string name="vm_message_saved_memory">She\'ll remember that</string>

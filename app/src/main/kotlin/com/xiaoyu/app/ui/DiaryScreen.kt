@@ -33,10 +33,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.DiaryEntity
+import com.xiaoyu.app.ui.components.YuEmptyView
+import com.xiaoyu.app.ui.illustrations.YuIllustrationKind
+import com.xiaoyu.app.ui.theme.LocalYuType
 import com.xiaoyu.soul.diary.DiaryPlanner
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,11 +72,9 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
         ) {
             if (diaries.isEmpty()) {
                 item {
-                    Text(
-                        stringResource(R.string.diary_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 36.dp),
+                    YuEmptyView(
+                        kind = YuIllustrationKind.DIARY,
+                        message = stringResource(R.string.diary_empty),
                     )
                 }
             }
@@ -81,7 +83,10 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // 列表项合并为一组朗读：日期 + 心情 + 摘要 / 上锁状态
+                        .semantics(mergeDescendants = true) {},
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -104,7 +109,7 @@ fun DiaryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                             )
                             TextButton(onClick = { viewModel.unlockDiary(diary.id) }) { Text(stringResource(R.string.diary_try_unlock)) }
                         } else if (opened?.id == diary.id) {
-                            Text(diary.contentMd, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                            Text(diary.contentMd, style = LocalYuType.current.diary, color = MaterialTheme.colorScheme.onSurface)
                             Row {
                                 TextButton(onClick = { viewModel.exportDiaryMarkdown(diary.id) }) { Text(stringResource(R.string.diary_export_markdown)) }
                                 TextButton(onClick = { opened = null }) { Text(stringResource(R.string.diary_close)) }

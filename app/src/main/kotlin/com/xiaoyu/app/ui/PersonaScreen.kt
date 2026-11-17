@@ -51,6 +51,8 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val identities by viewModel.identities.collectAsStateWithLifecycle()
     val styles by viewModel.styles.collectAsStateWithLifecycle()
     var draft by remember { mutableStateOf<PersonaDraft?>(null) }
+    val defaultIdentityName = stringResource(R.string.persona_default_identity_name)
+    val defaultStyleName = stringResource(R.string.persona_default_style_name)
     // M7-09：.xypersona 人格包导入
     val packPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.importPersonaPack(it) }
@@ -84,7 +86,7 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                 PersonaSection(
                     title = stringResource(R.string.persona_section_identity),
                     hint = stringResource(R.string.persona_identity_hint),
-                    onAdd = { draft = PersonaDraft(null, "新的她", "", false) },
+                    onAdd = { draft = PersonaDraft(null, defaultIdentityName, "", false) },
                 ) {
                     identities.forEach { identity ->
                         PersonaRow(
@@ -102,7 +104,7 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                 PersonaSection(
                     title = stringResource(R.string.persona_section_style),
                     hint = stringResource(R.string.persona_style_hint),
-                    onAdd = { draft = PersonaDraft(null, "新的风格", "", true) },
+                    onAdd = { draft = PersonaDraft(null, defaultStyleName, "", true) },
                 ) {
                     styles.forEach { style ->
                         PersonaRow(

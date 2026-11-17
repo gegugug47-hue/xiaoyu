@@ -1,6 +1,7 @@
 package com.xiaoyu.app.data.peripheral
 
 import android.content.Context
+import com.xiaoyu.app.data.media.ImageCompressor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -46,6 +47,7 @@ data class LocalAiHealth(
 class LocalAiRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val client: OkHttpClient,
+    private val imageCompressor: ImageCompressor,
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -193,8 +195,21 @@ class LocalAiRepository @Inject constructor(
             if (result.fallback == true) {
                 android.util.Log.w("LocalAi", "生图回退到备用模型: ${result.fallbackModel}")
             }
-            val file = File(imageDir, "${System.currentTimeMillis()}.png")
-            download(base, taskId, token, file, expectBytes = result.bytesOrNull) ?: return@withContext null
+            val raw = File(imageDir, "${System.currentTimeMillis()}.png")
+            download(base, taskId, token, raw, expectBytes = result.bytesOrNull) ?: return@withContext null
+            // 生图入库统一压缩到长边 2048 的 JPEG（B-17），目录不变。
+            val compact = imageCompressor.compressTo(
+                raw,
+                File(imageDir, "${raw.nameWithoutExtension}.jpg"),
+                ImageCompressor.IMAGE_EDGE,
+                ImageCompressor.DEFAULT_QUALITY,
+            )
+            if (compact != null) {
+                raw.delete()
+                compact
+            } else {
+                raw
+            }
         }.getOrNull()
     }
 

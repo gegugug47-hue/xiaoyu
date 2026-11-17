@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ob_welcome_tagline">She is more than a chat box. She remembers what you tell her.</string>
+    <string name="ob_welcome_desc">She has her own mood, her own days, and she will think of you from time to time.</string>
+    <string name="ob_welcome_bullet_memory">The things you say stay with her</string>
+    <string name="ob_welcome_bullet_mood">She has real moods, not endless cheer</string>
+    <string name="ob_welcome_bullet_proactive">She may reach out first instead of waiting for you</string>
+    <string name="ob_welcome_bullet_records">Chats, diaries and memories stay on this device only</string>
+
+    <string name="ob_name_title">Give her a name</string>
+    <string name="ob_name_desc">This name is written into her persona. You can change it later.</string>
+    <string name="ob_her_name_label">Her name</string>
+    <string name="ob_her_name_hint">e.g. Xiaoyu</string>
+    <string name="ob_call_you_label">What she calls you</string>
+    <string name="ob_call_you_hint">e.g. Manman</string>
+    <string name="ob_call_you_desc">You can leave it empty and she will just say you.</string>
+
+    <string name="ob_theme_title">Pick a palette</string>
+    <string name="ob_theme_desc">You can switch anytime in Settings - Appearance.</string>
+    <string name="ob_theme_mist">Morning Mist</string>
+    <string name="ob_theme_mist_desc">Cool grey-blue of early fog</string>
+    <string name="ob_theme_day">Daylight</string>
+    <string name="ob_theme_day_desc">Clear blue of a noon sky</string>
+    <string name="ob_theme_dusk">Dusk Teal</string>
+    <string name="ob_theme_dusk_desc">Teal-green of the setting sun</string>
+    <string name="ob_theme_night">Night Sail</string>
+    <string name="ob_theme_night_desc">Deep blue of the night sea</string>
+
+    <string name="ob_model_title">Connect a model (optional)</string>
+    <string name="ob_model_desc">Add your own key and she truly comes alive. The key is encrypted on this device and never stored in plain text.</string>
+    <string name="ob_model_base_url">Endpoint</string>
+    <string name="ob_model_name">Model name</string>
+    <string name="ob_api_key">API Key</string>
+    <string name="ob_model_optional">Not sure yet? Skip it and fill it in later from Settings.</string>
+
+    <string name="ob_notify_title">Let her reach you (optional)</string>
+    <string name="ob_notify_desc">With notifications on, you will know when she reaches out first. You can turn it off anytime in Settings.</string>
+    <string name="ob_notify_enable">Allow notifications</string>
+    <string name="ob_notify_later">Not now</string>
+
+    <string name="ob_done_title">All set</string>
+    <string name="ob_done_desc">She will remember what you told her.</string>
+    <string name="ob_done_hint">Long-press a message to copy or delete it. Memories can be reviewed and restored from the Memory page.</string>
+
+    <string name="ob_continue">Continue</string>
+    <string name="ob_start">Start chatting</string>
+    <string name="ob_skip">Skip</string>
+    <string name="ob_back">Back</string>
+    <string name="ob_step_desc">Step %1$d of %2$d</string>
+    <string name="ob_dot_desc">Step %1$d</string>
+</resources>

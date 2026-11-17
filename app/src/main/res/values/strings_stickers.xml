@@ -65,6 +65,7 @@
     <string name="sticker_import_pick_zip">选择压缩包</string>
     <string name="sticker_import_empty_selection">还没有选择文件。</string>
     <string name="sticker_import_selected_count">已选择 %1$d 个文件</string>
+    <string name="sticker_import_file_fallback">已选文件</string>
     <string name="sticker_import_remove">移除</string>
     <string name="sticker_import_need_pack">请先新建或选择一个表情包后再导入。</string>
     <string name="sticker_import_start">开始导入（%1$d）</string>
@@ -88,6 +89,8 @@
     <string name="persona_label_description">描述</string>
     <string name="persona_action_save">保存</string>
     <string name="persona_action_cancel">取消</string>
+    <string name="persona_default_identity_name">新的她</string>
+    <string name="persona_default_style_name">新的风格</string>
 
     <!-- StickerViewModel 一次性提示 -->
     <string name="sticker_vm_pack_created">已新建表情包</string>

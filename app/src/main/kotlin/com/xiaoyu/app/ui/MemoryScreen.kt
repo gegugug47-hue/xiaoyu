@@ -42,6 +42,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.FactCardEntity
 import com.xiaoyu.app.data.db.MemoryEntity
+import com.xiaoyu.app.ui.components.YuEmptyView
+import com.xiaoyu.app.ui.illustrations.YuIllustrationKind
 import com.xiaoyu.soul.memory.CARD_CATEGORIES
 import com.xiaoyu.soul.memory.MemoryType
 import kotlin.math.roundToInt
@@ -188,12 +190,7 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
 
 @Composable
 private fun EmptyHint(text: String) {
-    Text(
-        text,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    YuEmptyView(kind = YuIllustrationKind.MEMORY, message = text)
 }
 
 @Composable

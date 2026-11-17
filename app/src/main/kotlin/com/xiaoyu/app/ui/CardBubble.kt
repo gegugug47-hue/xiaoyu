@@ -1,5 +1,7 @@
 package com.xiaoyu.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,17 +10,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.xiaoyu.app.R
 import com.xiaoyu.soul.card.CardFactory
 import com.xiaoyu.soul.card.CardFactory.CardKind
 
 /**
  * 卡片消息气泡（执行书 v3 ADR-15 / 7.4.5）。
  * 解析 MessageEntity.content（JSON）并按卡片类别渲染标题 + 内容行 + 页脚。
+ * CARE 卡额外渲染拨号按钮（v3 §8.2，使用 ACTION_DIAL，不需要打电话权限）。
  * 解析失败时回退为纯文本展示，不丢消息。
  */
 @Composable
@@ -31,11 +38,13 @@ fun CardBubble(
         Text(rawContent, style = MaterialTheme.typography.bodyMedium)
         return
     }
+    val context = LocalContext.current
     val accent = when (runCatching { CardKind.valueOf(payload.kind) }.getOrDefault(CardKind.DIARY)) {
         CardKind.DIARY -> MaterialTheme.colorScheme.tertiary
         CardKind.AGREEMENT -> MaterialTheme.colorScheme.primary
         CardKind.HER_DAY -> MaterialTheme.colorScheme.secondary
         CardKind.MEMORY_RECALL -> MaterialTheme.colorScheme.primary
+        CardKind.CARE -> MaterialTheme.colorScheme.error
     }
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -67,6 +76,17 @@ fun CardBubble(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            payload.actions.forEach { action ->
+                OutlinedButton(onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_DIAL, Uri.parse("tel:${action.number}"))
+                        )
+                    }
+                }) {
+                    Text(stringResource(R.string.card_call_action, action.label))
+                }
             }
         }
     }

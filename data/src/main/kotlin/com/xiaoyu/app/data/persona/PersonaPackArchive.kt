@@ -10,6 +10,7 @@ import com.xiaoyu.app.data.db.IdentityDao
 import com.xiaoyu.app.data.db.IdentityEntity
 import com.xiaoyu.app.data.db.StyleDao
 import com.xiaoyu.app.data.db.StyleEntity
+import com.xiaoyu.app.data.media.ImageCompressor
 import com.xiaoyu.app.data.prompt.PromptAssetSource
 import com.xiaoyu.soul.safety.InjectionGuard
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,6 +54,7 @@ class PersonaPackArchive @Inject constructor(
     private val identityDao: IdentityDao,
     private val styleDao: StyleDao,
     private val promptSource: PromptAssetSource,
+    private val imageCompressor: ImageCompressor,
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -327,12 +329,25 @@ class PersonaPackArchive @Inject constructor(
         return written
     }
 
-    private fun extractAvatar(zip: java.util.zip.ZipFile, entryName: String, packName: String): String {
+    private suspend fun extractAvatar(
+        zip: java.util.zip.ZipFile,
+        entryName: String,
+        packName: String,
+    ): String {
         val ext = entryName.substringAfterLast('.', "png").lowercase().filter { it.isLetterOrDigit() }
         val dir = File(context.filesDir, "personas/${sanitize(packName)}").apply { mkdirs() }
         val dest = File(dir, "avatar.${ext.ifBlank { "png" }}")
         SafeZip.copyTo(zip, entryName, dir, dest, 4L * 1024 * 1024)
-        return dest.absolutePath
+        // 头像统一压到长边 512 的 JPEG（B-17），目录保持 personas/<name>/ 不变。
+        val target = File(dir, "avatar.jpg")
+        val compressed = imageCompressor.compressTo(
+            dest,
+            target,
+            ImageCompressor.AVATAR_EDGE,
+            ImageCompressor.DEFAULT_QUALITY,
+        ) ?: return dest.absolutePath
+        if (dest.absolutePath != target.absolutePath) dest.delete()
+        return compressed.absolutePath
     }
 
     private fun shareDir(): File = File(context.cacheDir, "share").apply { mkdirs() }

@@ -71,6 +71,7 @@ class BackupRepository @Inject constructor(
                 file.inputStream().use { it.copyTo(zip) }
                 zip.closeEntry()
             }
+            BackgroundBackup.addOriginals(context.filesDir, zip)
         }
         return bos.toByteArray()
     }
@@ -88,6 +89,7 @@ class BackupRepository @Inject constructor(
                 BackupCrypto.decrypt(raw, password ?: "") ?: return@runCatching false
             } else raw
             var foundDb = false
+            val backgrounds = linkedMapOf<String, ByteArray>()
             ZipInputStream(payload.inputStream().buffered()).use { zip ->
                 var entry: ZipEntry? = zip.nextEntry
                 while (entry != null) {
@@ -100,11 +102,15 @@ class BackupRepository @Inject constructor(
                             if (!promptDir.exists()) promptDir.mkdirs()
                             File(promptDir, File(entry.name).name).outputStream().use { out -> zip.copyTo(out) }
                         }
+                        else -> BackgroundBackup.fileName(entry.name)?.let { name ->
+                            backgrounds[name] = zip.readBytes()
+                        }
                     }
                     zip.closeEntry()
                     entry = zip.nextEntry
                 }
             }
+            if (foundDb) BackgroundBackup.restore(context.filesDir, backgrounds)
             foundDb
         }.getOrDefault(false)
     }

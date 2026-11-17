@@ -4,12 +4,13 @@ import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.graphics.Movie
-import android.media.ExifInterface
 import android.net.Uri
 import com.xiaoyu.app.data.R
 import com.xiaoyu.app.data.archive.SafeZip
+import com.xiaoyu.app.data.media.ImageCompressor
+import com.xiaoyu.soul.safety.InjectionGuard
+import com.xiaoyu.soul.safety.PromptZone
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,6 +66,7 @@ data class StickerImportResult(
 @Singleton
 class StickerImporter @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val imageCompressor: ImageCompressor,
 ) {
 
     private val resolver: ContentResolver get() = context.contentResolver
@@ -222,11 +224,10 @@ class StickerImporter @Inject constructor(
     @Suppress("DEPRECATION")
     private fun processStill(packId: String, source: File, index: Int): StickerImportItem {
         val stickerId = newStickerId(index)
-        val decoded = decodeScaled(source.path, MAX_STATIC_EDGE)
+        // 统一走 ImageCompressor：两段解码 + EXIF 摆正 + 长边 512（B-17）。
+        // 表情包保留透明通道，编码仍是 WEBP，路径与命名规则不变。
+        val bitmap = imageCompressor.decodeUpright(source.path, MAX_STATIC_EDGE)
             ?: throw IllegalStateException(context.getString(R.string.data_sticker_import_decode_failed))
-        val rotated = applyExifRotation(source.path, decoded)
-        if (rotated !== decoded) decoded.recycle()
-        val bitmap = rotated
         val file = StickerPaths.stickerFile(context, packId, stickerId, "webp")
         var bytes = 0L
         // 体积超限时按 88 → 70 → 55 逐级降质重编码（执行书 7.4.3）
@@ -251,7 +252,9 @@ class StickerImporter @Inject constructor(
         bitmap.recycle()
         return StickerImportItem(
             stickerId = stickerId,
-            name = source.nameWithoutExtension.take(10).ifBlank { "表情$index" },
+            name = InjectionGuard.sanitizeForeign(source.nameWithoutExtension, PromptZone.STICKER_NAME)
+                .take(10)
+                .ifBlank { "表情$index" },
             filePath = file.path,
             thumbnailPath = thumb,
             mime = MIME_WEBP,
@@ -294,7 +297,9 @@ class StickerImporter @Inject constructor(
         thumbBitmap?.recycle()
         return StickerImportItem(
             stickerId = stickerId,
-            name = source.nameWithoutExtension.take(10).ifBlank { "表情$index" },
+            name = InjectionGuard.sanitizeForeign(source.nameWithoutExtension, PromptZone.STICKER_NAME)
+                .take(10)
+                .ifBlank { "表情$index" },
             filePath = target.path,
             thumbnailPath = thumb,
             mime = MIME_GIF,
@@ -343,26 +348,6 @@ class StickerImporter @Inject constructor(
         )
     }
 
-    /** 相册图片可能带旋转信息，不摆正就会横躺着入库。 */
-    private fun applyExifRotation(path: String, bitmap: Bitmap): Bitmap {
-        val degrees = runCatching {
-            when (
-                ExifInterface(path).getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL,
-                )
-            ) {
-                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                else -> 0f
-            }
-        }.getOrDefault(0f)
-        if (degrees == 0f) return bitmap
-        val matrix = Matrix().apply { postRotate(degrees) }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }
-
     private fun copyToTemp(uri: Uri, target: File): File? = runCatching {
         val input: InputStream = resolver.openInputStream(uri) ?: return null
         input.use { source -> target.outputStream().use { out -> source.copyTo(out) } }
@@ -398,7 +383,7 @@ class StickerImporter @Inject constructor(
     private companion object {
         /** 一次最多导入 30 张（执行书 7.4.3 入口 1）。 */
         const val MAX_FILES = 30
-        const val MAX_STATIC_EDGE = 1024
+        const val MAX_STATIC_EDGE = ImageCompressor.STICKER_EDGE
         const val MAX_ANIMATED_EDGE = 480
         const val MAX_STATIC_BYTES = 1L * 1024 * 1024
         const val MAX_ANIMATED_BYTES = 2L * 1024 * 1024

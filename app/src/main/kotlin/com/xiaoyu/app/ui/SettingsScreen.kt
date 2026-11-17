@@ -3,7 +3,6 @@ package com.xiaoyu.app.ui
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,18 +12,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,9 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -64,9 +59,20 @@ import com.xiaoyu.app.data.settings.AppSettings
 import com.xiaoyu.app.data.settings.ProviderConfig
 import com.xiaoyu.app.data.backup.BackupImporter
 import com.xiaoyu.app.data.settings.ProviderKind
+import com.xiaoyu.app.ui.components.YuButton
+import com.xiaoyu.app.ui.components.YuCard
+import com.xiaoyu.app.ui.components.YuDialog
+import com.xiaoyu.app.ui.components.YuSlider
+import com.xiaoyu.app.ui.components.YuSwitch
 import com.xiaoyu.app.ui.theme.BubbleStyle
 import com.xiaoyu.app.ui.theme.FontScaleSteps
 import com.xiaoyu.app.ui.theme.ThemeMode
+import com.xiaoyu.app.ui.theme.Tokens
+import com.xiaoyu.app.ui.theme.YuColorPicker
+import com.xiaoyu.app.ui.theme.YuThemePreset
+import com.xiaoyu.app.ui.theme.colorToHex
+import com.xiaoyu.app.ui.theme.parseHexColor
+import com.xiaoyu.app.ui.theme.rememberWindowSizeClass
 import com.xiaoyu.soul.core.BrainRole
 import kotlin.math.roundToInt
 
@@ -86,17 +92,48 @@ fun SettingsScreen(
     onOpenDiagnostics: () -> Unit = {},
     onOpenUsage: () -> Unit = {},
     onOpenStickers: () -> Unit = {},
+    onOpenChatBackground: () -> Unit = {},
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val health by viewModel.health.collectAsStateWithLifecycle()
     val checking by viewModel.checkingHealth.collectAsStateWithLifecycle()
     val backups by viewModel.backups.collectAsStateWithLifecycle()
+    val sizeClass = rememberWindowSizeClass()
 
     var editingSlot by remember { mutableStateOf<Slot?>(null) }
     var showHours by remember { mutableStateOf(false) }
     var encryptBackup by remember { mutableStateOf(false) }
     var backupPassword by remember { mutableStateOf("") }
     var importMode by rememberSaveable { mutableStateOf("MERGE") }
+    var showCustomColor by rememberSaveable { mutableStateOf(false) }
+    // v3 §7.11：设置页顶部搜索框（按 section 标题 + 子项副标题命中）
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    // v3 §7.11：每个 section 的中文关键字列表，搜索时按关键字命中
+    val sectionKeywords = listOf(
+        "模型" to listOf("模型", "model", "主模型", "备用", "记忆", "聊天", "连接", "demo", "演示"),
+        "关系节奏" to listOf("节奏", "沉浸", "延迟", "分段", "发送", "主动", "消息", "免打扰", "dnd", "勿扰"),
+        "聊天模式" to listOf("聊天", "模式", "连续", "会话", "话题"),
+        "外观" to listOf("外观", "主题", "字号", "气泡", "深色", "浅色", "动效", "减少", "material you", "取色", "预设"),
+        "聊天背景" to listOf("背景", "图片", "模糊", "聊天背景"),
+        "本地 AI" to listOf("本地", "ai", "url", "音色", "语音", "风格", "连接"),
+        "人设" to listOf("人设", "性格", "身份"),
+        "表情" to listOf("表情", "sticker", "贴纸", "管理", "导入", "导出"),
+        "用量" to listOf("用量", "请求", "token", "费用", "成本"),
+        "备份" to listOf("备份", "导出", "恢复", "密码", "加密", "本地"),
+        "应用锁" to listOf("锁", "pin", "生物", "指纹", "面容", "解锁"),
+        "主动消息自检" to listOf("主动", "自检", "推送"),
+        "通知" to listOf("通知", "推送", "免打扰", "声音", "震动", "锁屏", "正文", "上限"),
+        "朗读" to listOf("朗读", "tts", "语音", "语速", "音调"),
+        "诊断" to listOf("诊断", "debug", "崩溃", "日志", "请求"),
+    )
+    val queryLower = searchQuery.trim().lowercase()
+    fun sectionVisible(key: String): Boolean {
+        if (queryLower.isBlank()) return true
+        val direct = key.lowercase().contains(queryLower)
+        val keywords = sectionKeywords.firstOrNull { it.first == key }?.second.orEmpty()
+        return direct || keywords.any { it.lowercase().contains(queryLower) }
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -128,13 +165,25 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // v3 §7.11：设置页搜索框（顶栏下方一条 compact 输入框）
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(stringResource(R.string.settings_search_hint)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Tokens.SpacingLg, vertical = Tokens.SpacingSm),
+                singleLine = true,
+            )
+            Row(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxSize(),
+                contentPadding = PaddingValues(Tokens.SpacingLg),
+            verticalArrangement = Arrangement.spacedBy(Tokens.SpacingMd),
         ) {
             item {
-                SectionCard(stringResource(R.string.settings_section_model)) {
+                FilteredSectionCard(visible = sectionVisible("模型"), title = stringResource(R.string.settings_section_model)) {
                     Slot.entries.forEach { slot ->
                         ProviderRow(
                             title = stringResource(slot.labelRes),
@@ -144,9 +193,9 @@ fun SettingsScreen(
                         )
                         if (slot != Slot.EXTRACT_FALLBACK) Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { viewModel.checkHealth(BrainRole.CHAT) }, enabled = !checking) {
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+                        YuButton(onClick = { viewModel.checkHealth(BrainRole.CHAT) }, enabled = !checking) {
                             Text(if (checking) stringResource(R.string.settings_checking) else stringResource(R.string.settings_check_connection))
                         }
                         TextButton(onClick = { viewModel.updateSettings { it.copy(immersiveEnabled = !it.immersiveEnabled) } }) {
@@ -165,7 +214,7 @@ fun SettingsScreen(
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_relationship)) {
+                FilteredSectionCard(visible = sectionVisible("关系节奏"), title = stringResource(R.string.settings_section_relationship)) {
                     ToggleRow(
                         stringResource(R.string.settings_reply_pace_title),
                         stringResource(R.string.settings_reply_pace_subtitle),
@@ -177,7 +226,7 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Slider(
+                        YuSlider(
                             value = settings.immersiveIntensity,
                             onValueChange = { value -> viewModel.updateSettings { it.copy(immersiveIntensity = value) } },
                             valueRange = 0.2f..2.0f,
@@ -208,14 +257,111 @@ fun SettingsScreen(
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_chat_mode)) {
+                // v3 §7.13 / B-22：通知专项（全部存 Settings JSON，不新增 DB 表）
+                FilteredSectionCard(visible = sectionVisible("通知"), title = stringResource(R.string.settings_section_notify)) {
+                    ToggleRow(
+                        stringResource(R.string.settings_proactive_title),
+                        stringResource(R.string.settings_proactive_subtitle),
+                        settings.proactiveEnabled,
+                    ) { enabled ->
+                        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        viewModel.updateSettings { it.copy(proactiveEnabled = enabled) }
+                    }
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    TextButton(onClick = { showHours = true }) {
+                        Text(stringResource(R.string.settings_dnd_button, settings.dndStartHour, settings.dndEndHour))
+                    }
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    ToggleRow(
+                        stringResource(R.string.settings_notify_show_content_title),
+                        stringResource(R.string.settings_notify_show_content_subtitle),
+                        settings.notifyShowContent,
+                    ) { enabled -> viewModel.updateSettings { it.copy(notifyShowContent = enabled) } }
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    ToggleRow(
+                        stringResource(R.string.settings_notify_hide_lock_title),
+                        stringResource(R.string.settings_notify_hide_lock_subtitle),
+                        settings.notifyHideOnLockScreen,
+                    ) { enabled -> viewModel.updateSettings { it.copy(notifyHideOnLockScreen = enabled) } }
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    ToggleRow(
+                        stringResource(R.string.settings_notify_sound_title),
+                        stringResource(R.string.settings_notify_sound_subtitle),
+                        settings.notifySound,
+                    ) { enabled -> viewModel.updateSettings { it.copy(notifySound = enabled) } }
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    ToggleRow(
+                        stringResource(R.string.settings_notify_vibrate_title),
+                        stringResource(R.string.settings_notify_vibrate_subtitle),
+                        settings.notifyVibrate,
+                    ) { enabled -> viewModel.updateSettings { it.copy(notifyVibrate = enabled) } }
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    Text(
+                        stringResource(R.string.settings_notify_limit_title),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        stringResource(R.string.settings_notify_limit_subtitle),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(Tokens.SpacingXs))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+                        listOf(1, 2, 3).forEach { cap ->
+                            FilterChip(
+                                selected = settings.proactiveDailyLimit.coerceIn(1, 3) == cap,
+                                onClick = { viewModel.updateSettings { it.copy(proactiveDailyLimit = cap) } },
+                                label = { Text(stringResource(R.string.settings_notify_limit_value, cap)) },
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                // v3 §7.9 / B-31：朗读语速、音调
+                FilteredSectionCard(visible = sectionVisible("朗读"), title = stringResource(R.string.settings_section_tts)) {
+                    Text(
+                        stringResource(R.string.settings_tts_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    Text(
+                        stringResource(R.string.settings_tts_rate, String.format("%.1f", settings.ttsSpeechRate)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    YuSlider(
+                        value = settings.ttsSpeechRate,
+                        onValueChange = { value -> viewModel.updateSettings { it.copy(ttsSpeechRate = value) } },
+                        valueRange = 0.6f..1.8f,
+                    )
+                    Text(
+                        stringResource(R.string.settings_tts_pitch, String.format("%.1f", settings.ttsPitch)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    YuSlider(
+                        value = settings.ttsPitch,
+                        onValueChange = { value -> viewModel.updateSettings { it.copy(ttsPitch = value) } },
+                        valueRange = 0.6f..1.4f,
+                    )
+                }
+            }
+
+            item {
+                FilteredSectionCard(visible = sectionVisible("聊天模式"), title = stringResource(R.string.settings_section_chat_mode)) {
                     Text(
                         stringResource(R.string.settings_chat_mode_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
                         FilterChip(
                             selected = settings.chatMode == "continuous",
                             onClick = { viewModel.updateSettings { it.copy(chatMode = "continuous") } },
@@ -239,106 +385,51 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                SectionCard(stringResource(R.string.settings_section_appearance)) {
-                    Text(
-                        stringResource(R.string.settings_theme_title),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (!sizeClass.supportsSettingsSecondaryPane && sectionVisible("外观")) {
+                item {
+                    AppearanceSection(
+                        settings = settings,
+                        showCustomColor = showCustomColor,
+                        onShowCustomColorChange = { showCustomColor = it },
+                        onUpdateSettings = viewModel::updateSettings,
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ThemeMode.entries.forEach { mode ->
-                            FilterChip(
-                                selected = ThemeMode.from(settings.themeMode) == mode,
-                                onClick = { viewModel.updateSettings { it.copy(themeMode = mode.name) } },
-                                label = { Text(mode.label) },
-                            )
-                        }
-                    }
-                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    ToggleRow(
-                        stringResource(R.string.settings_dynamic_color_title),
-                        stringResource(R.string.settings_dynamic_color_subtitle),
-                        settings.dynamicColor,
-                    ) { enabled -> viewModel.updateSettings { it.copy(dynamicColor = enabled) } }
-                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    Text(
-                        stringResource(R.string.settings_font_size_title),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FontScaleSteps.forEach { scale ->
-                            FilterChip(
-                                selected = kotlin.math.abs(settings.fontScale - scale) < 0.01f,
-                                onClick = { viewModel.updateSettings { it.copy(fontScale = scale) } },
-                                label = { Text("${(scale * 100).roundToInt()}%") },
-                            )
-                        }
-                    }
-                    Divider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    Text(
-                        stringResource(R.string.settings_bubble_title),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BubbleStyle.entries.forEach { style ->
-                            FilterChip(
-                                selected = BubbleStyle.from(settings.bubbleStyle) == style,
-                                onClick = { viewModel.updateSettings { it.copy(bubbleStyle = style.name) } },
-                                label = {
-                                    Text(
-                                        when (style) {
-                                            BubbleStyle.BRAND -> stringResource(R.string.settings_bubble_brand)
-                                            BubbleStyle.MINT -> stringResource(R.string.settings_bubble_mint)
-                                            BubbleStyle.WARM -> stringResource(R.string.settings_bubble_warm)
-                                        },
-                                    )
-                                },
-                            )
-                        }
-                    }
                 }
             }
 
-            item {
-                BackgroundSection(viewModel)
+            if (sectionVisible("聊天背景")) item {
+                BackgroundSection(onOpenChatBackground)
             }
 
-            item {
+            if (sectionVisible("本地 AI")) item {
                 LocalAiSection(settings, viewModel)
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_persona)) {
+                FilteredSectionCard(visible = sectionVisible("人设"), title = stringResource(R.string.settings_section_persona)) {
                     Text(
                         stringResource(R.string.settings_persona_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenPersona) { Text(stringResource(R.string.settings_persona_edit)) }
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    YuButton(onClick = onOpenPersona) { Text(stringResource(R.string.settings_persona_edit)) }
                 }
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_stickers)) {
+                FilteredSectionCard(visible = sectionVisible("表情"), title = stringResource(R.string.settings_section_stickers)) {
                     Text(
                         stringResource(R.string.settings_stickers_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenStickers) { Text(stringResource(R.string.settings_manage_stickers)) }
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    YuButton(onClick = onOpenStickers) { Text(stringResource(R.string.settings_manage_stickers)) }
                 }
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_usage)) {
+                FilteredSectionCard(visible = sectionVisible("用量"), title = stringResource(R.string.settings_section_usage)) {
                     Text(
                         stringResource(R.string.settings_usage_month, settings.usage.chatRequests, settings.usage.extractRequests),
                         style = MaterialTheme.typography.bodyMedium,
@@ -359,20 +450,20 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(onClick = onOpenUsage) { Text(stringResource(R.string.settings_usage_open)) }
+                    YuButton(onClick = onOpenUsage) { Text(stringResource(R.string.settings_usage_open)) }
                 }
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_backup)) {
+                FilteredSectionCard(visible = sectionVisible("备份"), title = stringResource(R.string.settings_section_backup)) {
                     Text(
                         stringResource(R.string.settings_backup_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { viewModel.createLocalBackup(if (encryptBackup) backupPassword.ifBlank { null } else null) }) { Text(stringResource(R.string.settings_backup_now)) }
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+                        YuButton(onClick = { viewModel.createLocalBackup(if (encryptBackup) backupPassword.ifBlank { null } else null) }) { Text(stringResource(R.string.settings_backup_now)) }
                         TextButton(onClick = {
                             exportLauncher.launch("xiaoyu-backup.xiaoyu")
                         }) { Text(stringResource(R.string.settings_backup_export)) }
@@ -386,7 +477,7 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
                         FilterChip(
                             selected = importMode == "MERGE",
                             onClick = { importMode = "MERGE" },
@@ -400,7 +491,7 @@ fun SettingsScreen(
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Switch(checked = encryptBackup, onCheckedChange = { encryptBackup = it })
+                        YuSwitch(checked = encryptBackup, onCheckedChange = { encryptBackup = it })
                         Text(stringResource(R.string.settings_backup_encrypt), style = MaterialTheme.typography.bodyMedium)
                     }
                     if (encryptBackup) {
@@ -425,23 +516,23 @@ fun SettingsScreen(
                 }
             }
 
-            item {
+            if (sectionVisible("应用锁")) item {
                 AppLockSection(viewModel)
             }
 
-            item {
+            if (sectionVisible("主动消息自检")) item {
                 BackgroundSelfCheckCard(lastPushAt = settings.lastPushAt)
             }
 
             item {
-                SectionCard(stringResource(R.string.settings_section_diagnostics)) {
+                FilteredSectionCard(visible = sectionVisible("诊断"), title = stringResource(R.string.settings_section_diagnostics)) {
                     Text(
                         stringResource(R.string.settings_diagnostics_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = onOpenDiagnostics) { Text(stringResource(R.string.settings_diagnostics_open)) }
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    YuButton(onClick = onOpenDiagnostics) { Text(stringResource(R.string.settings_diagnostics_open)) }
                 }
             }
 
@@ -450,10 +541,27 @@ fun SettingsScreen(
                     stringResource(R.string.settings_footer),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    modifier = Modifier.padding(vertical = Tokens.SpacingSm),
                 )
             }
         }
+            if (sizeClass.supportsSettingsSecondaryPane) {
+                LazyColumn(
+                    modifier = Modifier.width(Tokens.SizeSettingsPane).fillMaxSize(),
+                    contentPadding = PaddingValues(Tokens.SpacingLg),
+                ) {
+                    item {
+                        AppearanceSection(
+                            settings = settings,
+                            showCustomColor = showCustomColor,
+                            onShowCustomColorChange = { showCustomColor = it },
+                            onUpdateSettings = viewModel::updateSettings,
+                        )
+                    }
+                }
+            }
+            } // end Row
+        } // end Column
     }
 
     editingSlot?.let { slot ->
@@ -512,7 +620,7 @@ private fun AppLockSection(viewModel: AppViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
             FilterChip(
                 selected = mode == AppLockMode.OFF,
                 onClick = { viewModel.disableAppLock() },
@@ -536,8 +644,8 @@ private fun AppLockSection(viewModel: AppViewModel) {
             )
         }
         if (mode != AppLockMode.OFF) {
-            Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(Tokens.SpacingXs))
+            Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
                 TextButton(onClick = { pinTarget = mode }) { Text(stringResource(R.string.settings_app_lock_change_pin)) }
                 TextButton(onClick = { viewModel.lockNow() }) { Text(stringResource(R.string.settings_app_lock_now)) }
             }
@@ -569,7 +677,7 @@ private fun PinSetupDialog(
     var pin by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     val valid = pin.length in 4..6 && pin.all { it.isDigit() } && pin == confirm
-    AlertDialog(
+    YuDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -591,7 +699,7 @@ private fun PinSetupDialog(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(Tokens.SpacingSm))
                 OutlinedTextField(
                     value = confirm,
                     onValueChange = { value -> confirm = value.filter { it.isDigit() }.take(6) },
@@ -615,13 +723,146 @@ private fun PinSetupDialog(
 }
 
 @Composable
+private fun AppearanceSection(
+    settings: AppSettings,
+    showCustomColor: Boolean,
+    onShowCustomColorChange: (Boolean) -> Unit,
+    onUpdateSettings: ((AppSettings) -> AppSettings) -> Unit,
+) {
+    SectionCard(stringResource(R.string.settings_section_appearance)) {
+        Text(
+            stringResource(R.string.settings_theme_title),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+            ThemeMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = ThemeMode.from(settings.themeMode) == mode,
+                    onClick = { onUpdateSettings { it.copy(themeMode = mode.name) } },
+                    label = { Text(mode.label) },
+                )
+            }
+        }
+        Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+        val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        ToggleRow(
+            stringResource(R.string.settings_dynamic_color_title),
+            stringResource(
+                if (dynamicColorAvailable) R.string.settings_dynamic_color_subtitle
+                else R.string.settings_dynamic_color_unsupported
+            ),
+            settings.dynamicColor && dynamicColorAvailable,
+            enabled = dynamicColorAvailable,
+        ) { enabled -> onUpdateSettings { it.copy(dynamicColor = enabled) } }
+        Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Text(
+            stringResource(R.string.settings_theme_presets),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        YuThemePreset.entries.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+                row.forEach { preset ->
+                    FilterChip(
+                        selected = YuThemePreset.from(settings.themePreset) == preset && settings.customThemeSeed == null,
+                        onClick = {
+                            onShowCustomColorChange(false)
+                            onUpdateSettings {
+                                it.copy(themePreset = preset.name, customThemeSeed = null, dynamicColor = false)
+                            }
+                        },
+                        label = {
+                            Text(stringResource(when (preset) {
+                                YuThemePreset.MIST -> R.string.settings_theme_preset_mist
+                                YuThemePreset.DAY -> R.string.settings_theme_preset_day
+                                YuThemePreset.DUSK -> R.string.settings_theme_preset_dusk
+                                YuThemePreset.NIGHT -> R.string.settings_theme_preset_night
+                            }))
+                        },
+                    )
+                }
+            }
+        }
+        TextButton(onClick = { onShowCustomColorChange(!showCustomColor) }) {
+            Text(stringResource(if (showCustomColor) R.string.settings_custom_seed_close else R.string.settings_custom_seed_open))
+        }
+        if (showCustomColor) {
+            YuColorPicker(
+                initialColor = parseHexColor(settings.customThemeSeed.orEmpty())
+                    ?: YuThemePreset.from(settings.themePreset).seed,
+                onColorChange = { color ->
+                    onUpdateSettings {
+                        it.copy(customThemeSeed = colorToHex(color), dynamicColor = false)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+        ToggleRow(
+            stringResource(R.string.settings_reduce_motion_title),
+            stringResource(R.string.settings_reduce_motion_subtitle),
+            settings.reduceMotion,
+        ) { enabled -> onUpdateSettings { it.copy(reduceMotion = enabled) } }
+        Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Text(
+            stringResource(R.string.settings_font_size_title),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+            FontScaleSteps.forEach { scale ->
+                FilterChip(
+                    selected = kotlin.math.abs(settings.fontScale - scale) < 0.01f,
+                    onClick = { onUpdateSettings { it.copy(fontScale = scale) } },
+                    label = { Text("${(scale * 100).roundToInt()}%") },
+                )
+            }
+        }
+        Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Text(
+            stringResource(R.string.settings_bubble_title),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+            BubbleStyle.entries.forEach { style ->
+                FilterChip(
+                    selected = BubbleStyle.from(settings.bubbleStyle) == style,
+                    onClick = { onUpdateSettings { it.copy(bubbleStyle = style.name) } },
+                    label = {
+                        Text(
+                            when (style) {
+                                BubbleStyle.BRAND -> stringResource(R.string.settings_bubble_brand)
+                                BubbleStyle.MINT -> stringResource(R.string.settings_bubble_mint)
+                                BubbleStyle.WARM -> stringResource(R.string.settings_bubble_warm)
+                            },
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** v3 §7.11：搜索框驱动的 SectionCard 包装器——visible=false 时整段不渲染，避免 LazyColumn 抖动。 */
+@Composable
+private fun FilteredSectionCard(visible: Boolean, title: String, content: @Composable () -> Unit) {
+    if (visible) {
+        SectionCard(title, content)
+    }
+}
+
+@Composable
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(18.dp),
+    YuCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(Tokens.SpacingLg)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(10.dp))
             content()
@@ -630,92 +871,16 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun BackgroundSection(viewModel: AppViewModel) {
-    val file by viewModel.chatBackgroundFile.collectAsStateWithLifecycle()
-    val blur by viewModel.chatBackgroundBlur.collectAsStateWithLifecycle()
-    val dim by viewModel.chatBackgroundDim.collectAsStateWithLifecycle()
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let(viewModel::pickChatBackground)
-    }
-    // 滑块拖动时只在本地更新，松手才落盘，避免每帧写一次设置
-    var blurValue by remember(blur) { mutableStateOf(blur) }
-    var dimValue by remember(dim) { mutableStateOf(dim) }
-
+private fun BackgroundSection(onOpen: () -> Unit) {
     SectionCard(stringResource(R.string.settings_section_chat_background)) {
         Text(
-            stringResource(R.string.settings_background_desc),
+            stringResource(R.string.settings_background_custom_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
-        val current = file
-        if (current != null) {
-            FileImage(
-                file = current,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(14.dp)),
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    stringResource(R.string.settings_background_default),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = {
-                    picker.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-            ) { Text(if (current == null) stringResource(R.string.settings_background_pick) else stringResource(R.string.settings_background_change)) }
-            if (current != null) {
-                TextButton(onClick = { viewModel.clearChatBackground() }) { Text(stringResource(R.string.settings_background_reset)) }
-            }
-        }
-        if (current != null) {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                stringResource(R.string.settings_background_tune, blurValue.roundToInt(), (dimValue * 100).roundToInt()),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Slider(
-                value = blurValue,
-                onValueChange = { blurValue = it },
-                onValueChangeFinished = {
-                    viewModel.updateSettings { it.copy(chatBackgroundBlur = blurValue) }
-                },
-                valueRange = 0f..24f,
-            )
-            Slider(
-                value = dimValue,
-                onValueChange = { dimValue = it },
-                onValueChangeFinished = {
-                    viewModel.updateSettings { it.copy(chatBackgroundDim = dimValue) }
-                },
-                valueRange = 0f..0.8f,
-            )
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                Text(
-                    stringResource(R.string.settings_background_blur_hint),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        YuButton(onClick = onOpen) {
+            Text(stringResource(R.string.settings_background_custom_open))
         }
     }
 }
@@ -748,7 +913,7 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             placeholder = { Text("http://10.x.x.x:8300") },
             singleLine = true,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(Tokens.SpacingSm))
         OutlinedTextField(
             value = token,
             onValueChange = { token = it },
@@ -757,9 +922,9 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
             placeholder = { Text(stringResource(R.string.settings_local_ai_token_placeholder)) },
             singleLine = true,
         )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
+        Spacer(Modifier.height(Tokens.SpacingSm))
+        Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
+            YuButton(
                 enabled = !checking,
                 onClick = { viewModel.saveAndTestLocalAi(url, token) },
             ) { Text(if (checking) stringResource(R.string.settings_local_ai_connecting) else stringResource(R.string.settings_local_ai_save_test)) }
@@ -776,9 +941,9 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
         }
 
         if (settings.localAiUrl != null) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Tokens.SpacingMd))
             Divider(color = MaterialTheme.colorScheme.surfaceVariant)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Tokens.SpacingMd))
 
             OptionDropdown(
                 title = stringResource(R.string.settings_voice_title),
@@ -791,7 +956,7 @@ private fun LocalAiSection(settings: AppSettings, viewModel: AppViewModel) {
                 selected = settings.ttsVoice,
                 onSelect = { voice -> viewModel.updateSettings { it.copy(ttsVoice = voice) } },
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Tokens.SpacingMd))
             OptionChipGroup(
                 title = stringResource(R.string.settings_style_title),
                 hint = if (styleOptions.isEmpty()) stringResource(R.string.settings_style_empty) else null,
@@ -888,7 +1053,7 @@ private fun OptionChipGroup(
             )
         }
         Spacer(Modifier.height(6.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Tokens.SpacingXs)) {
             options.chunked(3).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     row.forEach { option ->
@@ -927,13 +1092,19 @@ private fun ProviderRow(title: String, config: ProviderConfig?, onEdit: () -> Un
 }
 
 @Composable
-private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun ToggleRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    onChange: (Boolean) -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(subtitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChange)
+        YuSwitch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 
@@ -949,13 +1120,13 @@ private fun ProviderEditDialog(
     var model by remember { mutableStateOf(config?.model ?: kind.defaultModel) }
     var apiKey by remember { mutableStateOf(config?.apiKey.orEmpty()) }
 
-    AlertDialog(
+    YuDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
             Column(
                 Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(Tokens.SpacingSm),
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ProviderKind.entries.take(2).forEach { item ->
@@ -1018,15 +1189,15 @@ private fun ProviderEditDialog(
 private fun DndDialog(start: Int, end: Int, onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) {
     var s by remember { mutableStateOf(start) }
     var e by remember { mutableStateOf(end) }
-    AlertDialog(
+    YuDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_dnd_dialog_title)) },
         text = {
             Column {
                 Text(stringResource(R.string.settings_dnd_start, s), style = MaterialTheme.typography.bodyMedium)
-                Slider(value = s.toFloat(), onValueChange = { s = it.roundToInt() }, valueRange = 0f..23f, steps = 22)
+                YuSlider(value = s.toFloat(), onValueChange = { s = it.roundToInt() }, valueRange = 0f..23f, steps = 22)
                 Text(stringResource(R.string.settings_dnd_end, e), style = MaterialTheme.typography.bodyMedium)
-                Slider(value = e.toFloat(), onValueChange = { e = it.roundToInt() }, valueRange = 0f..23f, steps = 22)
+                YuSlider(value = e.toFloat(), onValueChange = { e = it.roundToInt() }, valueRange = 0f..23f, steps = 22)
                 Text(
                     stringResource(R.string.settings_dnd_desc),
                     style = MaterialTheme.typography.labelMedium,

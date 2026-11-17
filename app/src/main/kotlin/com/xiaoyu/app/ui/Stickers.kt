@@ -4,11 +4,10 @@ import android.graphics.Movie
 import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +53,8 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,9 @@ import com.xiaoyu.app.data.db.StickerPackEntity
 import com.xiaoyu.app.data.repo.BUILTIN_STICKER_PREFIX
 import com.xiaoyu.app.data.repo.MIME_BUILTIN_CANVAS
 import com.xiaoyu.app.data.sticker.StickerPaths
+import com.xiaoyu.app.ui.theme.Tokens
+import com.xiaoyu.app.ui.theme.yuSpring
+import com.xiaoyu.app.ui.theme.yuTween
 import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.math.min
@@ -448,6 +452,7 @@ fun StickerPanel(
     modifier: Modifier = Modifier,
     packs: List<StickerPackEntity> = emptyList(),
     onManage: (() -> Unit)? = null,
+    onPreview: ((StickerEntity) -> Unit)? = null,
 ) {
     // null = 全部；只有真的存在多个有内容的分包时才显示 tab
     var selectedPack by remember { mutableStateOf<String?>(null) }
@@ -518,7 +523,7 @@ fun StickerPanel(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     gridItems(shown, key = { it.id }) { sticker ->
-                        StickerCell(sticker = sticker, onPick = onPick)
+                        StickerCell(sticker = sticker, onPick = onPick, onPreview = onPreview)
                     }
                 }
             }
@@ -532,37 +537,49 @@ private fun PackChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val bg by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        animationSpec = tween(durationMillis = 160),
+        animationSpec = yuTween(durationMillis = 160),
         label = "packChipBg",
     )
     val fg by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.onPrimary
         else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(durationMillis = 160),
+        animationSpec = yuTween(durationMillis = 160),
         label = "packChipFg",
     )
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelMedium,
-        color = fg,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
+    Box(
         modifier = Modifier
+            .heightIn(min = Tokens.SizeTouchTarget)
             .clip(RoundedCornerShape(50))
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 5.dp),
-    )
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = fg,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
-/** 单格表情：按下缩到 0.92 再弹回，松开才触发发送。 */
+/** 单格表情：按下缩到 0.92 再弹回，松开才触发发送；长按看大图。 */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun StickerCell(sticker: StickerEntity, onPick: (StickerEntity) -> Unit) {
+private fun StickerCell(
+    sticker: StickerEntity,
+    onPick: (StickerEntity) -> Unit,
+    onPreview: ((StickerEntity) -> Unit)? = null,
+) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val stickerFallback = stringResource(R.string.chat_a11y_sticker)
+    val stickerDescription = sticker.name.trim().ifBlank { stickerFallback }
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.92f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 720f),
+        animationSpec = yuSpring(dampingRatio = 0.6f, stiffness = 720f),
         label = "stickerScale",
     )
     Box(
@@ -573,7 +590,13 @@ private fun StickerCell(sticker: StickerEntity, onPick: (StickerEntity) -> Unit)
             .background(
                 if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent,
             )
-            .clickable(interactionSource = interaction, indication = null) { onPick(sticker) },
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = { onPick(sticker) },
+                onLongClick = onPreview?.let { { it(sticker) } },
+            )
+            .semantics { contentDescription = stickerDescription },
         contentAlignment = Alignment.Center,
     ) {
         // 面板只读缩略图、不播动图，保证滚动 60fps（执行书 7.4.5）

@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -75,7 +77,7 @@ fun LifeDayScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "今天还没有生活碎片，她会在后台慢慢记录～",
+                    stringResource(R.string.life_day_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -103,7 +105,13 @@ private fun LifeTimelineItem(frag: LifeFragmentEntity) {
         .atZone(ZoneId.systemDefault())
         .toLocalTime()
         .format(timeFormat)
-    Row(verticalAlignment = Alignment.Top) {
+    val dailyLabel = stringResource(R.string.life_day_type_daily)
+    val typeLabel = frag.type.ifBlank { dailyLabel }
+    val itemDescription = stringResource(R.string.life_day_a11y_item, time, typeLabel, frag.content)
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = itemDescription },
+    ) {
         // 时间 + 竖线 + 圆点
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -131,7 +139,7 @@ private fun LifeTimelineItem(frag: LifeFragmentEntity) {
         ) {
             Column(Modifier.padding(12.dp)) {
                 Text(
-                    frag.type.ifBlank { "日常" },
+                    typeLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )

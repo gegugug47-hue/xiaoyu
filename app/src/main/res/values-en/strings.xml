@@ -1,4 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Xiaoyu</string>
+
+    <!-- Notifications -->
+    <string name="notify_channel_proactive">Messages she starts</string>
+    <string name="notify_channel_proactive_desc">Messages Xiaoyu sends when she thinks of you — reply right from the notification</string>
+    <string name="notify_channel_task">Background task results</string>
+    <string name="notify_channel_task_desc">Soft reminders when her diary, life moments and memories are ready</string>
+    <string name="notify_channel_backup">Backup</string>
+    <string name="notify_channel_backup_desc">Notifications when the weekly automatic backup succeeds or fails</string>
+    <string name="notify_channel_system">System reminders</string>
+    <string name="notify_channel_system_desc">Usage guard and low battery reminders that need your attention</string>
+    <string name="notify_reply_label">Reply to her…</string>
+    <string name="notify_reply_action">Reply</string>
+    <string name="notify_app_name">Xiaoyu</string>
+    <string name="notify_sender_her">Her</string>
+    <string name="notify_sender_me">You</string>
+    <string name="notify_conversation_title">Chat with Xiaoyu</string>
+    <string name="notify_hidden_text">Xiaoyu sent you a message</string>
+    <string name="notify_reply_sending">Sending: %1$s…</string>
+    <string name="notify_reply_failed_title">Reply failed to send</string>
+    <string name="notify_reply_failed_body">%1$s</string>
+
+    <!-- Home screen widget -->
+    <string name="svc_widget_brand">Xiaoyu</string>
+    <string name="svc_widget_empty_line">She is daydreaming by the window. Tap to say hi~</string>
+    <string name="svc_widget_favorability">Affection</string>
 </resources>

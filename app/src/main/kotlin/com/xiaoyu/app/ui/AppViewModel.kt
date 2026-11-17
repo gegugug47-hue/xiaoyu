@@ -11,6 +11,7 @@ import com.xiaoyu.app.data.prompt.PromptAssetSource
 import com.xiaoyu.app.data.backup.BackupImporter
 import com.xiaoyu.app.data.backup.BackupRepository
 import com.xiaoyu.app.data.export.MarkdownExporter
+import com.xiaoyu.app.data.export.PublicDownloads
 import com.xiaoyu.app.data.persona.PersonaPackArchive
 import com.xiaoyu.app.data.sticker.StickerPackArchive
 import com.xiaoyu.app.data.repo.VisionRepository
@@ -29,6 +30,9 @@ import com.xiaoyu.app.data.db.StickerEntity
 import com.xiaoyu.app.data.db.StickerPackEntity
 import com.xiaoyu.app.data.db.StyleEntity
 import com.xiaoyu.app.data.media.ChatBackgroundStore
+import com.xiaoyu.app.data.repo.BackgroundRenderInput
+import com.xiaoyu.app.data.repo.ChatBackgroundRepository
+import com.xiaoyu.app.data.settings.ChatBackgroundSpec
 import com.xiaoyu.app.data.peripheral.LocalAiRepository
 import com.xiaoyu.app.data.repo.ChatEvent
 import com.xiaoyu.app.data.repo.ChatRepository
@@ -43,6 +47,7 @@ import com.xiaoyu.app.data.repo.StickerRepository
 import com.xiaoyu.app.data.secure.AppLockManager
 import com.xiaoyu.app.data.settings.AppLockMode
 import com.xiaoyu.app.data.settings.AppSettings
+import com.xiaoyu.app.data.settings.BrainSettings
 import com.xiaoyu.app.data.settings.ChatMode
 import com.xiaoyu.app.data.settings.CostGuardState
 import com.xiaoyu.app.data.settings.MessageDensity
@@ -55,6 +60,7 @@ import com.xiaoyu.soul.mood.PresenceResult
 import com.xiaoyu.soul.mood.PresenceStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +76,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -90,6 +97,7 @@ class AppViewModel @Inject constructor(
     private val router: BrainRouter,
     private val backupRepo: BackupRepository,
     private val backgroundStore: ChatBackgroundStore,
+    private val chatBackgroundRepo: ChatBackgroundRepository,
     private val localAiRepo: LocalAiRepository,
     private val stickerRepo: StickerRepository,
     private val relationRepo: RelationRepository,
@@ -102,6 +110,7 @@ class AppViewModel @Inject constructor(
     private val personaPackArchive: PersonaPackArchive,
     private val stickerPackArchive: StickerPackArchive,
     private val visionRepo: VisionRepository,
+    private val publicDownloads: PublicDownloads,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -196,6 +205,7 @@ class AppViewModel @Inject constructor(
         .map { backgroundStore.fileFor(it.chatBackground) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** 旧版背景三键（只读兼容，新入口走自定义背景设置页）。 */
     val chatBackgroundBlur: StateFlow<Float> = settings
         .map { it.chatBackgroundBlur }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 6f)
@@ -203,6 +213,45 @@ class AppViewModel @Inject constructor(
     val chatBackgroundDim: StateFlow<Float> = settings
         .map { it.chatBackgroundDim }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0.35f)
+
+    // ---------------- 自定义聊天背景（v3 §14.6） ----------------
+
+    private val _chatBackgroundRender = MutableStateFlow<BackgroundRenderInput?>(null)
+
+    /** 当前身份的背景渲染输入；切换身份时保留旧值直到新值就绪（不闪）。 */
+    val chatBackgroundRender: StateFlow<BackgroundRenderInput?> = _chatBackgroundRender.asStateFlow()
+
+    private var backgroundDarkTheme = false
+
+    suspend fun refreshChatBackground(identityId: Long, darkTheme: Boolean) {
+        backgroundDarkTheme = darkTheme
+        _chatBackgroundRender.value = chatBackgroundRepo.resolveRender(identityId, darkTheme)
+    }
+
+    suspend fun loadBackgroundSpec(identityId: Long): ChatBackgroundSpec =
+        chatBackgroundRepo.load(identityId)
+
+    suspend fun importBackgroundImage(uri: Uri): String? = chatBackgroundRepo.importImage(uri)
+
+    fun backgroundImageFile(sha1: String?): File? = backgroundStore.fileFor(sha1)
+
+    fun backgroundCacheBytes(): Long = backgroundStore.cacheSizeBytes()
+
+    fun applyChatBackground(identityId: Long, spec: ChatBackgroundSpec, applyToAll: Boolean) {
+        viewModelScope.launch {
+            chatBackgroundRepo.save(identityId, spec, applyToAll)
+            refreshChatBackground(identityId, backgroundDarkTheme)
+            _toast.value = appContext.getString(R.string.vm_background_updated)
+        }
+    }
+
+    fun resetChatBackground(identityId: Long, applyToAll: Boolean) {
+        viewModelScope.launch {
+            chatBackgroundRepo.reset(identityId, applyToAll)
+            refreshChatBackground(identityId, backgroundDarkTheme)
+            _toast.value = appContext.getString(R.string.vm_background_reset)
+        }
+    }
 
     private val _sessionId = MutableStateFlow<Long?>(null)
     val sessionId: StateFlow<Long?> = _sessionId.asStateFlow()
@@ -247,6 +296,13 @@ class AppViewModel @Inject constructor(
 
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
+
+    /**
+     * 是否已有历史会话（v3 §7.12 引导兜底）。
+     * 老用户升级后 [AppSettings.onboardingDone] 还是 false，靠这个标记避免被重新弹引导。
+     */
+    private val _hasHistory = MutableStateFlow(false)
+    val hasHistory: StateFlow<Boolean> = _hasHistory.asStateFlow()
 
     // ---- 翻旧账搜索（PRD US-020） ----
     private val _searchResults = MutableStateFlow<List<MessageEntity>>(emptyList())
@@ -494,6 +550,7 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             stickerRepo.ensureBuiltinSeeded()
             settingsRepo.ensureLoaded()
+            _hasHistory.value = runCatching { chatRepo.latestSessionId() != null }.getOrDefault(false)
             _ready.value = true
             _backups.value = runCatching { backupRepo.listBackups() }.getOrDefault(emptyList())
             settingsRepo.state.map { it.onboarded }.distinctUntilChanged().collect { onboarded ->
@@ -508,21 +565,66 @@ class AppViewModel @Inject constructor(
     fun completeOnboarding(
         identityId: Long? = null,
         styleId: Long? = null,
+        herName: String? = null,
         nickname: String? = null,
         formOfAddress: String? = null,
+        themePreset: String? = null,
+        brain: BrainSettings? = null,
     ) {
         viewModelScope.launch {
             val before = settingsRepo.current()
+            val trimmedName = herName?.trim().orEmpty()
+            // 起了新名字就写进她的人设（identity），设置里随时还能改。
+            if (trimmedName.isNotBlank() && identityId != null) {
+                val current = identities.value.firstOrNull { it.id == identityId }
+                if (current != null && current.name != trimmedName) {
+                    runCatching { personaRepo.updateIdentity(identityId, trimmedName, current.contentMd) }
+                }
+            }
             settingsRepo.update {
                 it.copy(
                     onboarded = true,
+                    onboardingDone = true,
                     chosenIdentityId = identityId ?: it.chosenIdentityId,
                     chosenStyleId = styleId ?: it.chosenStyleId,
                     userNickname = nickname?.trim().orEmpty().ifBlank { it.userNickname },
-                    userFormOfAddress = formOfAddress?.trim().orEmpty().ifBlank { it.userFormOfAddress },
+                    userFormOfAddress = formOfAddress?.trim().orEmpty().ifBlank {
+                        trimmedName.ifBlank { it.userFormOfAddress }
+                    },
+                    themePreset = themePreset?.ifBlank { null } ?: it.themePreset,
+                    brain = brain ?: it.brain,
                 )
             }
             sendFirstGreeting(before.greetedAt)
+        }
+    }
+
+    /**
+     * 引导页「跳过」：同样落 `onboardingDone=true`，但不发开场白、不改人设与主题，
+     * 直接进入聊天，后续可在设置里补齐。
+     */
+    fun skipOnboarding() {
+        viewModelScope.launch {
+            settingsRepo.update {
+                it.copy(
+                    onboarded = true,
+                    onboardingDone = true,
+                    chosenIdentityId = it.chosenIdentityId ?: identities.value.firstOrNull()?.id,
+                    chosenStyleId = it.chosenStyleId ?: styles.value.firstOrNull()?.id,
+                )
+            }
+        }
+    }
+
+    /** 诊断页「性能」导出：写 `Download/小鱼导出/perf-<ts>.txt`。 */
+    fun exportPerfReport(fileName: String, content: String, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    publicDownloads.saveText("小鱼导出", fileName, "text/plain", content)
+                }.getOrNull()
+            }
+            onResult(saved?.displayPath)
         }
     }
 
@@ -532,6 +634,8 @@ class AppViewModel @Inject constructor(
      */
     private suspend fun sendFirstGreeting(alreadyGreetedAt: Long) {
         if (alreadyGreetedAt > 0L) return
+        // v3 §8.2：危机后的 48 小时主动消息暂停期内，开场白也静默跳过
+        if (chatRepo.isProactivePaused()) return
         val current = settingsRepo.current()
         val template = runCatching { promptSource.read(PromptKeys.FIRST_GREETING) }.getOrDefault("")
         if (template.isBlank()) return
@@ -619,6 +723,21 @@ class AppViewModel @Inject constructor(
     /** 给消息加 / 取消 reaction。 */
     fun react(messageId: Long, emoji: String) {
         viewModelScope.launch { chatRepo.toggleReaction(messageId, emoji) }
+    }
+
+    /** v3 §7.4.1：把图片消息存到相册（走 PublicDownloads，Android 10+ MediaStore）。 */
+    fun saveImageToGallery(path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = runCatching {
+                val file = File(path)
+                if (!file.exists()) return@runCatching false
+                val name = "xiaoyu-${System.currentTimeMillis()}.jpg"
+                publicDownloads.saveBytes("小鱼图片", name, "image/jpeg", file.readBytes()) != null
+            }.getOrDefault(false)
+            _toast.value = appContext.getString(
+                if (ok) R.string.vm_image_saved else R.string.vm_image_save_failed,
+            )
+        }
     }
 
     /** 同一条回复的历史生成版本（M3-06），含被软隐藏的旧版本。 */
@@ -723,6 +842,24 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             memoryRepo.writeUserCommandCard(text, listOf("收藏"), "EVENT")
             _toast.value = appContext.getString(R.string.vm_message_saved_memory)
+        }
+    }
+
+    /** v3 §7.10：超长粘贴选择「拆分发送」时，按顺序逐条发出，避免被 busy 拦截。 */
+    private val splitQueue = ArrayDeque<String>()
+
+    fun sendSplit(chunks: List<String>) {
+        splitQueue.clear()
+        splitQueue.addAll(chunks.filter { it.isNotBlank() })
+        drainSplitQueue()
+    }
+
+    private fun drainSplitQueue() {
+        if (splitQueue.isEmpty() || _busy.value) return
+        send(splitQueue.removeFirst())
+        viewModelScope.launch {
+            while (_busy.value) kotlinx.coroutines.delay(120)
+            drainSplitQueue()
         }
     }
 
@@ -1035,13 +1172,12 @@ class AppViewModel @Inject constructor(
     fun pickChatBackground(uri: Uri) {
         viewModelScope.launch {
             backgroundMutex.withLock {
-                val name = backgroundStore.importFrom(uri)
+                val name = chatBackgroundRepo.importImage(uri)
                 if (name == null) {
                     _toast.value = appContext.getString(R.string.vm_background_open_failed)
                 } else {
+                    // 旧键继续写入以兼容已发布版本；配额由新仓库保留各身份仍在引用的图片。
                     settingsRepo.update { it.copy(chatBackground = name) }
-                    // 只保留正在使用的这张，避免旧图越积越多
-                    backgroundStore.trim(name)
                     _toast.value = appContext.getString(R.string.vm_background_updated)
                 }
             }
@@ -1051,9 +1187,8 @@ class AppViewModel @Inject constructor(
     fun clearChatBackground() {
         viewModelScope.launch {
             backgroundMutex.withLock {
-                val name = settings.value.chatBackground
                 settingsRepo.update { it.copy(chatBackground = null) }
-                backgroundStore.delete(name)
+                // 原图可能仍被 chat_backgrounds 中的身份引用，留待全局配额安全淘汰。
                 _toast.value = appContext.getString(R.string.vm_background_reset)
             }
         }

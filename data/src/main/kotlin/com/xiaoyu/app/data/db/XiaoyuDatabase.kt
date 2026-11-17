@@ -210,6 +210,74 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+/**
+ * v3 §8.1 / F-05 / F-08：新增安全事件表与会话关闭原因。
+ * 只加表加列：安全事件不存用户原文；历史会话的 closed_by 保持 NULL。
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `safety_events` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `identity_id` INTEGER NOT NULL,
+                `level` TEXT NOT NULL,
+                `matched_json` TEXT NOT NULL,
+                `created_at_ms` INTEGER NOT NULL,
+                `action` TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_safety_events_identity_id` ON `safety_events` (`identity_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_safety_events_created_at_ms` ON `safety_events` (`created_at_ms`)")
+        db.execSQL("ALTER TABLE `sessions` ADD COLUMN `closed_by` TEXT")
+    }
+}
+
+/**
+ * v10 → v11（执行书 v3 §14.6 / G-11）：新增 `chat_backgrounds` 表。
+ * 只加表，不碰旧 settings 里的 3 个背景键（迁移兼容由仓库层首次读取时做）。
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `chat_backgrounds` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `identity_id` INTEGER NOT NULL,
+                `source` TEXT NOT NULL,
+                `image_sha1` TEXT,
+                `gradient_json` TEXT,
+                `texture` TEXT NOT NULL,
+                `solid_hex` TEXT NOT NULL,
+                `scale` TEXT NOT NULL,
+                `zoom` INTEGER NOT NULL,
+                `anchor` TEXT NOT NULL,
+                `blur_dp` INTEGER NOT NULL,
+                `brightness` INTEGER NOT NULL,
+                `saturation` INTEGER NOT NULL,
+                `scrim_tone` TEXT NOT NULL,
+                `scrim_hex` TEXT,
+                `scrim_alpha` INTEGER NOT NULL,
+                `vignette` INTEGER NOT NULL,
+                `bubble_alpha` INTEGER NOT NULL,
+                `bubble_underlay` INTEGER NOT NULL,
+                `bubble_blur` INTEGER NOT NULL,
+                `parallax` INTEGER NOT NULL,
+                `legibility_auto` INTEGER NOT NULL,
+                `dark_json` TEXT,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_chat_backgrounds_identity_id` " +
+                "ON `chat_backgrounds` (`identity_id`)"
+        )
+    }
+}
+
 @Database(
     entities = [
         SessionEntity::class,
@@ -231,8 +299,10 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         CorrectionEntity::class,
         SettingEntity::class,
         DraftEntity::class,
+        SafetyEventEntity::class,
+        ChatBackgroundEntity::class,
     ],
-    version = 9,
+    version = 11,
     exportSchema = true,
 )
 abstract class XiaoyuDatabase : RoomDatabase() {
@@ -252,6 +322,12 @@ abstract class XiaoyuDatabase : RoomDatabase() {
     abstract fun correctionDao(): CorrectionDao
     abstract fun settingDao(): SettingDao
     abstract fun draftDao(): DraftDao
+
+    /** v3 §8.1：安全事件（只存级别与命中词，不存原文）。 */
+    abstract fun safetyEventDao(): SafetyEventDao
+
+    /** v3 §14.6：自定义聊天背景（每身份一行）。 */
+    abstract fun chatBackgroundDao(): ChatBackgroundDao
 
     /** M7-10：本地向量索引（可选能力）。 */
     abstract fun embeddingDao(): EmbeddingDao

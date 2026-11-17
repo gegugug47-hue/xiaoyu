@@ -28,6 +28,8 @@
     <string name="chat_edit">Edit</string>
     <string name="chat_copy">Copy</string>
     <string name="chat_regenerate">Regenerate</string>
+    <string name="chat_tts_speak">Read aloud</string>
+    <string name="chat_tts_stop">Stop reading</string>
     <string name="chat_view_versions">View earlier versions</string>
     <string name="chat_remember">Save and let her remember</string>
     <string name="chat_hide_message">Hide this message</string>
@@ -77,6 +79,33 @@
     <string name="chat_topic_divider">—— New topic ——</string>
     <string name="chat_unread_divider">New messages below</string>
     <string name="chat_avatar_letter">X</string>
+    <string name="chat_typing_subtitle">She\'s typing…</string>
+    <string name="chat_fab_new_messages">%1$d new</string>
+    <string name="chat_fab_scroll_bottom">Back to latest</string>
+
+    <!-- Accessibility: presence / message descriptions (§7.15) -->
+    <string name="chat_presence_online">She\'s online</string>
+    <string name="chat_presence_busy">She\'s busy</string>
+    <string name="chat_presence_sleeping">She\'s asleep</string>
+    <string name="chat_presence_away">She\'s away</string>
+    <string name="chat_a11y_message">%1$s, %2$s, %3$s</string>
+    <string name="chat_a11y_read">read</string>
+    <string name="chat_a11y_unread">unread</string>
+    <string name="chat_a11y_my_reaction">My reaction: %1$s</string>
+    <string name="chat_a11y_her_reaction">Her reaction: %1$s</string>
+    <string name="chat_a11y_react_with">React with %1$s</string>
+    <string name="chat_a11y_sticker">sticker</string>
+    <string name="chat_a11y_image">image</string>
+    <string name="chat_a11y_fab_scroll_bottom">Jump to latest message</string>
+    <string name="chat_a11y_typing">She is typing</string>
+    <string name="chat_a11y_poke">Double tap to poke her</string>
+    <string name="chat_a11y_select">Select this message</string>
+    <string name="chat_a11y_selected">Selected</string>
+    <string name="chat_a11y_resend">Resend</string>
+    <string name="chat_correction_recorded">Noted your correction “%1$s”. She\'ll adjust her tone.</string>
+    <string name="chat_correction_revoke">Undo</string>
+    <string name="chat_voice_prompt">Speak now — it will be turned into text</string>
+    <string name="card_call_action">Call %1$s</string>
 
     <!-- Sticker panel Stickers / EmojiPanel -->
     <string name="sticker_panel_title">Stickers</string>
@@ -116,4 +145,23 @@
     <string name="chat_level_familiar">Familiar</string>
     <string name="chat_level_intimate">Close</string>
     <string name="chat_level_beloved">Beloved</string>
+
+    <!-- v3 §7.4: long-press grouping / reaction overflow / save image / full-screen input -->
+    <string name="chat_menu_more">More</string>
+    <string name="chat_menu_less">Less</string>
+    <string name="chat_save_image">Save image</string>
+    <string name="chat_regenerate_blocked">Delete your later messages first</string>
+    <string name="chat_translate_pending">Translate (coming soon)</string>
+    <string name="chat_reaction_more">+%1$d</string>
+    <string name="chat_a11y_show_reactions">Show all reactions</string>
+    <string name="chat_reaction_her_on_mine">She reacted to you</string>
+    <string name="chat_sticker_tab">Stickers</string>
+    <string name="chat_emoji_tab">Emoji</string>
+    <string name="chat_paste_long_title">Long message</string>
+    <string name="chat_paste_long_text">This is long. Split it into several messages?</string>
+    <string name="chat_paste_split">Split &amp; send</string>
+    <string name="chat_paste_whole">Send as is</string>
+    <string name="chat_full_input_title">Full-screen input</string>
+    <string name="chat_full_input_done">Done</string>
+    <string name="chat_history_load_more">Scroll up to load earlier messages</string>
 </resources>

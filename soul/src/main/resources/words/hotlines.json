@@ -1,0 +1,22 @@
+{
+  "region": "CN",
+  "verified_by_human_dial": false,
+  "verified_at": null,
+  "disclaimer": "以下是人工心理援助与紧急求助渠道，我不是专业人员。",
+  "lines": [
+    { "id": "emergency_police",  "name": "报警",              "number": "110",            "national": true,  "priority": 1, "kind": "emergency" },
+    { "id": "emergency_ambulance","name": "急救",             "number": "120",            "national": true,  "priority": 2, "kind": "emergency" },
+    { "id": "psych_national",    "name": "全国统一心理援助热线", "number": "12356",         "national": true,  "priority": 3, "kind": "psych",
+      "note": "国家卫健委设立，2025-05-01 起全国开通；本地坐席占线时自动转接其他城市坐席。" },
+    { "id": "psych_youth",       "name": "全国青少年心理咨询热线", "number": "12355",        "national": true,  "priority": 4, "kind": "psych" },
+    { "id": "psych_hope24",      "name": "希望24热线",         "number": "400-161-9995",   "national": true,  "priority": 5, "kind": "psych" },
+    { "id": "psych_beijing",     "name": "北京市心理援助热线",   "number": "010-82951332",  "national": false, "priority": 6, "kind": "psych",
+      "alt": [{ "label": "座机请拨", "number": "800-810-1117" }], "org": "北京回龙观医院 · 北京心理危机研究与干预中心" },
+    { "id": "psych_shanghai",    "name": "上海市心理热线",      "number": "021-962525",    "national": false, "priority": 7, "kind": "psych" },
+    { "id": "psych_guangzhou",   "name": "广州市心理援助热线",   "number": "12356",         "national": false, "priority": 8, "kind": "psych",
+      "note": "原 020-81899120 已于 2024 年底并入全国统一 12356；拨 12356 即接通本市坐席。" },
+    { "id": "psych_gz_school",   "name": "广州市中小学生阳光成长热线", "number": "96525",   "national": false, "priority": 9, "kind": "psych",
+      "audience": "中小学生/家长/教师", "show_by_default": false,
+      "note": "青少年向咨询线，非通用危机专线；高危来电会转介 12356。默认不在卡片显示，用户所在地区为广州且身份为学生时可选展示。" }
+  ]
+}

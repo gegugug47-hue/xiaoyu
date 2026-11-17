@@ -17,19 +17,7 @@ val TimestampSize = 11.sp
  */
 val FontScaleSteps = listOf(0.9f, 1.0f, 1.15f, 1.3f)
 
-internal fun baseTypography(): Typography = Typography(
-    displaySmall = TextStyle(fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold),
-    headlineMedium = TextStyle(fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium),
-    titleSmall = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Medium),
-    bodyLarge = TextStyle(fontSize = BodySize, lineHeight = 24.sp, fontWeight = FontWeight.Normal),
-    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 21.sp),
-    bodySmall = TextStyle(fontSize = SecondarySize, lineHeight = 19.sp),
-    labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
-    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
-    labelSmall = TextStyle(fontSize = TimestampSize, lineHeight = 14.sp),
-)
+internal fun baseTypography(): Typography = YuType.Default.toMaterialTypography()
 
 /** 按档位缩放全部字号与行高，行高同步缩放保证中文不挤压。 */
 fun scaledTypography(scale: Float): Typography {
@@ -38,22 +26,5 @@ fun scaledTypography(scale: Float): Typography {
         fontSize = fontSize * factor,
         lineHeight = if (lineHeight == TextUnit.Unspecified) TextUnit.Unspecified else lineHeight * factor,
     )
-    val base = baseTypography()
-    return Typography(
-        displayLarge = base.displayLarge.scaled(),
-        displayMedium = base.displayMedium.scaled(),
-        displaySmall = base.displaySmall.scaled(),
-        headlineLarge = base.headlineLarge.scaled(),
-        headlineMedium = base.headlineMedium.scaled(),
-        headlineSmall = base.headlineSmall.scaled(),
-        titleLarge = base.titleLarge.scaled(),
-        titleMedium = base.titleMedium.scaled(),
-        titleSmall = base.titleSmall.scaled(),
-        bodyLarge = base.bodyLarge.scaled(),
-        bodyMedium = base.bodyMedium.scaled(),
-        bodySmall = base.bodySmall.scaled(),
-        labelLarge = base.labelLarge.scaled(),
-        labelMedium = base.labelMedium.scaled(),
-        labelSmall = base.labelSmall.scaled(),
-    )
+    return YuType.Default.scaled(factor).toMaterialTypography()
 }

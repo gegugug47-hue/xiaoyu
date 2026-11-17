@@ -3,6 +3,7 @@ package com.xiaoyu.app.di
 import android.content.Context
 import androidx.room.Room
 import com.xiaoyu.app.data.backup.BackupRepository
+import com.xiaoyu.app.data.db.ChatBackgroundDao
 import com.xiaoyu.app.data.db.DiaryDao
 import com.xiaoyu.app.data.db.DraftDao
 import com.xiaoyu.app.data.db.EmbeddingDao
@@ -20,10 +21,13 @@ import com.xiaoyu.app.data.db.MIGRATION_5_6
 import com.xiaoyu.app.data.db.MIGRATION_6_7
 import com.xiaoyu.app.data.db.MIGRATION_7_8
 import com.xiaoyu.app.data.db.MIGRATION_8_9
+import com.xiaoyu.app.data.db.MIGRATION_9_10
+import com.xiaoyu.app.data.db.MIGRATION_10_11
 import com.xiaoyu.app.data.db.MemoryDao
 import com.xiaoyu.app.data.db.MessageDao
 import com.xiaoyu.app.data.db.MoodDao
 import com.xiaoyu.app.data.db.RequestSnapshotDao
+import com.xiaoyu.app.data.db.SafetyEventDao
 import com.xiaoyu.app.data.db.SessionDao
 import com.xiaoyu.app.data.db.SettingDao
 import com.xiaoyu.app.data.db.StickerArchiveDao
@@ -50,7 +54,7 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): XiaoyuDatabase =
         Room.databaseBuilder(context, XiaoyuDatabase::class.java, "xiaoyu.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .build()
 
     @Provides
@@ -100,6 +104,12 @@ object AppModule {
 
     @Provides
     fun draftDao(db: XiaoyuDatabase): DraftDao = db.draftDao()
+
+    @Provides
+    fun chatBackgroundDao(db: XiaoyuDatabase): ChatBackgroundDao = db.chatBackgroundDao()
+
+    @Provides
+    fun safetyEventDao(db: XiaoyuDatabase): SafetyEventDao = db.safetyEventDao()
 
     @Provides
     fun embeddingDao(db: XiaoyuDatabase): EmbeddingDao = db.embeddingDao()

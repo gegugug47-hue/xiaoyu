@@ -34,7 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,9 +68,16 @@ fun SearchScreen(
     val results by viewModel.searchResults.collectAsStateWithLifecycle()
     val searching by viewModel.searching.collectAsStateWithLifecycle()
     var keyword by remember { mutableStateOf("") }
+    // v3 B-07：高亮以「实际提交搜索」的关键词为准，避免边打字边改变已有结果的高亮
+    var appliedKeywords by remember { mutableStateOf<List<String>>(emptyList()) }
 
     // 进入页面时清空上次搜索结果
     LaunchedEffect(Unit) { viewModel.searchMessages("") }
+
+    val runSearch: () -> Unit = {
+        appliedKeywords = splitKeywords(keyword)
+        viewModel.searchMessages(keyword)
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -104,7 +117,7 @@ fun SearchScreen(
                     shape = RoundedCornerShape(20.dp),
                     trailingIcon = {
                         IconButton(
-                            onClick = { viewModel.searchMessages(keyword) },
+                            onClick = runSearch,
                             enabled = keyword.isNotBlank(),
                         ) {
                             Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_action))
@@ -116,7 +129,11 @@ fun SearchScreen(
             when {
                 searching -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.search_loading), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            stringResource(R.string.search_loading),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
                     }
                 }
                 results.isEmpty() && keyword.isNotBlank() -> {
@@ -147,6 +164,7 @@ fun SearchScreen(
                         items(results, key = { it.id }) { message ->
                             SearchResultItem(
                                 message = message,
+                                keywords = appliedKeywords,
                                 onClick = {
                                     viewModel.useMessageAsContext(message)
                                     onUseContext()
@@ -161,12 +179,17 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchResultItem(message: MessageEntity, onClick: () -> Unit) {
+private fun SearchResultItem(message: MessageEntity, keywords: List<String>, onClick: () -> Unit) {
     val isUser = message.role == ROLE_USER
     val roleLabel = when (message.role) {
         ROLE_USER -> stringResource(R.string.search_role_me)
         ROLE_ASSISTANT -> stringResource(R.string.search_role_her)
         else -> stringResource(R.string.search_role_system)
+    }
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    // v3 B-07：命中关键词用 primaryContainer 背景高亮（大小写不敏感、支持多关键词）
+    val highlighted = remember(message.content, keywords, highlightColor) {
+        highlightKeywords(message.content, keywords, highlightColor)
     }
     Surface(
         onClick = onClick,
@@ -190,7 +213,7 @@ private fun SearchResultItem(message: MessageEntity, onClick: () -> Unit) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                message.content,
+                highlighted,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 3,
@@ -198,4 +221,35 @@ private fun SearchResultItem(message: MessageEntity, onClick: () -> Unit) {
             )
         }
     }
+}
+
+/** 搜索关键词拆分：空格 / 中英文逗号 / 顿号都算分隔符，去重后逐个高亮。 */
+private fun splitKeywords(raw: String): List<String> =
+    raw.split(Regex("[\\s,，、]+"))
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+
+/**
+ * v3 B-07：把命中的关键词包上 [SpanStyle] 高亮。
+ * 用 `indexOf(ignoreCase = true)` 而不是先转小写再取下标，避免某些语言大小写转换改变长度导致错位。
+ */
+private fun highlightKeywords(
+    content: String,
+    keywords: List<String>,
+    background: Color,
+): AnnotatedString {
+    if (content.isEmpty() || keywords.isEmpty()) return AnnotatedString(content)
+    val builder = AnnotatedString.Builder(content)
+    val style = SpanStyle(background = background)
+    keywords.forEach { keyword ->
+        var from = 0
+        while (from <= content.length - keyword.length) {
+            val index = content.indexOf(keyword, from, ignoreCase = true)
+            if (index < 0) break
+            builder.addStyle(style, index, index + keyword.length)
+            from = index + keyword.length
+        }
+    }
+    return builder.toAnnotatedString()
 }

@@ -66,6 +66,10 @@ interface SessionDao {
 
     @Query("SELECT MIN(created_at) FROM sessions")
     suspend fun earliestCreatedAt(): Long?
+
+    /** v3 §8.2：标记会话关闭原因（危机时只标记，不结束对话）。 */
+    @Query("UPDATE sessions SET closed_by = :reason WHERE id = :id")
+    suspend fun markClosedBy(id: Long, reason: String)
 }
 
 @Dao
@@ -155,6 +159,14 @@ interface MessageDao {
 
     @Query("UPDATE messages SET hidden = 0 WHERE id = :id")
     suspend fun unhide(id: Long)
+
+    /** v3 §8.2：本会话是否已经出现过求助资源卡（会话内只弹一次）。 */
+    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId AND hidden = 0 AND type = 'card' AND content LIKE '%\"CARE\"%'")
+    suspend fun countCareCards(sessionId: Long): Int
+
+    /** v3 §8.2：某个时间点之后本会话的用户消息数（用于 L3 后 3 轮现实导向）。 */
+    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId AND hidden = 0 AND role = 'user' AND created_at >= :since")
+    suspend fun countUserSince(sessionId: Long, since: Long): Int
 
     // ---- 全文索引（M7-04）：写入时维护，查询时按二元组 MATCH ----
     @Insert(onConflict = OnConflictStrategy.REPLACE)

@@ -1,4 +1,4 @@
-package com.xiaoyu.app.work
+﻿package com.xiaoyu.app.work
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -45,6 +45,36 @@ class Notifier @Inject constructor(
                 description = context.getString(R.string.notify_channel_system_desc)
                 setShowBadge(true)
             },
+            // v3 §7.13 / B-22：声音/震动四个组合各用一个渠道（API 26+ 渠道属性创建后不可改）
+            NotificationChannel(
+                CHANNEL_PROACTIVE_QUIET,
+                context.getString(R.string.notify_channel_proactive_quiet),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = context.getString(R.string.notify_channel_proactive_quiet_desc)
+                setSound(null, null)
+                enableVibration(false)
+                setShowBadge(true)
+            },
+            NotificationChannel(
+                CHANNEL_PROACTIVE_NO_SOUND,
+                context.getString(R.string.notify_channel_proactive_no_sound),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = context.getString(R.string.notify_channel_proactive_no_sound_desc)
+                setSound(null, null)
+                enableVibration(true)
+                setShowBadge(true)
+            },
+            NotificationChannel(
+                CHANNEL_PROACTIVE_NO_VIBRATE,
+                context.getString(R.string.notify_channel_proactive_no_vibrate),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = context.getString(R.string.notify_channel_proactive_no_vibrate_desc)
+                enableVibration(false)
+                setShowBadge(true)
+            },
         )
         channels.forEach { manager.createNotificationChannel(it) }
     }
@@ -61,9 +91,10 @@ class Notifier @Inject constructor(
     }
 
     /**
-     * 主动消息通知。[hideContent] 为 true（开启应用锁）时只显示「小鱼发来一条消息」，
-     * 不在通知栏暴露聊天正文（执行书 5.6.3）。
+     * 主动消息通知。[hideContent] 为 true（关闭「通知显示正文」或开启应用锁）时只显示
+     * 「小鱼发来一条消息」，不在通知栏暴露聊天正文（执行书 5.6.3 / 7.13）。
      * 通知体用 MessagingStyle 区分「她」和「你」，并挂 RemoteInput 支持直接回复（执行书 6.11）。
+     * [sound] / [vibrate] 来自设置页「通知」分组；[hideOnLockScreen] 为 true 时锁屏上完全不显示。
      * 返回是否真正发出。
      */
     fun notifyProactive(
@@ -71,6 +102,9 @@ class Notifier @Inject constructor(
         sessionId: Long,
         hideContent: Boolean = false,
         userText: String? = null,
+        sound: Boolean = true,
+        vibrate: Boolean = true,
+        hideOnLockScreen: Boolean = false,
     ): Boolean {
         if (!canPostNotifications()) return false
         ensureChannels()
@@ -90,7 +124,13 @@ class Notifier @Inject constructor(
         }
         style.addMessage(shown, now, her)
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_PROACTIVE)
+        val channelId = when {
+            sound && vibrate -> CHANNEL_PROACTIVE
+            sound -> CHANNEL_PROACTIVE_NO_VIBRATE
+            vibrate -> CHANNEL_PROACTIVE_NO_SOUND
+            else -> CHANNEL_PROACTIVE_QUIET
+        }
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_stat_fish)
             .setContentTitle(context.getString(R.string.notify_app_name))
             .setContentText(shown)
@@ -101,7 +141,16 @@ class Notifier @Inject constructor(
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .addAction(replyAction(sessionId, notifyId))
 
-        if (hideContent) {
+        // v3 §7.13 / B-22：声音与震动开关。API 26+ 走上面的四条渠道，
+        // 这里同时照顾 pre-O 机型（通知级 sound/vibrate 仍有效）。
+        if (!sound) builder.setSound(null)
+        builder.setVibrate(if (vibrate) longArrayOf(0, 180) else null)
+        if (!sound && !vibrate) builder.setSilent(true)
+
+        if (hideOnLockScreen) {
+            // 锁屏隐藏：锁屏上不出现任何内容
+            builder.setVisibility(NotificationCompat.VISIBILITY_SECRET)
+        } else if (hideContent) {
             // 锁屏上只给公开版本，正文不落到锁屏；点开仍需应用锁
             builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setPublicVersion(publicVersion(pending))
@@ -205,6 +254,13 @@ class Notifier @Inject constructor(
         const val CHANNEL_BACKUP = "xiaoyu_backup"
         /** 系统提醒渠道。 */
         const val CHANNEL_SYSTEM = "xiaoyu_system"
+        const val CHANNEL_PROACTIVE_QUIET = "xiaoyu_proactive_quiet"
+
+        /** 仅震动（关闭提示音）。 */
+        const val CHANNEL_PROACTIVE_NO_SOUND = "xiaoyu_proactive_no_sound"
+
+        /** 仅提示音（关闭震动）。 */
+        const val CHANNEL_PROACTIVE_NO_VIBRATE = "xiaoyu_proactive_no_vibrate"
 
         /** RemoteInput 回传文本的键。 */
         const val KEY_REPLY_TEXT = "xiaoyu_reply_text"

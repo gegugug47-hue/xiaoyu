@@ -28,6 +28,8 @@
     <string name="chat_edit">编辑</string>
     <string name="chat_copy">复制</string>
     <string name="chat_regenerate">重新生成</string>
+    <string name="chat_tts_speak">朗读</string>
+    <string name="chat_tts_stop">停止朗读</string>
     <string name="chat_view_versions">查看之前的版本</string>
     <string name="chat_remember">收藏并让她记住</string>
     <string name="chat_hide_message">隐藏这条消息</string>
@@ -78,6 +80,11 @@
     <string name="chat_unread_divider">以下为新消息</string>
     <string name="chat_avatar_letter">渔</string>
 
+    <!-- v3 §7.2：顶栏「对方正在输入…」副标题 + 底部 FAB -->
+    <string name="chat_typing_subtitle">对方正在输入…</string>
+    <string name="chat_fab_new_messages">↓ 新消息 %1$d</string>
+    <string name="chat_fab_scroll_bottom">↓ 回到最新</string>
+
     <!-- 表情面板 Stickers / EmojiPanel -->
     <string name="sticker_panel_title">表情</string>
     <string name="sticker_manage">管理</string>
@@ -111,9 +118,52 @@
     <string name="chat_date_today">今天</string>
     <string name="chat_date_yesterday">昨天</string>
 
+    <!-- 无障碍：在线状态 / 消息朗读 / 操作描述（§7.15） -->
+    <string name="chat_presence_online">她在线</string>
+    <string name="chat_presence_busy">她正在忙</string>
+    <string name="chat_presence_sleeping">她在睡觉</string>
+    <string name="chat_presence_away">她暂时离开</string>
+    <string name="chat_a11y_message">%1$s，%2$s，%3$s</string>
+    <string name="chat_a11y_read">已读</string>
+    <string name="chat_a11y_unread">未读</string>
+    <string name="chat_a11y_my_reaction">我的回应：%1$s</string>
+    <string name="chat_a11y_her_reaction">她的回应：%1$s</string>
+    <string name="chat_a11y_react_with">回应 %1$s</string>
+    <string name="chat_a11y_sticker">表情</string>
+    <string name="chat_a11y_image">图片</string>
+    <string name="chat_a11y_fab_scroll_bottom">回到最新消息</string>
+    <string name="chat_a11y_typing">她正在输入</string>
+    <string name="chat_a11y_poke">双击戳一下她</string>
+    <string name="chat_a11y_select">选择这条消息</string>
+    <string name="chat_a11y_selected">已选中</string>
+    <string name="chat_a11y_resend">重新发送</string>
+    <string name="chat_correction_recorded">已记录「%1$s」纠偏，她会调整语气</string>
+    <string name="chat_correction_revoke">撤销</string>
+    <string name="chat_voice_prompt">说完后自动转成文字</string>
+    <string name="card_call_action">拨打 %1$s</string>
+
     <!-- 好感度等级 -->
     <string name="chat_level_stranger">陌生</string>
     <string name="chat_level_familiar">熟悉</string>
     <string name="chat_level_intimate">亲密</string>
     <string name="chat_level_beloved">挚爱</string>
+
+    <!-- v3 §7.4：长按菜单分组 / reaction 折叠 / 保存图片 / 全屏输入 -->
+    <string name="chat_menu_more">更多</string>
+    <string name="chat_menu_less">收起</string>
+    <string name="chat_save_image">保存图片</string>
+    <string name="chat_regenerate_blocked">可以先删除后面的消息</string>
+    <string name="chat_translate_pending">翻译（暂未开放）</string>
+    <string name="chat_reaction_more">+%1$d</string>
+    <string name="chat_a11y_show_reactions">展开全部回应</string>
+    <string name="chat_reaction_her_on_mine">她回应了你</string>
+    <string name="chat_sticker_tab">表情包</string>
+    <string name="chat_emoji_tab">Emoji</string>
+    <string name="chat_paste_long_title">内容较长</string>
+    <string name="chat_paste_long_text">内容较长，是否拆分发送？</string>
+    <string name="chat_paste_split">拆分发送</string>
+    <string name="chat_paste_whole">直接发送</string>
+    <string name="chat_full_input_title">全屏输入</string>
+    <string name="chat_full_input_done">完成</string>
+    <string name="chat_history_load_more">上滑加载更多历史</string>
 </resources>

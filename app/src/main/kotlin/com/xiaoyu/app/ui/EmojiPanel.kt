@@ -2,6 +2,7 @@ package com.xiaoyu.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -26,9 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xiaoyu.app.R
+import com.xiaoyu.app.ui.theme.Tokens
 
 /**
  * 系统表情面板（执行书 M4-02）：8 大类，每类一个 tab，点选后直接插入输入框。
@@ -57,7 +62,10 @@ fun EmojiPanel(onPick: (String) -> Unit) {
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(bottom = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             EMOJI_CATEGORIES.forEach { (labelRes, _) ->
@@ -69,7 +77,7 @@ fun EmojiPanel(onPick: (String) -> Unit) {
             }
         }
         LazyVerticalGrid(
-            columns = GridCells.Fixed(8),
+            columns = GridCells.Adaptive(minSize = Tokens.SizeTouchTarget),
             modifier = Modifier.fillMaxWidth().weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -77,9 +85,10 @@ fun EmojiPanel(onPick: (String) -> Unit) {
             items(emojis) { emoji ->
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(Tokens.SizeTouchTarget)
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onPick(emoji) },
+                        .clickable { onPick(emoji) }
+                        .semantics { contentDescription = emoji },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(emoji, fontSize = 22.sp)

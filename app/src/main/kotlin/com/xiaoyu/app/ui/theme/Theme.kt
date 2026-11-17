@@ -35,7 +35,10 @@ val LocalXiaoyuDark = staticCompositionLocalOf { false }
 fun XiaoyuTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     themeMode: String? = null,
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
+    preset: String = YuThemePreset.DAY.name,
+    customSeed: String? = null,
+    reduceMotion: Boolean = false,
     fontScale: Float = 1f,
     bubbleStyle: String? = null,
     content: @Composable () -> Unit,
@@ -46,17 +49,26 @@ fun XiaoyuTheme(
         ThemeMode.SYSTEM -> darkTheme
     }
     val context = LocalContext.current
+    val selectedPreset = YuThemePreset.from(preset)
+    val customColor = parseHexColor(customSeed.orEmpty())
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        dark -> DarkColors
-        else -> LightColors
+        customColor != null -> colorSchemeFromSeed(customColor, dark)
+        dark -> selectedPreset.darkColors
+        else -> selectedPreset.lightColors
     }
-    val typography = remember(fontScale) { scaledTypography(fontScale) }
-    val bubbles = remember(bubbleStyle, dark) { bubbleColors(BubbleStyle.from(bubbleStyle), dark) }
+    val yuType = remember(fontScale) { YuType.Default.scaled(fontScale) }
+    val typography = remember(yuType) { yuType.toMaterialTypography() }
+    val motion = rememberYuMotion(reduceMotion)
+    val bubbles = remember(bubbleStyle, dark, colorScheme) {
+        bubbleColors(BubbleStyle.from(bubbleStyle), dark, colorScheme)
+    }
     CompositionLocalProvider(
         LocalBubbleColors provides bubbles,
         LocalXiaoyuDark provides dark,
+        LocalYuType provides yuType,
+        LocalYuMotion provides motion,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

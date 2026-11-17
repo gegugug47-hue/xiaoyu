@@ -31,6 +31,20 @@ object ProactivePlanner {
         }
     }
 
+    /**
+     * v3 §8.2 / §8.6 S-6：危机（L2/L3）后的主动消息总闸是否仍处于暂停期。
+     * [pausedUntilMs] 为 0 表示从未暂停；`now < 截止时间` 即暂停。
+     */
+    fun pausedBySafety(pausedUntilMs: Long, nowMs: Long = System.currentTimeMillis()): Boolean =
+        pausedUntilMs > 0L && nowMs < pausedUntilMs
+
+    /** v3 §7.13 / B-22：每日主动条数上限（1~3），达到上限后当天不再主动。 */
+    fun dailyCapReached(sentToday: Int, cap: Int): Boolean =
+        sentToday >= cap.coerceIn(MIN_DAILY_CAP, MAX_DAILY_CAP)
+
+    const val MIN_DAILY_CAP = 1
+    const val MAX_DAILY_CAP = 3
+
     fun inDoNotDisturb(hour: Int, dndStartHour: Int, dndEndHour: Int): Boolean {
         if (dndStartHour == dndEndHour) return false
         return if (dndStartHour < dndEndHour) {

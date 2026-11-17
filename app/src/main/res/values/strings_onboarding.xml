@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  首次引导（执行书 v3 §7.12）文案。
+  新增文案必须同步 values-en/strings_onboarding.xml（v3 §11 检查项）。
+-->
+<resources>
+    <string name="ob_welcome_tagline">她不只是一个聊天框，她会记得你说过的话。</string>
+    <string name="ob_welcome_desc">她有自己的心情、生活和节奏，也会在某个时刻想起你。</string>
+    <string name="ob_welcome_bullet_memory">你说过的事，她会记在心里</string>
+    <string name="ob_welcome_bullet_mood">她有自己的情绪，不会永远元气满满</string>
+    <string name="ob_welcome_bullet_proactive">她偶尔会主动找你，而不是等你开口</string>
+    <string name="ob_welcome_bullet_records">聊天、日记、记忆都只存在这台设备上</string>
+
+    <string name="ob_name_title">给她起个名字</string>
+    <string name="ob_name_desc">这个名字会写进她的人设，之后随时可以改。</string>
+    <string name="ob_her_name_label">她叫</string>
+    <string name="ob_her_name_hint">例如：小鱼</string>
+    <string name="ob_call_you_label">她怎么称呼你</string>
+    <string name="ob_call_you_hint">例如：小满</string>
+    <string name="ob_call_you_desc">留空也可以，她就会用「你」来叫你。</string>
+
+    <string name="ob_theme_title">挑一套颜色</string>
+    <string name="ob_theme_desc">之后可以在「设置 → 外观」里换。</string>
+    <string name="ob_theme_mist">晨雾</string>
+    <string name="ob_theme_mist_desc">清晨薄雾的青灰蓝</string>
+    <string name="ob_theme_day">昼白</string>
+    <string name="ob_theme_day_desc">晴空正午的正蓝</string>
+    <string name="ob_theme_dusk">暮青</string>
+    <string name="ob_theme_dusk_desc">落日余晖的青绿色</string>
+    <string name="ob_theme_night">夜航</string>
+    <string name="ob_theme_night_desc">深夜海面的幽蓝</string>
+
+    <string name="ob_model_title">连接模型（可选）</string>
+    <string name="ob_model_desc">填上你自己的 Key，她才会真正活起来。密钥加密保存在本机，不会明文落盘。</string>
+    <string name="ob_model_base_url">接口地址</string>
+    <string name="ob_model_name">模型名称</string>
+    <string name="ob_api_key">API Key</string>
+    <string name="ob_model_optional">不确定就先跳过，之后在设置里填也一样。</string>
+
+    <string name="ob_notify_title">让她能找到你（可选）</string>
+    <string name="ob_notify_desc">允许通知后，她主动找你时才能提醒你。随时可以在设置里关掉。</string>
+    <string name="ob_notify_enable">允许通知</string>
+    <string name="ob_notify_later">暂时不用</string>
+
+    <string name="ob_done_title">都准备好了</string>
+    <string name="ob_done_desc">她会记得你说过的话。</string>
+    <string name="ob_done_hint">长按消息可以复制或删除；记忆可以在「记忆」页里查看和放回。</string>
+
+    <string name="ob_continue">继续</string>
+    <string name="ob_start">开始聊天</string>
+    <string name="ob_skip">跳过</string>
+    <string name="ob_back">上一步</string>
+    <string name="ob_step_desc">第 %1$d 步，共 %2$d 步</string>
+    <string name="ob_dot_desc">第 %1$d 步</string>
+</resources>

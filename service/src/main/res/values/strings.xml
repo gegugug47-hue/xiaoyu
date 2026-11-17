@@ -3,6 +3,12 @@
     <!-- M5-07：系统通知等 App 外可见文案全部走资源，便于后续加 values-en 而不改代码 -->
     <string name="notify_channel_proactive">她主动发来的消息</string>
     <string name="notify_channel_proactive_desc">小鱼想起你时发来的消息，可以直接在通知里回复</string>
+    <string name="notify_channel_proactive_quiet">小鱼的消息（安静）</string>
+    <string name="notify_channel_proactive_quiet_desc">关闭声音或震动后使用：只显示通知，不响不震</string>
+    <string name="notify_channel_proactive_no_sound">小鱼的消息（仅震动）</string>
+    <string name="notify_channel_proactive_no_sound_desc">关闭提示音后使用：只震动，不响铃</string>
+    <string name="notify_channel_proactive_no_vibrate">小鱼的消息（仅提示音）</string>
+    <string name="notify_channel_proactive_no_vibrate_desc">关闭震动后使用：只响提示音，不震动</string>
     <string name="notify_channel_task">后台任务结果</string>
     <string name="notify_channel_task_desc">日记、生活碎片与记忆整理完成后的轻提醒</string>
     <string name="notify_channel_backup">备份</string>
@@ -16,6 +22,11 @@
     <string name="notify_sender_me">你</string>
     <string name="notify_conversation_title">和小鱼的对话</string>
     <string name="notify_hidden_text">小鱼发来一条消息</string>
+
+    <!-- v3 §7.16：通知 inline reply 改进——发送中 / 失败反馈 -->
+    <string name="notify_reply_sending">你正在发送：%1$s…</string>
+    <string name="notify_reply_failed_title">回复发送失败</string>
+    <string name="notify_reply_failed_body">%1$s</string>
 
     <!-- 桌面小组件 -->
     <string name="svc_widget_brand">小渔</string>

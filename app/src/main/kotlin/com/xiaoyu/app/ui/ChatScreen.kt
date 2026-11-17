@@ -4,14 +4,16 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -25,7 +27,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -43,6 +51,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -51,6 +60,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,11 +68,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
@@ -70,6 +83,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -87,14 +101,18 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -107,17 +125,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -127,8 +154,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.MessageEntity
@@ -144,15 +175,151 @@ import com.xiaoyu.app.data.repo.TYPE_STICKER
 import com.xiaoyu.app.data.repo.TYPE_CARD
 import com.xiaoyu.app.data.settings.ChatMode
 import com.xiaoyu.app.data.settings.MessageDensity
+import com.xiaoyu.app.ui.background.ChatBackgroundRenderer
+import com.xiaoyu.app.ui.background.LocalBubbleVisual
+import com.xiaoyu.app.ui.components.YuEmptyView
+import com.xiaoyu.app.ui.components.YuNavBar
+import com.xiaoyu.app.ui.components.YuNavItem
+import com.xiaoyu.app.ui.components.YuTimeDivider
+import com.xiaoyu.app.ui.illustrations.YuIllustrationKind
 import com.xiaoyu.app.ui.theme.LocalBubbleColors
+import com.xiaoyu.app.ui.theme.LocalYuMotion
+import com.xiaoyu.app.ui.theme.LocalYuType
+import com.xiaoyu.app.ui.theme.Tokens
+import com.xiaoyu.app.ui.theme.WindowSizeClass
 import com.xiaoyu.app.ui.theme.XiaoyuTheme
+import com.xiaoyu.app.ui.theme.YuIcons
+import com.xiaoyu.app.ui.theme.windowSizeClassFor
+import com.xiaoyu.app.ui.theme.yuSpring
+import com.xiaoyu.app.ui.theme.yuTween
 import com.xiaoyu.soul.mood.FavorabilityLevel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
-private val timeFormat = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
+/** v3 §7.3.2：时间行只显示 HH:mm，跨天 / 跨年 / 5 分钟间隔由调用方判定是否渲染。 */
+private val timeFormat = SimpleDateFormat("HH:mm", Locale.CHINA)
+
+/** v3 §7.3.2：连续两条消息间隔 ≥ 5 分钟才渲染时间行；第一条消息始终显示。 */
+private const val TIME_GAP_FOR_DISPLAY_MS = 5 * 60 * 1000L
+
+/** v3 §14.5：上滑到顶时每次多加载的历史条数。 */
+private const val HISTORY_PAGE_SIZE = 80
+
+/** v3 §7.4.1：撤回 / 编辑时限 2 分钟。 */
+private const val RECALL_WINDOW_MS = 2 * 60 * 1000L
+
+/** v3 §7.4.2：长按面板快捷 reaction（同一表情再点一次取消）。 */
+private val QUICK_REACTIONS = listOf("👍", "❤️", "😂", "😮", "😢", "🎉")
+
+/** 长按菜单项；超过 4 项时折叠进「更多」。 */
+private data class MenuAction(
+    val labelRes: Int,
+    val enabled: Boolean = true,
+    val hintRes: Int? = null,
+    val action: () -> Unit,
+)
+
+@Composable
+private fun MenuActionRow(action: MenuAction) {
+    TextButton(
+        onClick = action.action,
+        enabled = action.enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(stringResource(action.labelRes))
+            action.hintRes?.let { hint ->
+                Text(
+                    stringResource(hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** 表情面板的 tab（表情包 / Emoji）。 */
+@Composable
+private fun PanelTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
+}
+
+/** 全屏输入（双击输入栏打开，v3 §14.5）。 */
+@Composable
+private fun FullScreenInputDialog(
+    initial: String,
+    onDismiss: () -> Unit,
+    onSend: (String) -> Unit,
+) {
+    var value by remember { mutableStateOf(initial) }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.chat_full_input_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.chat_cancel))
+                    }
+                }
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    placeholder = { Text(stringResource(R.string.chat_input_placeholder)) },
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { onSend(value) },
+                        enabled = value.isNotBlank(),
+                    ) { Text(stringResource(R.string.chat_full_input_done)) }
+                }
+            }
+        }
+    }
+}
+
+/** v3 §7.3.3：合并阈值 60s（连续同作者 <60s 视为一组，省略头像、气泡圆角收紧）。 */
+internal fun isLastInGroup(
+    currentRole: String,
+    currentTime: Long,
+    nextRole: String?,
+    nextTime: Long,
+): Boolean = nextRole == null || nextRole != currentRole || nextTime - currentTime >= 60 * 1000L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,10 +340,15 @@ fun ChatScreen(
     val favorability by viewModel.favorability.collectAsStateWithLifecycle()
     val chatMode by viewModel.chatMode.collectAsStateWithLifecycle()
     val isContinuous = chatMode == ChatMode.CONTINUOUS
-    val backgroundFile by viewModel.chatBackgroundFile.collectAsStateWithLifecycle()
-    val backgroundBlur by viewModel.chatBackgroundBlur.collectAsStateWithLifecycle()
-    val backgroundDim by viewModel.chatBackgroundDim.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val backgroundRender by viewModel.chatBackgroundRender.collectAsStateWithLifecycle()
     val darkTheme = isSystemInDarkTheme()
+    val identityId = sessions.firstOrNull { it.id == sessionId }?.identityId
+        ?: archived.firstOrNull { it.id == sessionId }?.identityId
+        ?: settings.chosenIdentityId
+        ?: 0L
+    val backgroundScroll = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(identityId, darkTheme) { viewModel.refreshChatBackground(identityId, darkTheme) }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -214,20 +386,10 @@ fun ChatScreen(
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        // 自定义背景铺在最底层，覆盖整个聊天页（含顶部栏），不被 drawer 遮挡
-        backgroundFile?.let { file ->
-            ChatBackground(
-                file = file,
-                blurDp = backgroundBlur,
-                dim = backgroundDim,
-                darkTheme = darkTheme,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        // 宽屏（平板/横屏）会话列表常驻；其余尺寸保持抽屉，并把聊天内容居中限宽
-        val pinned = maxWidth >= 840.dp && !isContinuous
-        val paneModifier = if (maxWidth >= 600.dp) {
-            Modifier.widthIn(max = 760.dp).fillMaxSize()
+        val sizeClass = windowSizeClassFor(maxWidth)
+        val pinned = sizeClass.supportsDualPane
+        val paneModifier = if (sizeClass == WindowSizeClass.EXPANDED) {
+            Modifier.widthIn(max = Tokens.SizeContentMax).fillMaxSize()
         } else {
             Modifier.fillMaxSize()
         }
@@ -239,13 +401,30 @@ fun ChatScreen(
                     onOpenDrawer = if (pinned) null else openDrawer,
                     modifier = paneModifier,
                     onOpenStickers = onOpenStickers,
+                    onOpenMemory = onOpenMemory,
+                    onOpenDiary = onOpenDiary,
+                    onOpenRelation = onOpenRelation,
+                    onOpenSettings = onOpenSettings,
+                    hasCustomBackground = backgroundRender?.spec?.isEnabled == true,
+                    onScrollOffset = { backgroundScroll.floatValue = it },
+                    onOpenSearch = onOpenSearch,
                 )
             }
         }
-        if (pinned) {
-            PermanentNavigationDrawer(drawerContent = drawerContent) { pane() }
-        } else {
-            ModalNavigationDrawer(drawerState = drawerState, drawerContent = drawerContent) { pane() }
+        // 五层背景铺在最底层，覆盖整个聊天页（含顶部栏），不被 drawer 遮挡
+        ChatBackgroundRenderer(
+            input = backgroundRender,
+            darkTheme = darkTheme,
+            modifier = Modifier.fillMaxSize(),
+            parallaxOffsetPx = backgroundScroll,
+        ) {
+            if (pinned) {
+                PermanentNavigationDrawer(
+                    drawerContent = { Box(Modifier.width(Tokens.SizeSessionPane)) { drawerContent() } },
+                ) { pane() }
+            } else {
+                ModalNavigationDrawer(drawerState = drawerState, drawerContent = drawerContent) { pane() }
+            }
         }
     }
 
@@ -269,6 +448,13 @@ private fun ChatPane(
     onOpenDrawer: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onOpenStickers: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
+    onOpenDiary: () -> Unit = {},
+    onOpenRelation: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
+    hasCustomBackground: Boolean = false,
+    onScrollOffset: (Float) -> Unit = {},
 ) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val sessionId by viewModel.sessionId.collectAsStateWithLifecycle()
@@ -284,7 +470,6 @@ private fun ChatPane(
     val lastReadMessageId by viewModel.lastReadMessageId.collectAsStateWithLifecycle()
     val messageDensity by viewModel.messageDensity.collectAsStateWithLifecycle()
     val archived by viewModel.archivedSessions.collectAsStateWithLifecycle()
-    val backgroundFile by viewModel.chatBackgroundFile.collectAsStateWithLifecycle()
     val pendingSearchContext by viewModel.pendingSearchContext.collectAsStateWithLifecycle()
     val playingMessageId by viewModel.playingMessageId.collectAsStateWithLifecycle()
     val synthesizingMessageId by viewModel.synthesizingMessageId.collectAsStateWithLifecycle()
@@ -306,7 +491,7 @@ private fun ChatPane(
         ?: archived.firstOrNull { it.id == sessionId }
     val moodLabel = stringResource(favorabilityLabelRes(FavorabilityLevel.of(favorability)))
 
-    val hasBackground = backgroundFile != null
+    val hasBackground = hasCustomBackground
     val paneBg = if (hasBackground) Color.Transparent else MaterialTheme.colorScheme.background
 
     // 长按消息弹出的操作面板（执行书 6.3.4）
@@ -321,14 +506,39 @@ private fun ChatPane(
     // 历史版本弹层（M3-06）
     var versionTarget by remember { mutableStateOf<MessageEntity?>(null) }
     var versions by remember { mutableStateOf<List<MessageEntity>>(emptyList()) }
+    // 长按菜单分组：常用 4 项 + 「更多」二级（v3 §7.4.1）
+    var showMoreMenuItems by remember { mutableStateOf(false) }
+    // 表情面板：0 = 表情包，1 = Emoji（v3 §7.4.7）
+    var stickerTab by rememberSaveable(sessionId) { mutableIntStateOf(0) }
+    var pendingEmoji by remember { mutableStateOf<String?>(null) }
+    var stickerPreview by remember { mutableStateOf<StickerEntity?>(null) }
+    // 双击输入栏 → 全屏输入（v3 §14.5 手势地图）
+    var showFullInput by remember { mutableStateOf(false) }
+    var fullInputSeed by remember { mutableStateOf("") }
+    // 上滑到顶时按页加载更多历史（v3 §14.5）
+    var historyLimit by remember(sessionId) { mutableIntStateOf(HISTORY_PAGE_SIZE) }
     // 顶栏更多菜单（M5-04：导出会话 Markdown）
     var showMoreMenu by remember { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val motion = LocalYuMotion.current
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+
+    // v3 §7.9 / B-31：长按「朗读」用系统 TTS 播报（本机合成、零上传；初始化失败静默降级）
+    val appContext = LocalContext.current
+    val tts = remember { SystemTts(appContext) }
+    var speakingMessageId by remember { mutableStateOf<Long?>(null) }
+    DisposableEffect(tts) {
+        tts.onFinished = { speakingMessageId = null }
+        onDispose { tts.shutdown() }
+    }
 
     LaunchedEffect(versionTarget) {
-        versions = versionTarget?.let { viewModel.loadVersions(it.id) } ?: emptyList()
+        // v3 §7.8：历史版本抽屉最多展示 3 版
+        versions = versionTarget?.let { viewModel.loadVersions(it.id).take(3) } ?: emptyList()
     }
+
+    LaunchedEffect(menuMessage) { showMoreMenuItems = false }
 
     BackHandler(enabled = selectionMode) {
         selectionMode = false
@@ -344,6 +554,17 @@ private fun ChatPane(
             contentWindowInsets = WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
             ),
+            bottomBar = {
+                YuNavBar(
+                    items = listOf(
+                        YuNavItem(stringResource(R.string.chat_her_name), Icons.Default.Home, selected = true, onClick = {}),
+                        YuNavItem(stringResource(R.string.chat_memory), Icons.Default.List, selected = false, onClick = onOpenMemory),
+                        YuNavItem(stringResource(R.string.chat_diary), Icons.Default.DateRange, selected = false, onClick = onOpenDiary),
+                        YuNavItem(stringResource(R.string.chat_relation), Icons.Default.Favorite, selected = false, onClick = onOpenRelation),
+                        YuNavItem(stringResource(R.string.chat_settings), Icons.Default.Settings, selected = false, onClick = onOpenSettings),
+                    ),
+                )
+            },
             topBar = {
                 if (selectionMode) {
                     TopAppBar(
@@ -383,37 +604,57 @@ private fun ChatPane(
                 } else {
                 TopAppBar(
                     title = {
-                        // 单行标题：系统字体放大到 2x 也不会被 64dp 的顶栏裁掉
                         val online by viewModel.onlineStatus.collectAsStateWithLifecycle()
                         val dotColor by viewModel.presenceDotColor.collectAsStateWithLifecycle()
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // 双击她的头像 = 戳一下（M3-05 / 执行书 6.3.7）
-                            HerAvatar(onPoke = { viewModel.poke() })
-                            Spacer(Modifier.width(8.dp))
-                            // v3 1.3#35：在线状态色点（绿=在线 / 橙=忙碌 / 灰=睡觉/离开）
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(android.graphics.Color.parseColor("#$dotColor")))
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = if (isContinuous) {
-                                    stringResource(R.string.chat_title_continuous, moodLabel, online)
-                                } else {
-                                    stringResource(
-                                        R.string.chat_title_session,
-                                        current?.title ?: stringResource(R.string.chat_her_name),
-                                        moodLabel,
-                                        online,
-                                    )
-                                },
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                        val typingState by viewModel.typing.collectAsStateWithLifecycle()
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // 双击她的头像 = 戳一下（M3-05 / 执行书 6.3.7）
+                                HerAvatar(onPoke = { viewModel.poke() })
+                                Spacer(Modifier.width(Tokens.SpacingSm))
+                                // v3 §1.3#35：在线状态色点（绿=在线 / 橙=忙碌 / 灰=睡觉/离开）
+                                val presenceDesc = when (online) {
+                                    stringResource(R.string.vm_status_busy) -> stringResource(R.string.chat_presence_busy)
+                                    stringResource(R.string.vm_status_sleeping) -> stringResource(R.string.chat_presence_sleeping)
+                                    stringResource(R.string.vm_status_away) -> stringResource(R.string.chat_presence_away)
+                                    else -> stringResource(R.string.chat_presence_online)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(Tokens.SpacingSm)
+                                        .clip(CircleShape)
+                                        .background(Color(android.graphics.Color.parseColor("#$dotColor")))
+                                        .semantics { contentDescription = presenceDesc }
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = if (isContinuous) {
+                                        stringResource(R.string.chat_title_continuous, moodLabel, online)
+                                    } else {
+                                        stringResource(
+                                            R.string.chat_title_session,
+                                            current?.title ?: stringResource(R.string.chat_her_name),
+                                            moodLabel,
+                                            online,
+                                        )
+                                    },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            // v3 §7.2：她正在输入 → 副标题显示「对方正在输入…」，状态位 3s 显 2s 隐由 VM 控制（当前用 typing state 简化）
+                            if (typingState) {
+                                Text(
+                                    text = stringResource(R.string.chat_typing_subtitle),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier
+                                        .padding(start = Tokens.SpacingSm)
+                                        .semantics { liveRegion = LiveRegionMode.Polite },
+                                )
+                            }
                         }
                     },
                     navigationIcon = {
@@ -432,7 +673,7 @@ private fun ChatPane(
                         }
                         Box {
                             IconButton(onClick = { showMoreMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.chat_more))
+                                Icon(YuIcons.More, contentDescription = stringResource(R.string.chat_more))
                             }
                             DropdownMenu(
                                 expanded = showMoreMenu,
@@ -466,23 +707,47 @@ private fun ChatPane(
                     .imePadding(),
             ) {
                 val listState = rememberLazyListState()
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.firstVisibleItemScrollOffset.toFloat() }
+                        .collect { onScrollOffset(it) }
+                }
                 var instantScroll by remember(sessionId) { mutableStateOf(true) }
                 val displayMessages = if (isContinuous) allMessages else messages
+                // v3 §14.5：只渲染最近 N 条，上滑到顶再逐页放出更早的历史
+                val visibleMessages = remember(displayMessages, historyLimit) {
+                    if (displayMessages.size > historyLimit) displayMessages.takeLast(historyLimit) else displayMessages
+                }
                 // 引用回复：id -> 被引用消息正文（M1-09）
                 val quoteMap = remember(displayMessages) {
                     displayMessages.associate { it.id to it.content }
                 }
                 val context = LocalContext.current
-                val timeline = remember(displayMessages, showTopicDividers, isContinuous, lastReadMessageId) {
-                    if (isContinuous) buildTimeline(context, displayMessages, showTopicDividers, lastReadMessageId) else emptyList()
+                val timeline = remember(visibleMessages, showTopicDividers, isContinuous, lastReadMessageId) {
+                    if (isContinuous) buildTimeline(context, visibleMessages, showTopicDividers, lastReadMessageId) else emptyList()
+                }
+                val lastMessageGroupIds = remember(visibleMessages) {
+                    visibleMessages.mapIndexedNotNull { index, message ->
+                        val next = visibleMessages.getOrNull(index + 1)
+                        if (isLastInGroup(message.role, message.createdAt, next?.role, next?.createdAt ?: 0L)) message.id else null
+                    }.toSet()
+                }
+                // 滚到顶部时继续放出更早的消息（key 不含 historyLimit，避免加载历史时自动跳到底部）
+                val canLoadOlder = rememberUpdatedState(visibleMessages.size < displayMessages.size)
+                LaunchedEffect(listState, displayMessages.size) {
+                    snapshotFlow { listState.firstVisibleItemIndex }
+                        .collect { index ->
+                            if (index == 0 && canLoadOlder.value) {
+                                historyLimit += HISTORY_PAGE_SIZE
+                            }
+                        }
                 }
                 LaunchedEffect(displayMessages.size, streaming.isNotEmpty(), typing) {
                     val extra = (if (typing) 1 else 0) + (if (streaming.isNotEmpty()) 1 else 0)
-                    val count = if (isContinuous) timeline.size else displayMessages.size
+                    val count = if (isContinuous) timeline.size else visibleMessages.size
                     val target = count + extra - 1
                     if (target >= 0) {
                         // 首次进入/切换会话时直接跳到底部，避免高速滚过整段历史；后续新消息才用动画
-                        if (instantScroll) {
+                        if (instantScroll || motion.reduced) {
                             listState.scrollToItem(target)
                             instantScroll = false
                         } else {
@@ -501,13 +766,57 @@ private fun ChatPane(
                 }
 
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                    // 气泡按可用宽度的 78% 自适应、上限 420dp：小屏不贴边，平板不显得孤立
-                    val bubbleMaxWidth = (maxWidth * 0.78f).coerceAtMost(420.dp)
+                    val sizeClass = windowSizeClassFor(maxWidth)
+                    val fraction = if (sizeClass == WindowSizeClass.COMPACT) {
+                        Tokens.BubbleMaxFractionCompact
+                    } else {
+                        Tokens.BubbleMaxFractionWide
+                    }
+                    val bubbleMaxWidth = (maxWidth * fraction).coerceAtMost(Tokens.SizeBubbleMax)
+                    // v3 §7.2：底部 FAB 「↓ 新消息 N」——滚离底部时出现
+                    val atBottom by remember(listState) {
+                        androidx.compose.runtime.derivedStateOf {
+                            val layout = listState.layoutInfo
+                            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
+                            lastVisible >= layout.totalItemsCount - 1 || layout.totalItemsCount == 0
+                        }
+                    }
+                    val scope = rememberCoroutineScope()
+                    // v3 §14.5 手势地图：列表已在顶部时继续下拉 → 进入「翻旧账」搜索
+                    val pullToSearch = remember(listState, onOpenSearch) {
+                        object : NestedScrollConnection {
+                            private var pull = 0f
+                            override fun onPostScroll(
+                                consumed: Offset,
+                                available: Offset,
+                                source: NestedScrollSource,
+                            ): Offset {
+                                val atTop = listState.firstVisibleItemIndex == 0 &&
+                                    listState.firstVisibleItemScrollOffset == 0
+                                if (available.y > 0f && atTop) {
+                                    pull += available.y
+                                    if (pull >= 220f) {
+                                        pull = 0f
+                                        onOpenSearch()
+                                    }
+                                } else if (available.y < 0f) {
+                                    pull = 0f
+                                }
+                                return Offset.Zero
+                            }
+
+                            override suspend fun onPreFling(available: Velocity): Velocity {
+                                pull = 0f
+                                return Velocity.Zero
+                            }
+                        }
+                    }
+                    Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().nestedScroll(pullToSearch),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            start = 16.dp, end = 16.dp, top = 10.dp, bottom = 10.dp,
+                            start = Tokens.SpacingLg, end = Tokens.SpacingLg, top = 10.dp, bottom = 10.dp,
                         ),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
@@ -517,15 +826,15 @@ private fun ChatPane(
                                     is TimelineItem.DateHeader -> item(
                                         key = "d-${item.anchorId}",
                                         contentType = "date",
-                                    ) { DateHeaderText(item.label, onImage = backgroundFile != null) }
+                                    ) { DateHeaderText(item.label, onImage = hasBackground) }
                                     is TimelineItem.TopicDivider -> item(
                                         key = "topic-${item.anchorId}",
                                         contentType = "topic",
-                                    ) { TopicDividerText(onImage = backgroundFile != null) }
+                                    ) { TopicDividerText(onImage = hasBackground) }
                                     is TimelineItem.UnreadDivider -> item(
                                         key = "unread-${item.anchorId}",
                                         contentType = "unread",
-                                    ) { UnreadDividerText(onImage = backgroundFile != null) }
+                                    ) { UnreadDividerText(onImage = hasBackground) }
                                     is TimelineItem.Msg -> item(
                                         key = "m-${item.message.id}",
                                         contentType = "msg",
@@ -534,11 +843,15 @@ private fun ChatPane(
                                             message = item.message,
                                             sticker = item.message.stickerId?.let(stickerById::get),
                                             grouped = item.grouped,
+                                            showTime = item.showTime,
+                                            lastInGroup = item.message.id in lastMessageGroupIds,
                                             density = messageDensity,
                                             maxBubbleWidth = bubbleMaxWidth,
                                             onHide = { viewModel.hideMessage(item.message.id) },
                                             onLongPress = { menuMessage = item.message },
-                                            onImage = backgroundFile != null,
+                                            onDoubleTapHeart = { viewModel.react(item.message.id, "❤️") },
+                                            onToggleReaction = { emoji -> viewModel.react(item.message.id, emoji) },
+                                            onImage = hasBackground,
                                             onPlayVoice = { viewModel.playVoice(item.message.id, item.message.content) },
                                             isPlaying = playingMessageId == item.message.id,
                                             isSynthesizing = synthesizingMessageId == item.message.id,
@@ -552,20 +865,27 @@ private fun ChatPane(
                                                     selectedIds - item.message.id
                                                 else selectedIds + item.message.id
                                             },
+                                            lastReadMessageId = lastReadMessageId,
                                         )
                                     }
                                 }
                             }
                         } else {
-                            items(displayMessages, key = { it.id }) { message ->
+                            itemsIndexed(visibleMessages, key = { _, it -> it.id }) { index, message ->
+                                val prev = visibleMessages.getOrNull(index - 1)
+                                val showTime = prev == null || message.createdAt - prev.createdAt >= TIME_GAP_FOR_DISPLAY_MS
                                 MessageRow(
                                     message = message,
                                     sticker = message.stickerId?.let(stickerById::get),
+                                    showTime = showTime,
+                                    lastInGroup = message.id in lastMessageGroupIds,
                                     density = messageDensity,
                                     maxBubbleWidth = bubbleMaxWidth,
                                     onHide = { viewModel.hideMessage(message.id) },
                                     onLongPress = { menuMessage = message },
-                                    onImage = backgroundFile != null,
+                                    onDoubleTapHeart = { viewModel.react(message.id, "❤️") },
+                                    onToggleReaction = { emoji -> viewModel.react(message.id, emoji) },
+                                    onImage = hasBackground,
                                     onPlayVoice = { viewModel.playVoice(message.id, message.content) },
                                     isPlaying = playingMessageId == message.id,
                                     isSynthesizing = synthesizingMessageId == message.id,
@@ -579,6 +899,7 @@ private fun ChatPane(
                                             selectedIds - message.id
                                         else selectedIds + message.id
                                     },
+                                    lastReadMessageId = lastReadMessageId,
                                 )
                             }
                         }
@@ -592,20 +913,55 @@ private fun ChatPane(
                                     stringResource(R.string.chat_typing),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 6.dp),
+                                    modifier = Modifier
+                                        .padding(start = 6.dp)
+                                        .semantics { liveRegion = LiveRegionMode.Polite },
                                 )
                             }
                         }
                     }
                     // 空会话/空列表时给一句引导，避免出现一片空白
-                    if (displayMessages.isEmpty() && streaming.isEmpty() && !typing) {
-                        Text(
-                            stringResource(R.string.chat_empty_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.align(Alignment.Center).padding(horizontal = 32.dp),
+                    if (visibleMessages.isEmpty() && streaming.isEmpty() && !typing) {
+                        YuEmptyView(
+                            kind = YuIllustrationKind.CHAT,
+                            message = stringResource(R.string.chat_empty_hint),
+                            modifier = Modifier.align(Alignment.Center),
                         )
+                    }
+                    // v3 §7.2：底部 FAB —— 滚离底部时显示，点击回到最新
+                    if (!atBottom && visibleMessages.isNotEmpty()) {
+                        val fabDescription = stringResource(R.string.chat_a11y_fab_scroll_bottom)
+                        val totalItems = listState.layoutInfo.totalItemsCount
+                        val newCount = (visibleMessages.size - (totalItems - (if (isContinuous) timeline.size else visibleMessages.size))).coerceAtLeast(0)
+                        FloatingActionButton(
+                            onClick = {
+                                scope.launch {
+                                    val target = listState.layoutInfo.totalItemsCount - 1
+                                    if (target >= 0) listState.animateScrollToItem(target)
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 64.dp)
+                                .size(Tokens.SizeTouchTarget)
+                                .semantics {
+                                    contentDescription = fabDescription
+                                },
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.chat_fab_scroll_bottom),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                    }
                     }
                 }
 
@@ -614,7 +970,7 @@ private fun ChatPane(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(horizontal = Tokens.SpacingLg, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -636,21 +992,69 @@ private fun ChatPane(
 
                 AnimatedVisibility(
                     visible = showStickers,
-                    enter = slideInVertically(animationSpec = tween(260)) { it / 3 } +
-                        fadeIn(animationSpec = tween(200)),
-                    exit = slideOutVertically(animationSpec = tween(200)) { it / 3 } +
-                        fadeOut(animationSpec = tween(160)),
+                    enter = slideInVertically(animationSpec = yuTween(260)) { it / 3 } +
+                        fadeIn(animationSpec = yuTween(200)),
+                    exit = slideOutVertically(animationSpec = yuTween(200)) { it / 3 } +
+                        fadeOut(animationSpec = yuTween(160)),
                 ) {
-                    StickerPanel(
-                        stickers = stickers,
-                        packs = stickerPacks,
-                        onManage = {
-                            showStickers = false
-                            onOpenStickers()
+                    // v3 §7.4.7：表情面板分「表情包 / Emoji」两个 tab，高度不超过屏高 40%
+                    val maxPanel = (LocalConfiguration.current.screenHeightDp * 0.4f).dp
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = maxPanel)
+                            .background(MaterialTheme.colorScheme.surface),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            PanelTab(
+                                label = stringResource(R.string.chat_sticker_tab),
+                                selected = stickerTab == 0,
+                                onClick = { stickerTab = 0 },
+                            )
+                            PanelTab(
+                                label = stringResource(R.string.chat_emoji_tab),
+                                selected = stickerTab == 1,
+                                onClick = { stickerTab = 1 },
+                            )
+                        }
+                        if (stickerTab == 0) {
+                            StickerPanel(
+                                stickers = stickers,
+                                packs = stickerPacks,
+                                onManage = {
+                                    showStickers = false
+                                    onOpenStickers()
+                                },
+                                onPick = { sticker ->
+                                    viewModel.sendSticker(sticker.id)
+                                    showStickers = false
+                                },
+                                onPreview = { stickerPreview = it },
+                            )
+                        } else {
+                            EmojiPanel(onPick = { emoji -> pendingEmoji = emoji })
+                        }
+                    }
+                }
+
+                // 表情长按预览（v3 §7.4.8）
+                stickerPreview?.let { preview ->
+                    AlertDialog(
+                        onDismissRequest = { stickerPreview = null },
+                        text = {
+                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                StickerArt(sticker = preview, size = 180.dp)
+                            }
                         },
-                        onPick = { sticker ->
-                            viewModel.sendSticker(sticker.id)
-                            showStickers = false
+                        confirmButton = {
+                            TextButton(onClick = { stickerPreview = null }) {
+                                Text(stringResource(R.string.chat_cancel))
+                            }
                         },
                     )
                 }
@@ -662,16 +1066,16 @@ private fun ChatPane(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = Tokens.SpacingMd, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
                             modifier = Modifier
                                 .width(3.dp)
-                                .height(24.dp)
+                                .height(Tokens.SpacingXl)
                                 .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(Tokens.SpacingSm))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 stringResource(
@@ -694,7 +1098,7 @@ private fun ChatPane(
                             )
                         }
                         IconButton(onClick = { viewModel.cancelQuote() }) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.chat_cancel_quote))
+                            Icon(YuIcons.Close, contentDescription = stringResource(R.string.chat_cancel_quote))
                         }
                     }
                 }
@@ -706,6 +1110,13 @@ private fun ChatPane(
                     stickersOpen = showStickers,
                     onToggleStickers = { showStickers = !showStickers },
                     onCloseStickers = { showStickers = false },
+                    insertText = pendingEmoji,
+                    onInserted = { pendingEmoji = null },
+                    onDoubleTapInput = { seed ->
+                        fullInputSeed = seed
+                        showFullInput = true
+                    },
+                    onSendSplit = { chunks -> viewModel.sendSplit(chunks) },
                     onSend = { text ->
                         // v3 H-22：发言时标记当前最新消息为已读
                         allMessages.maxOfOrNull { it.id }?.let { viewModel.markChatRead(it) }
@@ -715,90 +1126,180 @@ private fun ChatPane(
             }
         }
 
-        // 长按操作面板：reaction / 复制 / 重新生成 / 收藏 / 隐藏
+        // v3 §14.5：双击输入栏进入全屏输入
+        if (showFullInput) {
+            FullScreenInputDialog(
+                initial = fullInputSeed,
+                onDismiss = { showFullInput = false },
+                onSend = { value ->
+                    viewModel.send(value)
+                    showFullInput = false
+                },
+            )
+        }
+
+        // 长按操作面板（v3 §7.4.1）：6 个常用表情 + 常用 4 项 + 「更多」二级菜单
         menuMessage?.let { target ->
+            val now = System.currentTimeMillis()
+            // 撤回 / 编辑都限制在发送后 2 分钟内
+            val canRecall = target.role == ROLE_USER && !target.retracted &&
+                now - target.createdAt <= RECALL_WINDOW_MS
+            val hasLaterUserMessage = messages.any {
+                it.role == ROLE_USER && it.createdAt > target.createdAt
+            }
+            val myReactions = target.reactionsJson.split(',').filter { it.isNotBlank() }
             ModalBottomSheet(
                 onDismissRequest = { menuMessage = null },
                 sheetState = rememberModalBottomSheetState(),
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Tokens.SpacingPage, vertical = Tokens.SpacingSm),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        // M3-05：至少保留 ❤️ 😂 🥺 👍 四个，另有 😮 😢 与品牌彩蛋 🐟
-                        listOf("❤️", "😂", "🥺", "👍", "😮", "😢", "🐟").forEach { emoji ->
-                            Text(
-                                text = emoji,
-                                fontSize = 24.sp,
+                        // v3 §7.4.2：👍 ❤️ 😂 😮 😢 🎉，同一表情再点一次取消
+                        QUICK_REACTIONS.forEach { emoji ->
+                            val active = emoji in myReactions
+                            val reactDesc = stringResource(R.string.chat_a11y_react_with, emoji)
+                            Box(
                                 modifier = Modifier
+                                    .size(Tokens.SizeTouchTarget)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (active) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            Color.Transparent
+                                        },
+                                    )
                                     .clickable {
                                         viewModel.react(target.id, emoji)
                                         menuMessage = null
                                     }
-                                    .padding(4.dp),
+                                    .semantics { contentDescription = reactDesc },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(text = emoji, fontSize = 24.sp)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(Tokens.SpacingSm))
+                    val actions = buildList {
+                        if (target.content.isNotBlank()) {
+                            add(MenuAction(R.string.chat_copy) {
+                                clipboard.setText(
+                                    AnnotatedString(
+                                        target.content.split("\n")
+                                            .filterNot { it.startsWith(ACTION_PREFIX) }
+                                            .joinToString("\n"),
+                                    ),
+                                )
+                                menuMessage = null
+                            })
+                        }
+                        if (target.content.isNotBlank() && !target.retracted) {
+                            add(MenuAction(R.string.chat_quote_reply) {
+                                viewModel.quote(target)
+                                menuMessage = null
+                            })
+                            // v3 §7.9 / B-31：朗读 / 停止朗读（语速、音调跟随设置）
+                            val speaking = speakingMessageId == target.id
+                            add(
+                                MenuAction(
+                                    if (speaking) R.string.chat_tts_stop else R.string.chat_tts_speak,
+                                ) {
+                                    if (speaking) {
+                                        tts.stop()
+                                        speakingMessageId = null
+                                    } else if (
+                                        tts.speak(
+                                            target.content.split("\n")
+                                                .filterNot { it.startsWith(ACTION_PREFIX) }
+                                                .joinToString("\n"),
+                                            settings.ttsSpeechRate,
+                                            settings.ttsPitch,
+                                        )
+                                    ) {
+                                        speakingMessageId = target.id
+                                    }
+                                    menuMessage = null
+                                },
                             )
                         }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    // 戳一下（M3-05）：与顶栏按钮、双击头像共用同一套频控
-                    TextButton(onClick = {
-                        menuMessage = null
-                        viewModel.poke()
-                    }) { Text(stringResource(R.string.chat_poke_her)) }
-                    if (target.content.isNotBlank() && !target.retracted) {
-                        TextButton(onClick = {
-                            viewModel.quote(target)
-                            menuMessage = null
-                        }) { Text(stringResource(R.string.chat_quote_reply)) }
-                    }
-                    if (target.role == ROLE_USER && !target.retracted) {
-                        TextButton(onClick = {
-                            menuMessage = null
-                            confirmRetract = target
-                        }) { Text(stringResource(R.string.chat_retract)) }
-                        TextButton(onClick = {
-                            menuMessage = null
-                            editingMessage = target
-                        }) { Text(stringResource(R.string.chat_edit)) }
-                    }
-                    if (target.content.isNotBlank()) {
-                        TextButton(onClick = {
-                            clipboard.setText(AnnotatedString(target.content.split("\n").filterNot { it.startsWith(ACTION_PREFIX) }.joinToString("\n")))
-                            menuMessage = null
-                        }) { Text(stringResource(R.string.chat_copy)) }
-                    }
-                    if (target.role == ROLE_ASSISTANT) {
-                        TextButton(onClick = {
-                            menuMessage = null
-                            viewModel.regenerate(target)
-                        }) { Text(stringResource(R.string.chat_regenerate)) }
-                        // M3-06：同组历史版本（重新生成不会丢掉旧版本）
-                        if (target.replyGroupId != null) {
-                            TextButton(onClick = {
+                        if (canRecall) {
+                            add(MenuAction(R.string.chat_edit) {
                                 menuMessage = null
-                                versionTarget = target
-                            }) { Text(stringResource(R.string.chat_view_versions)) }
+                                editingMessage = target
+                            })
+                            add(MenuAction(R.string.chat_retract) {
+                                menuMessage = null
+                                confirmRetract = target
+                            })
                         }
-                    }
-                    if (target.content.isNotBlank()) {
-                        TextButton(onClick = {
+                        if (target.role == ROLE_ASSISTANT) {
+                            add(
+                                MenuAction(
+                                    labelRes = R.string.chat_regenerate,
+                                    enabled = !hasLaterUserMessage,
+                                    hintRes = if (hasLaterUserMessage) R.string.chat_regenerate_blocked else null,
+                                ) {
+                                    menuMessage = null
+                                    if (!hasLaterUserMessage) viewModel.regenerate(target)
+                                },
+                            )
+                            if (target.replyGroupId != null) {
+                                add(MenuAction(R.string.chat_view_versions) {
+                                    menuMessage = null
+                                    versionTarget = target
+                                })
+                            }
+                        }
+                        if (!target.imageUri.isNullOrBlank()) {
+                            add(MenuAction(R.string.chat_save_image) {
+                                menuMessage = null
+                                viewModel.saveImageToGallery(target.imageUri!!)
+                            })
+                        }
+                        if (target.content.isNotBlank()) {
+                            add(MenuAction(R.string.chat_remember) {
+                                menuMessage = null
+                                viewModel.rememberMessage(target)
+                            })
+                        }
+                        add(MenuAction(R.string.chat_poke_her) {
                             menuMessage = null
-                            viewModel.rememberMessage(target)
-                        }) { Text(stringResource(R.string.chat_remember)) }
+                            viewModel.poke()
+                        })
+                        add(MenuAction(R.string.chat_multi_select) {
+                            menuMessage = null
+                            selectionMode = true
+                            selectedIds = setOf(target.id)
+                        })
+                        // 翻译：工程执行书标注「暂不做」，保留禁用项做可发现性
+                        add(MenuAction(R.string.chat_translate_pending, enabled = false) {})
+                        add(MenuAction(R.string.chat_hide_message) {
+                            menuMessage = null
+                            confirmHide = target
+                        })
                     }
-                    TextButton(onClick = {
-                        menuMessage = null
-                        confirmHide = target
-                    }) { Text(stringResource(R.string.chat_hide_message)) }
-                    TextButton(onClick = {
-                        menuMessage = null
-                        selectionMode = true
-                        selectedIds = setOf(target.id)
-                    }) { Text(stringResource(R.string.chat_multi_select)) }
-                    Spacer(Modifier.height(16.dp))
+                    actions.take(4).forEach { MenuActionRow(it) }
+                    val more = actions.drop(4)
+                    if (more.isNotEmpty()) {
+                        TextButton(
+                            onClick = { showMoreMenuItems = !showMoreMenuItems },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (showMoreMenuItems) R.string.chat_menu_less else R.string.chat_menu_more,
+                                ),
+                            )
+                        }
+                        if (showMoreMenuItems) more.forEach { MenuActionRow(it) }
+                    }
+                    Spacer(Modifier.height(Tokens.SpacingLg))
                 }
             }
         }
@@ -809,9 +1310,9 @@ private fun ChatPane(
                 onDismissRequest = { versionTarget = null },
                 sheetState = rememberModalBottomSheetState(),
             ) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = Tokens.SpacingPage, vertical = Tokens.SpacingSm)) {
                     Text(stringResource(R.string.chat_versions_title), style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(Tokens.SpacingXs))
                     Text(
                         stringResource(R.string.chat_versions_desc, versions.size),
                         style = MaterialTheme.typography.bodySmall,
@@ -827,7 +1328,7 @@ private fun ChatPane(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(Tokens.SpacingMd))
                                     .background(
                                         if (isCurrent) {
                                             MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -842,7 +1343,7 @@ private fun ChatPane(
                                             versionTarget = null
                                         }
                                     }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = Tokens.SpacingMd, vertical = 10.dp),
                             ) {
                                 Column {
                                     Text(
@@ -865,7 +1366,7 @@ private fun ChatPane(
                             }
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(Tokens.SpacingLg))
                 }
             }
         }
@@ -959,7 +1460,7 @@ private fun SearchContextBanner(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = Tokens.SpacingLg, vertical = Tokens.SpacingSm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -995,13 +1496,20 @@ private fun RenameSessionDialog(initial: String, onDismiss: () -> Unit, onConfir
 private fun MessageRow(
     message: MessageEntity,
     sticker: StickerEntity? = null,
-    /** v3 H-22：与上一条同作者且间隔<2分钟，省略头像、收紧间距 */
+    /** v3 §7.3.3：与上一条同作者且间隔<60s，省略头像、收紧间距 */
     grouped: Boolean = false,
+    /** v3 §7.3.2：间隔≥5min / 换天 / 换会话时渲染时间行 */
+    showTime: Boolean = true,
+    lastInGroup: Boolean = true,
     /** v3 H-22 / 1.3#48：消息密度，控制气泡上下间距 */
     density: MessageDensity = MessageDensity.STANDARD,
     maxBubbleWidth: Dp,
     onHide: () -> Unit,
     onLongPress: () -> Unit = {},
+    /** v3 §7.4.6：双击气泡 = ❤️ reaction */
+    onDoubleTapHeart: () -> Unit = {},
+    /** v3 §7.4.4：点下方头像上的表情徽标可取消该 reaction */
+    onToggleReaction: (String) -> Unit = {},
     onImage: Boolean = false,
     onPlayVoice: (() -> Unit)? = null,
     isPlaying: Boolean = false,
@@ -1013,14 +1521,18 @@ private fun MessageRow(
     selected: Boolean = false,
     selectionMode: Boolean = false,
     onToggleSelect: () -> Unit = {},
+    /** 已读位置：仅用于无障碍朗读「已读 / 未读」（§7.15） */
+    lastReadMessageId: Long = 0L,
 ) {
     val isUser = message.role == ROLE_USER
     val isNotice = message.role == ROLE_NOTICE
+    // v3 §7.4.4：超过 3 个 reaction 折叠成「+N」
+    var reactionsExpanded by remember(message.id) { mutableStateOf(false) }
 
     if (isNotice) {
         Text(
             message.content,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = Tokens.SpacingXs),
             style = MaterialTheme.typography.labelMedium,
             color = if (onImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -1034,11 +1546,48 @@ private fun MessageRow(
             stringResource(R.string.chat_retracted_placeholder),
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
         return
     }
+
+    // v3 §7.15 / M5-07：整条消息合并成一句描述，含发送者、正文、时间、已读与 reaction
+    val senderName = stringResource(if (isUser) R.string.chat_self else R.string.chat_her_name)
+    val spokenBody = when {
+        message.imageUri != null -> stringResource(R.string.chat_a11y_image)
+        message.type == TYPE_STICKER -> stringResource(R.string.chat_a11y_sticker)
+        else -> message.content
+    }
+    val myReactions = message.reactionsJson.split(',').filter { it.isNotBlank() }
+    val spokenReaction = listOfNotNull(
+        myReactions.takeIf { it.isNotEmpty() }?.let {
+            stringResource(R.string.chat_a11y_my_reaction, it.joinToString(" "))
+        },
+        herReaction?.let { stringResource(R.string.chat_a11y_her_reaction, it) },
+    ).joinToString("，")
+    val spokenStatus = if (isUser) {
+        stringResource(if (message.id <= lastReadMessageId) R.string.chat_a11y_read else R.string.chat_a11y_unread)
+    } else {
+        ""
+    }
+    val messageDescription = stringResource(
+        R.string.chat_a11y_message,
+        senderName,
+        spokenBody,
+        listOf(
+            timeFormat.format(Date(message.createdAt)),
+            spokenStatus,
+            spokenReaction,
+            if (selectionMode) {
+                stringResource(if (selected) R.string.chat_a11y_selected else R.string.chat_a11y_select)
+            } else {
+                ""
+            },
+        )
+            .filter { it.isNotBlank() }
+            .joinToString("，"),
+    )
 
     Box(
         // v3 H-22 / 1.3#48：连续同作者消息间距减半，正常间距由消息密度档位决定
@@ -1058,9 +1607,9 @@ private fun MessageRow(
                         .padding(bottom = 3.dp)
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                            RoundedCornerShape(8.dp),
+                            RoundedCornerShape(Tokens.SpacingSm),
                         )
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                        .padding(horizontal = Tokens.SpacingSm, vertical = Tokens.SpacingXs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
@@ -1080,13 +1629,26 @@ private fun MessageRow(
                     )
                 }
             }
+            val haptic = LocalHapticFeedback.current
             Box(
-                modifier = Modifier.combinedClickable(
+                modifier = Modifier
+                    .semantics(mergeDescendants = true) { contentDescription = messageDescription }
+                    .combinedClickable(
                     onClick = {
                         if (selectionMode) onToggleSelect()
                     },
+                    // v3 §7.4.6：双击气泡 = ❤️ reaction（已反应再次双击即取消）
+                    onDoubleClick = {
+                        if (!selectionMode) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onDoubleTapHeart()
+                        }
+                    },
                     onLongClick = {
-                        if (!selectionMode) onLongPress()
+                        if (!selectionMode) {
+                            haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                            onLongPress()
+                        }
                     },
                 )
             ) {
@@ -1094,7 +1656,7 @@ private fun MessageRow(
                     if (selectionMode) {
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(Tokens.SpacingPage)
                                 .clip(CircleShape)
                                 .background(
                                     if (selected) MaterialTheme.colorScheme.primary
@@ -1117,7 +1679,7 @@ private fun MessageRow(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(Tokens.SpacingXs))
                     }
                     message.imageUri?.let { path ->
                         val imgFile = java.io.File(path)
@@ -1129,7 +1691,7 @@ private fun MessageRow(
                                     .heightIn(max = 280.dp)
                                     .clip(RoundedCornerShape(14.dp)),
                             )
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(Tokens.SpacingXs))
                         }
                     }
                     if (message.type == TYPE_STICKER) {
@@ -1139,33 +1701,33 @@ private fun MessageRow(
                         // v3 ADR-15 / 7.4.5：结构化卡片消息
                         CardBubble(rawContent = message.content)
                     } else {
-                        Bubble(text = message.content, isUser = isUser)
+                        Bubble(text = message.content, isUser = isUser, showTail = lastInGroup)
                     }
                 }
             }
             // 照片背景上加一层浅底，时间戳不会糊进图片里
             val timeModifier = if (onImage) {
                 Modifier
-                    .padding(top = 3.dp, start = 4.dp, end = 4.dp)
+                    .padding(top = 3.dp, start = Tokens.SpacingXs, end = Tokens.SpacingXs)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), RoundedCornerShape(50))
                     .padding(horizontal = 6.dp, vertical = 1.dp)
             } else {
-                Modifier.padding(top = 3.dp, start = 4.dp, end = 4.dp)
+                Modifier.padding(top = 3.dp, start = Tokens.SpacingXs, end = Tokens.SpacingXs)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!isUser && onPlayVoice != null && message.content.isNotBlank()) {
                     when {
                         isSynthesizing -> TextButton(
                             onClick = onPlayVoice,
-                            modifier = Modifier.height(28.dp),
+                            modifier = Modifier.heightIn(min = Tokens.SizeTouchTarget),
                         ) { Text(stringResource(R.string.chat_synthesizing), style = MaterialTheme.typography.labelSmall) }
                         isPlaying -> TextButton(
                             onClick = onPlayVoice,
-                            modifier = Modifier.height(28.dp),
+                            modifier = Modifier.heightIn(min = Tokens.SizeTouchTarget),
                         ) { Text(stringResource(R.string.chat_stop), style = MaterialTheme.typography.labelSmall) }
                         else -> IconButton(
                             onClick = onPlayVoice,
-                            modifier = Modifier.height(28.dp).width(28.dp),
+                            modifier = Modifier.size(Tokens.SizeTouchTarget),
                         ) {
                             Icon(
                                 Icons.Default.PlayArrow,
@@ -1175,18 +1737,21 @@ private fun MessageRow(
                         }
                     }
                 }
-                Text(
-                    timeFormat.format(Date(message.createdAt)),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (onImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = timeModifier,
-                )
+                // v3 §7.3.2：间隔 <5min 时不渲染时间行，消息密度显著提升
+                if (showTime) {
+                    Text(
+                        timeFormat.format(Date(message.createdAt)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (onImage) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = timeModifier,
+                    )
+                }
                 // 编辑标记（M3-07）
                 if (message.editedAt != null) {
                     Text(
                         stringResource(R.string.chat_edited),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 2.dp),
                     )
                 }
@@ -1195,44 +1760,80 @@ private fun MessageRow(
                     STATUS_SENDING -> Text(
                         stringResource(R.string.chat_sending),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(start = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = Tokens.SpacingXs),
                     )
-                    STATUS_FAILED -> Text(
-                        "!",
-                        modifier = Modifier
-                            .padding(start = 4.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error)
-                            .padding(horizontal = 6.dp)
-                            .clickable { onRetry?.invoke() },
-                        color = MaterialTheme.colorScheme.onError,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    STATUS_FAILED -> {
+                        val resendDesc = stringResource(R.string.chat_a11y_resend)
+                        TextButton(
+                            onClick = { onRetry?.invoke() },
+                            enabled = onRetry != null,
+                            modifier = Modifier
+                                .size(Tokens.SizeTouchTarget)
+                                .semantics { contentDescription = resendDesc },
+                        ) {
+                            Text(
+                                "!",
+                                color = MaterialTheme.colorScheme.error,
+                                style = LocalYuType.current.section,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                 }
             }
-            // 用户给的 reaction（执行书 6.3.7），旁边是她偶尔回的一个表情（M3-05）
-            if (message.reactionsJson.isNotBlank() || herReaction != null) {
+            // v3 §7.4.4：reaction 显示在气泡下方，超过 3 个折叠为「+N」，点徽标可取消
+            val myReactions = remember(message.reactionsJson) {
+                message.reactionsJson.split(',').filter { it.isNotBlank() }
+            }
+            if (myReactions.isNotEmpty() || herReaction != null) {
                 Row(
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                            RoundedCornerShape(50),
-                        )
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    message.reactionsJson.split(',').filter { it.isNotBlank() }.forEach { emoji ->
-                        Text(emoji, fontSize = 14.sp, modifier = Modifier.padding(end = 4.dp))
+                    val shown = if (reactionsExpanded || myReactions.size <= 3) {
+                        myReactions
+                    } else {
+                        myReactions.take(3)
+                    }
+                    shown.forEach { emoji ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.75f))
+                                .clickable { onToggleReaction(emoji) }
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Text(emoji, fontSize = 14.sp)
+                        }
+                    }
+                    if (!reactionsExpanded && myReactions.size > 3) {
+                        val showAll = stringResource(R.string.chat_a11y_show_reactions)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.75f))
+                                .clickable { reactionsExpanded = true }
+                                .semantics { contentDescription = showAll }
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                stringResource(R.string.chat_reaction_more, myReactions.size - 3),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     herReaction?.let { emoji ->
                         Text(
                             stringResource(R.string.chat_her_reaction, emoji),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 2.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.75f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -1245,58 +1846,107 @@ private fun MessageRow(
 @Composable
 private fun CorrectionBanner(trigger: String, onRevoke: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Tokens.SpacingMd, vertical = Tokens.SpacingXs),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         shape = RoundedCornerShape(10.dp),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = Tokens.SpacingMd, vertical = Tokens.SpacingSm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "已记录「$trigger」纠偏，她会调整语气",
+                stringResource(R.string.chat_correction_recorded, trigger),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
             TextButton(onClick = onRevoke) {
-                Text("撤销", style = MaterialTheme.typography.labelSmall)
+                Text(stringResource(R.string.chat_correction_revoke), style = MaterialTheme.typography.labelSmall)
             }
         }
     }
 }
 
 @Composable
-private fun Bubble(text: String, isUser: Boolean, pending: Boolean = false) {
+private fun Bubble(text: String, isUser: Boolean, pending: Boolean = false, showTail: Boolean = true) {
     val bubbles = LocalBubbleColors.current
-    val bg = if (isUser) bubbles.myBackground else bubbles.herBackground
+    val visual = LocalBubbleVisual.current
+    val bg = (if (isUser) bubbles.myBackground else bubbles.herBackground)
+        .copy(alpha = visual.alpha)
     val fg = if (isUser) bubbles.myContent else bubbles.herContent
-    Surface(
-        color = bg,
-        contentColor = fg,
-        shape = RoundedCornerShape(
-            topStart = 18.dp,
-            topEnd = 18.dp,
-            bottomStart = if (isUser) 18.dp else 4.dp,
-            bottomEnd = if (isUser) 4.dp else 18.dp,
-        ),
-    ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-            text.split("\n").forEach { raw ->
-                val isAction = raw.startsWith(ACTION_PREFIX)
-                val line = if (isAction) raw.removePrefix(ACTION_PREFIX) else raw
-                if (line.isEmpty()) return@forEach
-                Text(
-                    text = line,
-                    style = if (isAction) {
-                        MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic)
+    val shape = RoundedCornerShape(
+        topStart = Tokens.RadiusBubble,
+        topEnd = Tokens.RadiusBubble,
+        bottomStart = if (!isUser && showTail) Tokens.RadiusBubbleTail else Tokens.RadiusBubble,
+        bottomEnd = if (isUser && showTail) Tokens.RadiusBubbleTail else Tokens.RadiusBubble,
+    )
+    val textStyle = if (visual.textShadow) {
+        LocalYuType.current.chat.copy(
+            shadow = Shadow(
+                color = Color.Black.copy(alpha = 0.65f),
+                offset = Offset(0.5f, 1f),
+                blurRadius = 1.5f,
+            ),
+        )
+    } else {
+        LocalYuType.current.chat
+    }
+    Box {
+        if (showTail) {
+            Canvas(
+                Modifier
+                    .align(if (isUser) Alignment.BottomEnd else Alignment.BottomStart)
+                    .offset(x = if (isUser) Tokens.RadiusBubbleTail else -Tokens.RadiusBubbleTail)
+                    .size(Tokens.RadiusBubbleTail),
+            ) {
+                val tail = Path().apply {
+                    if (isUser) {
+                        moveTo(0f, 0f)
+                        lineTo(size.width, size.height)
+                        lineTo(0f, size.height)
                     } else {
-                        MaterialTheme.typography.bodyLarge
-                    },
-                    color = if (isAction) fg.copy(alpha = 0.8f) else fg,
-                )
+                        moveTo(size.width, 0f)
+                        lineTo(0f, size.height)
+                        lineTo(size.width, size.height)
+                    }
+                    close()
+                }
+                drawPath(tail, bg)
             }
-            if (pending) Text("▍", style = MaterialTheme.typography.bodyLarge)
+        }
+        // 气泡底衬：背景图很花时先铺一层浅色，避免气泡本身透出图案
+        if (visual.underlay && visual.alpha < 1f) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
+            )
+        }
+        Surface(
+            color = bg,
+            contentColor = fg,
+            shape = shape,
+        ) {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                text.split("\n").forEach { raw ->
+                    val isAction = raw.startsWith(ACTION_PREFIX)
+                    val line = if (isAction) raw.removePrefix(ACTION_PREFIX) else raw
+                    if (line.isEmpty()) return@forEach
+                    Text(
+                        text = line,
+                        style = if (isAction) {
+                            textStyle.copy(fontStyle = FontStyle.Italic)
+                        } else {
+                            textStyle
+                        },
+                        color = if (isAction) fg.copy(alpha = 0.8f) else fg,
+                    )
+                }
+                if (pending) Text("▍", style = textStyle)
+            }
         }
     }
 }
@@ -1309,24 +1959,38 @@ private fun InputBar(
     stickersOpen: Boolean = false,
     onToggleStickers: () -> Unit = {},
     onCloseStickers: () -> Unit = {},
+    insertText: String? = null,
+    onInserted: () -> Unit = {},
+    onDoubleTapInput: (String) -> Unit = {},
     onSend: (String) -> Unit,
+    onSendSplit: (List<String>) -> Unit = { chunks -> chunks.forEach(onSend) },
 ) {
     var text by rememberSaveable(identityId) { mutableStateOf("") }
     var voiceMode by rememberSaveable { mutableStateOf(false) }
     var holding by remember { mutableStateOf(false) }
     var voiceToggles by remember { mutableIntStateOf(0) }
+    // v3 §7.10：一次粘贴超长文本时提示是否拆分发送
+    var longPaste by remember { mutableStateOf<String?>(null) }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val textInteraction = remember { MutableInteractionSource() }
     val focused by textInteraction.collectIsFocusedAsState()
     val sendContentDescription = stringResource(R.string.chat_send)
+    val context = LocalContext.current
 
     // 切回该人设时自动恢复草稿；切换人设时保存当前草稿（M1-09）
     LaunchedEffect(identityId) {
         identityId?.let {
             val saved = viewModel.getDraft(it)
             if (!saved.isNullOrBlank()) text = saved
+        }
+    }
+    // v3 §7.4.7：表情面板点 Emoji 后插入到输入框光标末尾
+    LaunchedEffect(insertText) {
+        if (!insertText.isNullOrEmpty()) {
+            text += insertText
+            onInserted()
         }
     }
     LaunchedEffect(text, identityId) {
@@ -1349,8 +2013,8 @@ private fun InputBar(
     val launchVoice: () -> Unit = {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN")
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "说完后自动转成文字")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.chat_voice_prompt))
         }
         try {
             voiceLauncher.launch(intent)
@@ -1360,9 +2024,12 @@ private fun InputBar(
         }
     }
 
+    val haptic = LocalHapticFeedback.current
     val canSend = enabled && text.isNotBlank()
     val send: () -> Unit = {
         if (canSend) {
+            // v3 §7.15：发送时短振动确认
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onSend(text)
             text = ""
         }
@@ -1371,29 +2038,29 @@ private fun InputBar(
     val inputBorder by animateColorAsState(
         targetValue = if (focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
         else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-        animationSpec = tween(durationMillis = 180),
+        animationSpec = yuTween(durationMillis = 180),
         label = "inputBorder",
     )
     val holdBg by animateColorAsState(
         targetValue = if (holding) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        animationSpec = tween(durationMillis = 120),
+        animationSpec = yuTween(durationMillis = 120),
         label = "holdBg",
     )
     val sendScale by animateFloatAsState(
         targetValue = if (canSend) 1f else 0.88f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 700f),
+        animationSpec = yuSpring(dampingRatio = 0.5f, stiffness = 700f),
         label = "sendScale",
     )
     val sendBg by animateColorAsState(
         targetValue = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-        animationSpec = tween(durationMillis = 180),
+        animationSpec = yuTween(durationMillis = 180),
         label = "sendBg",
     )
     val sendFg by animateColorAsState(
         targetValue = if (canSend) MaterialTheme.colorScheme.onPrimary
         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-        animationSpec = tween(durationMillis = 180),
+        animationSpec = yuTween(durationMillis = 180),
         label = "sendFg",
     )
 
@@ -1401,11 +2068,9 @@ private fun InputBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // 手势导航条安全区：背景仍铺到底，内容抬到小白条之上并留出呼吸空间
-                .navigationBarsPadding()
-                .padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 12.dp),
+                .padding(start = Tokens.SpacingSm, end = 10.dp, top = Tokens.SpacingSm, bottom = Tokens.SpacingMd),
             verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingXs),
         ) {
             BarIconButton(
                 onClick = {
@@ -1421,7 +2086,13 @@ private fun InputBar(
                 if (voiceMode) {
                     KeyboardGlyph(tint = MaterialTheme.colorScheme.primary)
                 } else {
-                    MicGlyph(tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // v3 G-08：自绘麦克风图标
+                    Icon(
+                        imageVector = YuIcons.Voice,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(21.dp),
+                    )
                 }
             }
 
@@ -1430,7 +2101,7 @@ private fun InputBar(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(46.dp)
+                        .heightIn(min = 46.dp)
                         .clip(RoundedCornerShape(23.dp))
                         .background(holdBg)
                         .border(1.dp, inputBorder, RoundedCornerShape(23.dp))
@@ -1457,21 +2128,46 @@ private fun InputBar(
             } else {
                 BasicTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = { new ->
+                        // 粘贴超长文本：提示「内容较长，是否拆分发送」
+                        if (new.length - text.length >= 200 && new.length >= 800) {
+                            longPaste = new
+                        } else {
+                            text = new
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 46.dp)
                         .clip(RoundedCornerShape(23.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                         .border(1.dp, inputBorder, RoundedCornerShape(23.dp))
-                        .padding(horizontal = 16.dp, vertical = 11.dp)
+                        .padding(horizontal = Tokens.SpacingLg, vertical = 11.dp)
                         .focusRequester(focusRequester)
-                        .onFocusChanged { if (it.isFocused && stickersOpen) onCloseStickers() },
+                        .onFocusChanged { if (it.isFocused && stickersOpen) onCloseStickers() }
+                        // v3 §14.5：双击输入栏 → 全屏输入（Initial pass 抢在输入框消费前识别）
+                        .pointerInput(Unit) {
+                            var lastUp = 0L
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                                if (up != null) {
+                                    val now = up.uptimeMillis
+                                    if (now - lastUp <= 280L) {
+                                        lastUp = 0L
+                                        onDoubleTapInput(text)
+                                    } else {
+                                        lastUp = now
+                                    }
+                                }
+                            }
+                        },
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                         color = MaterialTheme.colorScheme.onSurface,
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    maxLines = 4,
+                    // v3 §7.10：1~5 行自适应
+                    maxLines = 5,
                     interactionSource = textInteraction,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(onSend = { send() }),
@@ -1494,24 +2190,28 @@ private fun InputBar(
                 onClick = onToggleStickers,
                 contentDescription = if (stickersOpen) stringResource(R.string.chat_collapse_stickers) else stringResource(R.string.chat_open_stickers),
             ) {
-                SmileyGlyph(
+                // v3 G-08：自绘表情图标
+                Icon(
+                    imageVector = YuIcons.Emoji,
+                    contentDescription = null,
                     tint = if (stickersOpen) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
+                    modifier = Modifier.size(21.dp),
                 )
             }
 
             // 语音模式下隐藏发送键：输入区已被「按住说话」占满，留着会让人误以为能发旧草稿
             AnimatedVisibility(
                 visible = !voiceMode,
-                enter = fadeIn(tween(140)) + scaleIn(tween(140), initialScale = 0.6f),
-                exit = fadeOut(tween(120)) + scaleOut(tween(120), targetScale = 0.6f),
+                enter = fadeIn(yuTween(140)) + scaleIn(yuTween(140), initialScale = 0.6f),
+                exit = fadeOut(yuTween(120)) + scaleOut(yuTween(120), targetScale = 0.6f),
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(Tokens.SizeTouchTarget)
                         .scale(sendScale)
                         .clip(CircleShape)
                         .background(sendBg)
@@ -1519,14 +2219,72 @@ private fun InputBar(
                         .semantics { contentDescription = sendContentDescription },
                     contentAlignment = Alignment.Center,
                 ) {
-                    PlaneGlyph(tint = sendFg)
+                    // v3 G-08：自绘发送图标
+                    Icon(
+                        imageVector = YuIcons.Send,
+                        contentDescription = null,
+                        tint = sendFg,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         }
     }
+
+    // v3 §7.10：超长粘贴二次确认
+    longPaste?.let { pasted ->
+        AlertDialog(
+            onDismissRequest = { longPaste = null },
+            title = { Text(stringResource(R.string.chat_paste_long_title)) },
+            text = { Text(stringResource(R.string.chat_paste_long_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    longPaste = null
+                    text = ""
+                    onSendSplit(splitLongText(pasted))
+                }) { Text(stringResource(R.string.chat_paste_split)) }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { longPaste = null }) {
+                        Text(stringResource(R.string.chat_cancel))
+                    }
+                    TextButton(onClick = {
+                        text = pasted
+                        longPaste = null
+                    }) { Text(stringResource(R.string.chat_paste_whole)) }
+                }
+            },
+        )
+    }
 }
 
-/** 输入栏上的圆形图标键：40dp 命中区 + 圆形水波纹。 */
+/** 把超长文本按空行拆段，每段不超过 400 字。 */
+private fun splitLongText(input: String): List<String> {
+    val paragraphs = input.split(Regex("\\n\\s*\\n")).map { it.trim() }.filter { it.isNotEmpty() }
+    val chunks = mutableListOf<String>()
+    val buffer = StringBuilder()
+    fun flush() {
+        if (buffer.isNotBlank()) {
+            chunks += buffer.toString().trim()
+            buffer.clear()
+        }
+    }
+    paragraphs.forEach { paragraph ->
+        if (buffer.length + paragraph.length + 2 > 400) flush()
+        if (paragraph.length > 400) {
+            flush()
+            paragraph.chunked(400).forEach { chunks += it }
+        } else {
+            if (buffer.isNotEmpty()) buffer.append("\n\n")
+            buffer.append(paragraph)
+        }
+    }
+    flush()
+    return chunks.ifEmpty { listOf(input) }
+}
+
+/** 输入栏上的圆形图标键：48dp 命中区 + 圆形水波纹。 */
 @Composable
 private fun BarIconButton(
     onClick: () -> Unit,
@@ -1535,7 +2293,7 @@ private fun BarIconButton(
 ) {
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size(Tokens.SizeTouchTarget)
             .clip(CircleShape)
             .clickable(onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
@@ -1670,25 +2428,26 @@ private fun SessionDrawer(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Tokens.SpacingLg))
             Button(onClick = onNew, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
                 Text(if (continuous) stringResource(R.string.chat_drawer_new_topic) else stringResource(R.string.chat_drawer_new_chat))
             }
         }
         if (!continuous) {
             Divider(color = MaterialTheme.colorScheme.surfaceVariant)
-            LazyColumn(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
+            LazyColumn(modifier = Modifier.weight(1f).padding(vertical = Tokens.SpacingSm)) {
                 items(sessions, key = { it.id }) { session ->
                     SessionRow(
                         session = session,
                         selected = session.id == currentId,
                         onClick = { onSelect(session.id) },
                         onLongClick = { onRename(session) },
+                        onSwipeArchive = { onArchive(session.id) },
                         trailing = { TextButton(onClick = { onArchive(session.id) }) { Text(stringResource(R.string.chat_archive)) } },
                     )
                 }
                 item {
-                    TextButton(onClick = { showArchived = !showArchived }, modifier = Modifier.padding(start = 8.dp)) {
+                    TextButton(onClick = { showArchived = !showArchived }, modifier = Modifier.padding(start = Tokens.SpacingSm)) {
                         Text(
                             if (showArchived) {
                                 stringResource(R.string.chat_hide_archived)
@@ -1714,7 +2473,7 @@ private fun SessionDrawer(
             Spacer(Modifier.weight(1f))
         }
         Divider(color = MaterialTheme.colorScheme.surfaceVariant)
-        Column(Modifier.padding(vertical = 8.dp)) {
+        Column(Modifier.padding(vertical = Tokens.SpacingSm)) {
             DrawerEntry(stringResource(R.string.chat_relation), onOpenRelation)
             DrawerEntry(stringResource(R.string.life_day_title), onOpenLifeDay)
             DrawerEntry(stringResource(R.string.chat_search), onOpenSearch)
@@ -1734,15 +2493,44 @@ private fun SessionRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     trailing: @Composable () -> Unit,
+    /** v3 §14.5：会话行左滑归档 */
+    onSwipeArchive: (() -> Unit)? = null,
 ) {
+    var dragX by remember { mutableStateOf(0f) }
+    val swipeThreshold = with(LocalDensity.current) { 96.dp.toPx() }
+    val swipeModifier = if (onSwipeArchive == null) {
+        Modifier
+    } else {
+        Modifier.pointerInput(onSwipeArchive) {
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    if (dragX <= -swipeThreshold) onSwipeArchive()
+                    dragX = 0f
+                },
+                onDragCancel = { dragX = 0f },
+                onHorizontalDrag = { change, amount ->
+                    change.consume()
+                    dragX = (dragX + amount).coerceIn(-swipeThreshold * 1.6f, 0f)
+                },
+            )
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset { IntOffset(dragX.roundToInt(), 0) }
+            .then(swipeModifier),
+    ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = Tokens.SizeTouchTarget)
             .background(
                 if (selected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
             )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(start = 18.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            .semantics(mergeDescendants = true) {}
+            .padding(start = 18.dp, end = Tokens.SpacingSm, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -1759,6 +2547,7 @@ private fun SessionRow(
         }
         trailing()
     }
+    }
 }
 
 @Composable
@@ -1774,8 +2563,11 @@ private sealed interface TimelineItem {
     data class DateHeader(val label: String, val anchorId: Long) : TimelineItem
     data class TopicDivider(val anchorId: Long) : TimelineItem
     data class UnreadDivider(val anchorId: Long) : TimelineItem
-    /** grouped=true 表示与上一条同作者且间隔<2分钟，渲染时省略头像、收紧间距（v3 H-22 / 1.3#4） */
-    data class Msg(val message: MessageEntity, val grouped: Boolean = false) : TimelineItem
+    /**
+     * @param grouped 与上一条同作者且间隔<60s，渲染时省略头像、收紧间距（v3 §7.3.3）
+     * @param showTime 是否渲染时间行（v3 §7.3.2：间隔≥5min 或换天/换会话时显示）
+     */
+    data class Msg(val message: MessageEntity, val grouped: Boolean = false, val showTime: Boolean = true) : TimelineItem
 }
 
 private val dayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
@@ -1802,8 +2594,9 @@ internal fun favorabilityLabelRes(level: FavorabilityLevel): Int = when (level) 
  * 把跨会话的消息流压成带日期分隔线 +（可选）话题分隔线的时间线。
  * - 日期按天聚合：今天 / 昨天 / 具体日期；
  * - 话题分隔线落在会话切换处，用新会话第一条消息 id 锚定，保证 LazyColumn key 稳定；
- * - v3 H-22：连续同作者且间隔 <2 分钟标记 grouped，渲染时省略头像；
- * - v3 H-22：在 lastReadMessageId 之后插入「以下为新消息」分割线。
+ * - v3 §7.3.3：连续同作者且间隔 <60s 标记 grouped，渲染时省略头像；
+ * - v3 §7.3.2：间隔 ≥5min 或换天/换会话时 showTime=true，第一条始终显示；
+ * - v3 §7.3.3：在 lastReadMessageId 之后插入「以下为新消息」分割线。
  */
 private fun buildTimeline(
     context: Context,
@@ -1817,13 +2610,15 @@ private fun buildTimeline(
     var lastRole: String? = null
     var lastTime: Long = 0
     var unreadInserted = false
+    var isFirst = true
     for (msg in messages) {
         val day = dayFormat.format(Date(msg.createdAt))
         if (day != lastDay) {
             lastDay = day
             out.add(TimelineItem.DateHeader(dateLabel(context, msg.createdAt), msg.id))
         }
-        if (showTopicDividers && lastSession != null && lastSession != msg.sessionId) {
+        val sessionChanged = showTopicDividers && lastSession != null && lastSession != msg.sessionId
+        if (sessionChanged) {
             out.add(TimelineItem.TopicDivider(msg.id))
         }
         // v3 H-22 / 1.3#5：未读分割线插在最后一条已读消息之后
@@ -1831,11 +2626,14 @@ private fun buildTimeline(
             unreadInserted = true
             out.add(TimelineItem.UnreadDivider(msg.id))
         }
-        val grouped = lastRole == msg.role && (msg.createdAt - lastTime) < 2 * 60 * 1000L
+        val gap = msg.createdAt - lastTime
+        val grouped = lastRole == msg.role && gap < 60 * 1000L
+        val showTime = isFirst || gap >= TIME_GAP_FOR_DISPLAY_MS || day != dayFormat.format(Date(lastTime)) || sessionChanged
+        isFirst = false
         lastRole = msg.role
         lastTime = msg.createdAt
         lastSession = msg.sessionId
-        out.add(TimelineItem.Msg(msg, grouped))
+        out.add(TimelineItem.Msg(msg, grouped, showTime))
     }
     return out
 }
@@ -1856,12 +2654,9 @@ private fun DateHeaderText(label: String, onImage: Boolean = false) {
         }
         return
     }
-    Text(
-        label,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
+    YuTimeDivider(
+        text = label,
+        modifier = Modifier.padding(vertical = Tokens.SpacingSm),
     )
 }
 
@@ -1884,7 +2679,7 @@ private fun TopicDividerText(onImage: Boolean = false) {
         stringResource(R.string.chat_topic_divider),
         modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
 }
@@ -1899,7 +2694,7 @@ private fun UnreadDividerText(onImage: Boolean = false) {
             stringResource(R.string.chat_unread_divider),
             modifier = Modifier
                 .background(bg, RoundedCornerShape(50))
-                .padding(horizontal = 12.dp, vertical = 3.dp),
+                .padding(horizontal = Tokens.SpacingMd, vertical = 3.dp),
             style = MaterialTheme.typography.labelMedium,
             color = fg,
         )
@@ -1914,7 +2709,7 @@ private fun ChatBubblePreview() {
     XiaoyuTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(Tokens.SpacingLg),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 DateHeaderText("今天")
@@ -1929,22 +2724,30 @@ private fun ChatBubblePreview() {
 /** 她的头像（M3-05）：双击 = 戳一下，长按菜单里也保留了「戳一下」入口。 */
 @Composable
 private fun HerAvatar(onPoke: () -> Unit) {
+    val pokeDesc = stringResource(R.string.chat_a11y_poke)
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary)
+            .size(Tokens.SizeTouchTarget)
+            .semantics(mergeDescendants = true) { contentDescription = pokeDesc }
             .pointerInput(Unit) {
                 detectTapGestures(onDoubleTap = { onPoke() })
             },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            stringResource(R.string.chat_avatar_letter),
-            color = MaterialTheme.colorScheme.onPrimary,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-        )
+        Box(
+            modifier = Modifier
+                .size(Tokens.SpacingXxl)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                stringResource(R.string.chat_avatar_letter),
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 
@@ -1955,3 +2758,110 @@ private fun versionPreview(content: String, emptyText: String): String =
         .joinToString(" ")
         .trim()
         .ifBlank { emptyText }
+
+/**
+ * v3 §7.9 / B-31：系统 TTS 朗读封装（只做本机合成，不上传任何文本）。
+ *
+ * - 初始化失败（机型没有语音引擎 / 缺中文语音包 / ROM 构造即抛异常）时 `ready` 保持 false，
+ *   [speak] 直接返回 false，不弹错误、不崩溃，聊天继续可用；
+ * - 长文本按 120 字切段，首段 FLUSH 其余 ADD，按顺序播完；
+ * - [stop] 随时打断；最后一段播完回调 [onFinished]（已切回主线程），用于恢复「朗读」按钮文案。
+ */
+private class SystemTts(context: Context) {
+    var onFinished: (() -> Unit)? = null
+
+    private val main = Handler(Looper.getMainLooper())
+    private var engine: TextToSpeech? = null
+    private var ready = false
+    private var total = 0
+
+    init {
+        try {
+            engine = TextToSpeech(context.applicationContext) { status ->
+                val tts = engine
+                if (status == TextToSpeech.SUCCESS && tts != null) {
+                    val availability = tts.setLanguage(Locale.SIMPLIFIED_CHINESE)
+                    ready = availability != TextToSpeech.LANG_MISSING_DATA &&
+                        availability != TextToSpeech.LANG_NOT_SUPPORTED
+                    tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) = Unit
+
+                        override fun onDone(utteranceId: String?) {
+                            if (utteranceId == idOf(total - 1)) {
+                                main.post { onFinished?.invoke() }
+                            }
+                        }
+
+                        @Deprecated("Deprecated in Java")
+                        override fun onError(utteranceId: String?) {
+                            main.post { onFinished?.invoke() }
+                        }
+
+                        override fun onError(utteranceId: String?, errorCode: Int) {
+                            main.post { onFinished?.invoke() }
+                        }
+                    })
+                } else {
+                    ready = false
+                }
+            }
+        } catch (e: Exception) {
+            // 某些精简 ROM 没有 TTS 服务，构造阶段就会抛；这里静默降级
+            engine = null
+            ready = false
+        }
+    }
+
+    /** 开始朗读；引擎不可用或内容为空时返回 false（调用方据此不切换按钮状态）。 */
+    fun speak(text: String, rate: Float, pitch: Float): Boolean {
+        val tts = engine ?: return false
+        if (!ready) return false
+        val chunks = splitForSpeech(text)
+        if (chunks.isEmpty()) return false
+        tts.stop()
+        tts.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
+        tts.setPitch(pitch.coerceIn(0.5f, 1.5f))
+        total = chunks.size
+        chunks.forEachIndexed { index, chunk ->
+            val mode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+            if (tts.speak(chunk, mode, null, idOf(index)) != TextToSpeech.SUCCESS) return false
+        }
+        return true
+    }
+
+    fun stop() {
+        engine?.stop()
+    }
+
+    fun shutdown() {
+        engine?.stop()
+        engine?.shutdown()
+        engine = null
+        ready = false
+    }
+
+    private fun idOf(index: Int) = "yu_tts_$index"
+}
+
+/** 长文本按 120 字分段，尽量在标点处断开，避免一口气读太长。 */
+private fun splitForSpeech(text: String, limit: Int = 120): List<String> {
+    val clean = text.split("\n")
+        .filterNot { it.startsWith(ACTION_PREFIX) }
+        .joinToString("\n")
+        .trim()
+    if (clean.isEmpty()) return emptyList()
+    val chunks = mutableListOf<String>()
+    var start = 0
+    while (start < clean.length) {
+        val end = minOf(start + limit, clean.length)
+        var cut = end
+        if (end < clean.length) {
+            val window = clean.substring(start, end)
+            val punct = window.lastIndexOfAny(charArrayOf('。', '！', '？', '；', '，', '\n', '.', '!', '?', ';', ','))
+            if (punct > limit / 3) cut = start + punct + 1
+        }
+        chunks += clean.substring(start, cut)
+        start = cut
+    }
+    return chunks
+}

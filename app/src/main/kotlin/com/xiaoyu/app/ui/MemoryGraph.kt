@@ -16,7 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.xiaoyu.app.R
 import com.xiaoyu.app.data.db.MemoryEntity
 import kotlin.math.cos
 import kotlin.math.min
@@ -37,15 +41,15 @@ fun MemoryGraphCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("记忆图谱", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.memory_graph_title), style = MaterialTheme.typography.titleSmall)
             Text(
-                "颜色越深 = 记忆越强，节点越大 = 越重要",
+                stringResource(R.string.memory_graph_subtitle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             if (memories.isEmpty()) {
                 Text(
-                    "还没有记忆，多聊聊就会慢慢长出来～",
+                    stringResource(R.string.memory_graph_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 24.dp),
@@ -71,8 +75,16 @@ fun MemoryGraph(
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val onSurface = MaterialTheme.colorScheme.onSurfaceVariant
+    val nodeCount = minOf(memories.size, 40)
+    val strongest = memories.maxByOrNull { it.strength }?.content.orEmpty()
+    val graphDescription = stringResource(R.string.memory_graph_desc, nodeCount, strongest)
 
-    Canvas(modifier.fillMaxWidth().height(220.dp)) {
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .semantics { contentDescription = graphDescription }
+    ) {
         val w = size.width
         val h = size.height
         val cx = w / 2f

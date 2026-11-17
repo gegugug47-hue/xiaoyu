@@ -22,6 +22,9 @@ import com.xiaoyu.soul.memory.MemoryTier
 import com.xiaoyu.soul.memory.MemoryType
 import com.xiaoyu.soul.memory.PromotionRule
 import com.xiaoyu.soul.safety.CrisisDetector
+import com.xiaoyu.soul.safety.CrisisLevel
+import com.xiaoyu.soul.safety.InjectionGuard
+import com.xiaoyu.soul.safety.PromptZone
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,7 +58,11 @@ class MemoryRepository @Inject constructor(
         // v3 H-14：仅提炼游标之后的消息，实现会话内增量提炼
         val cursor = session.extractCursor
         val allVisible = messageDao.visibleForSession(sessionId)
-            .filterNot { it.role == ROLE_USER && CrisisDetector.check(it.content) }
+            // v3 §8.2：L2 及以上的危机消息整条跳过，绝不提炼进记忆
+            .filterNot {
+                it.role == ROLE_USER &&
+                    CrisisDetector.level(it.content).ordinal >= CrisisLevel.L2_SELF_HARM_IDEA.ordinal
+            }
         val messages = allVisible.filter { it.createdAt > cursor }
         if (messages.isEmpty()) {
             sessionDao.setExtractState(sessionId, "done")
@@ -73,12 +80,15 @@ class MemoryRepository @Inject constructor(
         val now = System.currentTimeMillis()
         for (item in parsed) {
             if (item.content.isBlank()) continue
-            if (memoryDao.findByContent(item.content) != null) continue
-            if (cardDao.findByContent(item.content) != null) continue
+            // v3 §8.3：EXTRACT 产出的记忆会进 prompt，命中注入模式直接丢弃（不落库）
+            val safeContent = InjectionGuard.sanitizeForeign(item.content, PromptZone.MEMORY_TEXT)
+            if (safeContent.isBlank()) continue
+            if (memoryDao.findByContent(safeContent) != null) continue
+            if (cardDao.findByContent(safeContent) != null) continue
             memoryDao.insert(
                 MemoryEntity(
                     tier = MemoryTier.SHORT.name,
-                    content = item.content,
+                    content = safeContent,
                     type = item.type.name,
                     tags = item.tags.joinToString(","),
                     importance = item.importance,

@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "phase": "ALL_DONE",
-  "updatedAt": "2026-11-16",
+  "updatedAt": "2026-11-17",
   "summary": {
     "total": 30,
     "done": 30,
@@ -14,7 +14,19 @@
   },
   "releasePlan": {
     "strategy": "all-at-once",
-    "note": "全部 30 条完成后统一发 v2.0.0，不再逐条发版",
-    "releasedTag": "v2.0.0"
+    "note": "v2.0.0 为 30 条采纳清单；v2.1.0 为二次差距审计的五批次（安全底线 / 聊天背景全量 / 设计系统 / IM 手感 / 其余项），全部完成后统一发版",
+    "releasedTag": "v2.1.0"
+  },
+  "gapAudit": {
+    "spec": "docs/spec/V3-GAP-AUDIT.md",
+    "batches": {
+      "batch1_safety": "DONE",
+      "batch2_chatBackground": "DONE",
+      "batch3_designSystem": "DONE",
+      "batch4_imFeel": "DONE",
+      "batch5_rest": "DONE"
+    },
+    "dbVersion": 11,
+    "soulLineCoverage": 0.8555
   }
 }

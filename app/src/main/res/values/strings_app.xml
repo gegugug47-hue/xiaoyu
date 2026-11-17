@@ -50,6 +50,8 @@
     <string name="vm_image_generate_failed">生图失败，请确认电脑上的 ComfyUI 服务和网关都在运行。</string>
     <string name="vm_voice_input_unavailable">这台设备没有可用的语音输入，请先在系统里启用输入法的语音服务。</string>
     <string name="vm_regenerate_failed">重新生成失败</string>
+    <string name="vm_image_saved">图片已保存到相册</string>
+    <string name="vm_image_save_failed">保存图片失败</string>
     <string name="vm_poke_limit">她不想被戳了，过一会儿再试试</string>
     <string name="vm_poke_failed">戳失败</string>
     <string name="vm_message_saved_memory">她记住了这句话</string>

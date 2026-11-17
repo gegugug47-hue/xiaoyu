@@ -10,6 +10,8 @@ import com.xiaoyu.app.data.sticker.StickerPaths
 import com.xiaoyu.app.data.sticker.StickerStorage
 import com.xiaoyu.app.data.sticker.StickerStorageUsage
 import com.xiaoyu.soul.prompt.StickerCatalogEntry
+import com.xiaoyu.soul.safety.InjectionGuard
+import com.xiaoyu.soul.safety.PromptZone
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -86,12 +88,18 @@ class StickerRepository @Inject constructor(
 
     /** 表情目录（最多 [limit] 条），序号从 1 开始；空表时返回空列表，注入段整体省略。 */
     suspend fun catalogForPrompt(limit: Int = 40): List<StickerCatalogEntry> =
-        dao.catalog(limit).mapIndexed { i, sticker ->
+        dao.catalog(limit).mapIndexedNotNull { i, sticker ->
+            // v3 §8.3：表情名/标签会进 prompt，入 prompt 前按白名单再清洗一次
+            val name = InjectionGuard.sanitizeForeign(sticker.name, PromptZone.STICKER_NAME)
+            if (name.isBlank()) return@mapIndexedNotNull null
             StickerCatalogEntry(
                 index = i + 1,
                 id = sticker.id,
-                name = sticker.name,
-                tags = sticker.tags.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+                name = name,
+                tags = sticker.tags.split(',')
+                    .map { it.trim() }
+                    .map { InjectionGuard.sanitizeForeign(it, PromptZone.STICKER_TAG) }
+                    .filter { it.isNotEmpty() },
                 moodTags = sticker.moodTags.split(',').map { it.trim() }.filter { it.isNotEmpty() },
             )
         }

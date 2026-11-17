@@ -24,6 +24,8 @@ object Tokens {
     val SpacingLg = 16.dp
     val SpacingXl = 24.dp
     val SpacingXxl = 32.dp
+    val SpacingPage = 20.dp
+    val SpacingTouch = 44.dp
 
     // ---- 圆角 ----
     val RadiusXs = 4.dp
@@ -31,6 +33,33 @@ object Tokens {
     val RadiusMd = 12.dp
     val RadiusLg = 16.dp
     val RadiusPill = 999.dp
+    val RadiusBubble = 14.dp
+    val RadiusBubbleTail = 6.dp
+    val RadiusCardLarge = 20.dp
+    val RadiusCardSmall = 8.dp
+
+    // ---- 组件与布局尺寸 ----
+    val SizeMinTouch = 44.dp
+
+    /** §7.15 / M5-07：可点击元素的交互热区下限（44dp 是视觉下限，热区按 48dp）。 */
+    val SizeTouchTarget = 48.dp
+    val SizeTopBar = 56.dp
+    val SizeNavBar = 64.dp
+    val SizeButtonPrimary = 48.dp
+    val SizeButtonSecondary = 40.dp
+    val SizeButtonTertiary = 32.dp
+    val SizeSessionPane = 320.dp
+    val SizeSettingsPane = 360.dp
+    val SizeContentMax = 720.dp
+    val SizePageMax = 840.dp
+    val SizeBubbleMax = 420.dp
+    val SizeIllustration = 120.dp
+    val SizeSnackbar = 48.dp
+    val SwitchTrackWidth = 44.dp
+    val SwitchTrackHeight = 28.dp
+    val SwitchThumb = 20.dp
+    const val BubbleMaxFractionCompact = 0.76f
+    const val BubbleMaxFractionWide = 0.62f
 
     // ---- 海拔（阴影） ----
     val ElevationFlat = 0.dp
@@ -52,7 +81,7 @@ object Tokens {
     val BubbleVertical = 8.dp
 
     // ---- 顶栏 ----
-    val TopBarHeight = 64.dp
+    val TopBarHeight = SizeTopBar
 
     // ---- 输入栏 ----
     val InputBarHeight = 46.dp

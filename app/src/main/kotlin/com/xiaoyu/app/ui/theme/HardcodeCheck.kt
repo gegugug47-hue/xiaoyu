@@ -7,7 +7,7 @@ import java.io.File
  *
  * 完整自定义 Lint 规则需要独立 lint module + Registry，成本较高。
  * 这里提供一个可在单测 / 调试页调用的扫描器：扫描 ui 目录下的 Kotlin 文件，
- * 报告直接写死的 `.dp` / `.sp` 数值（排除 Tokens.kt 自身与注释）。
+ * 报告直接写死的 `.dp` / `.sp` / `Color(0x…)` 字面量（排除 Tokens.kt 自身、主题品牌色定义与注释）。
  *
  * 用法：`HardcodeCheck.scan(projectDir)` 返回违规列表。
  */
@@ -19,24 +19,48 @@ object HardcodeCheck {
         val code: String,
     )
 
-    /** 匹配形如 `16.dp` / `8.sp` 但不以 Tokens 开头的字面量。 */
-    private val hardcodedDimen = Regex("""(?<!\w)(\d+)\.(dp|sp)\b""")
+    /** 匹配形如 `16.dp` / `0.5.dp` / `8.sp` 但不以 Tokens 开头的字面量。 */
+    private val hardcodedDimen = Regex("""(?<![\w.])(\d+(?:\.\d+)?)\.(dp|sp)\b""")
+
+    /** 匹配形如 `Color(0xFF3E7C8C)` / `Color(0xFFFFFFFF)` 的 ARGB 字面量。 */
+    private val hardcodedColor = Regex("""Color\(0x[0-9A-Fa-f]{8}\)""")
+
+    /** 主题品牌色与语义色定义集中在这些文件，Color(0x...) 在其中是合法的 token 定义。 */
+    private val tokenFiles = setOf(
+        "Tokens.kt",
+        "YuType.kt",
+        "YuBreakpoints.kt",
+        "Shape.kt",
+        "Type.kt",
+        "Color.kt",
+        "YuThemePresets.kt",
+    )
 
     fun scan(uiDir: File): List<Violation> {
         if (!uiDir.exists()) return emptyList()
         val violations = mutableListOf<Violation>()
         uiDir.walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
-            .filter { it.name != "Tokens.kt" && it.name != "HardcodeCheck.kt" }
+            .filter { it.name !in tokenFiles && it.name != "HardcodeCheck.kt" }
             .forEach { file ->
                 file.readLines().forEachIndexed { idx, raw ->
                     val line = stripComments(raw)
-                    // 排除 Tokens.xxx 和 import 行
+                    // 排除 import 行
                     if (line.trimStart().startsWith("import")) return@forEachIndexed
+
+                    // 维度扫描
                     hardcodedDimen.findAll(line).forEach { match ->
-                        // 排除紧跟在 Tokens 后面的（如 Tokens.SpacingSm）
                         val before = line.substring(0, match.range.first).trimEnd()
                         if (before.endsWith("Tokens.")) return@forEach
+                        violations += Violation(
+                            file = file.path,
+                            line = idx + 1,
+                            code = match.value,
+                        )
+                    }
+
+                    // Color 字面量扫描
+                    hardcodedColor.findAll(line).forEach { match ->
                         violations += Violation(
                             file = file.path,
                             line = idx + 1,

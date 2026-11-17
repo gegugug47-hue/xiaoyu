@@ -3,6 +3,12 @@
     <!-- M5-07: All out-of-app copy such as system notifications lives in resources, so a values-en can be added later without touching code -->
     <string name="notify_channel_proactive">Messages from her</string>
     <string name="notify_channel_proactive_desc">Messages Xiaoyu sends when she thinks of you — you can reply right from the notification</string>
+    <string name="notify_channel_proactive_quiet">Xiaoyu messages (quiet)</string>
+    <string name="notify_channel_proactive_quiet_desc">Used when sound or vibration is off: notification only, no sound or buzz</string>
+    <string name="notify_channel_proactive_no_sound">Xiaoyu messages (vibration only)</string>
+    <string name="notify_channel_proactive_no_sound_desc">Used when sound is off: vibrates without a chime</string>
+    <string name="notify_channel_proactive_no_vibrate">Xiaoyu messages (sound only)</string>
+    <string name="notify_channel_proactive_no_vibrate_desc">Used when vibration is off: chimes without vibrating</string>
     <string name="notify_channel_task">Background task results</string>
     <string name="notify_channel_task_desc">Gentle alerts when the diary, life snippets and memory tidy-up are done</string>
     <string name="notify_channel_backup">Backup</string>
