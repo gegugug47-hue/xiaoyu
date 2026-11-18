@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xiaoyu.app.R
@@ -1361,14 +1362,26 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    /** 从 SAF 选择的人格包导入；超大身份需要二次确认。 */
+    /** 从 SAF 选择的人格文件导入：`.md` / `.txt` 直接作为身份，`.xypersona` / `.zip` 走人格包；超大身份需要二次确认。 */
     fun importPersonaPack(uri: Uri, confirmLargeIdentity: Boolean = false) {
         viewModelScope.launch {
-            val temp = copyToCache(uri, "xypersona") ?: run {
+            val temp = copyToCache(uri, "persona") ?: run {
                 _toast.value = appContext.getString(R.string.vm_persona_read_failed)
                 return@launch
             }
             try {
+                // 大多数人设就是一份 Markdown：直接读文本，省得先打包
+                if (!isZipArchive(temp)) {
+                    val text = runCatching { temp.readText(Charsets.UTF_8) }.getOrNull()
+                    if (text.isNullOrBlank()) {
+                        _toast.value = appContext.getString(R.string.vm_persona_read_failed)
+                        return@launch
+                    }
+                    val name = personaNameFrom(uri, text)
+                    personaRepo.createIdentity(name, text.trim())
+                    _toast.value = appContext.getString(R.string.vm_persona_imported, name)
+                    return@launch
+                }
                 val result = personaPackArchive.import(temp, confirmLargeIdentity)
                 result.onSuccess { imported ->
                     _toast.value = when {
@@ -1455,6 +1468,28 @@ class AppViewModel @Inject constructor(
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { appContext.startActivity(chooser) }
             .onFailure { _toast.value = appContext.getString(R.string.vm_no_share_app) }
+    }
+
+    /** 通过文件头判断是不是 zip 容器（人格包），否则按纯文本 Markdown 处理。 */
+    private fun isZipArchive(file: File): Boolean = runCatching {
+        file.inputStream().use { input ->
+            val head = ByteArray(4)
+            input.read(head) == 4 && head[0] == 0x50.toByte() && head[1] == 0x4B.toByte()
+        }
+    }.getOrDefault(false)
+
+    /** 人设名：优先文件名，其次正文第一个一级标题，最后用默认名。 */
+    private fun personaNameFrom(uri: Uri, text: String): String {
+        val display = runCatching {
+            appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+        }.getOrNull()
+        display?.substringBeforeLast('.')?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+        text.lineSequence()
+            .firstOrNull { it.trimStart().startsWith("# ") }
+            ?.trimStart()?.removePrefix("# ")?.trim()?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        return appContext.getString(R.string.persona_default_identity_name)
     }
 
     /** 把 SAF 选择的文件复制到 cache，供解析器按真实路径读取；失败返回 null。 */

@@ -67,7 +67,10 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.persona_action_back)) }
                 },
                 actions = {
-                    TextButton(onClick = { packPicker.launch(arrayOf("*/*")) }) { Text(stringResource(R.string.persona_import_pack)) }
+                    TextButton(onClick = {
+                        // 大多数人设就是一份 Markdown，别逼用户先打包成 zip
+                        packPicker.launch(arrayOf("text/markdown", "text/plain", "application/zip", "*/*"))
+                    }) { Text(stringResource(R.string.persona_import_pack)) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -82,6 +85,14 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                Text(
+                    stringResource(R.string.persona_import_hint),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
             item {
                 PersonaSection(
                     title = stringResource(R.string.persona_section_identity),
@@ -208,6 +219,12 @@ private fun PersonaEditDialog(
                     label = { Text(stringResource(R.string.persona_label_description)) },
                     minLines = 8,
                     maxLines = 18,
+                )
+                // 导入的人设同样可改：存下来就以手机上的这份为准，不存在「只能改源文件」
+                Text(
+                    stringResource(R.string.persona_edit_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },

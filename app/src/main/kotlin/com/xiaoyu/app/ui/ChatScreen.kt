@@ -33,7 +33,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -50,7 +49,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -61,6 +59,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -734,19 +733,18 @@ private fun ChatPane(
                     snapshotFlow { listState.firstVisibleItemScrollOffset.toFloat() }
                         .collect { onScrollOffset(it) }
                 }
-                // 键盘弹起会把可视区压小，LazyColumn 仍锚定在原来的第一条上，
-                // 最新的消息就被输入框挡住了。输入框获得焦点且键盘展开时，逐帧贴回底部。
+                // 键盘弹起会把可视区压小，而 LazyColumn 仍锚定在原来的第一条上，
+                // 最新的消息就被输入框挡住了。两条触发路径：输入框获得焦点、视口高度变小。
                 var inputFocused by remember { mutableStateOf(false) }
-                val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-                LaunchedEffect(imeVisible, inputFocused) {
-                    if (!imeVisible || !inputFocused) return@LaunchedEffect
-                    // 覆盖键盘弹出的过渡动画（约 250ms），之后交还给用户自由滚动
-                    repeat(24) {
-                        withFrameNanos { }
-                        val info = listState.layoutInfo
-                        val last = info.visibleItemsInfo.lastOrNull() ?: return@repeat
-                        val gap = info.viewportEndOffset - (last.offset + last.size)
-                        if (gap > 1) listState.scrollBy(gap.toFloat())
+                LaunchedEffect(inputFocused) {
+                    if (inputFocused) listState.pinToLatest()
+                }
+                LaunchedEffect(listState) {
+                    var lastHeight = 0
+                    snapshotFlow { listState.layoutInfo.viewportSize.height }.collect { height ->
+                        val shrank = lastHeight > 0 && height in 1 until lastHeight
+                        lastHeight = height
+                        if (shrank) listState.pinToLatest()
                     }
                 }
                 var instantScroll by remember(sessionId) { mutableStateOf(true) }
@@ -2962,4 +2960,17 @@ private fun splitForSpeech(text: String, limit: Int = 120): List<String> {
         start = cut
     }
     return chunks
+}
+
+/**
+ * 键盘弹起时列表高度会变小，而 LazyColumn 仍锚定在原来的第一条上，最新消息被顶出视口。
+ * 连续几帧滚到最后一条（scrollToItem 会被钳到最大滚动量，正好停在底部），
+ * 覆盖键盘弹出的过渡动画，之后交还给用户自由滚动。
+ */
+private suspend fun LazyListState.pinToLatest(frames: Int = 24) {
+    repeat(frames) {
+        withFrameNanos { }
+        val target = layoutInfo.totalItemsCount - 1
+        if (target >= 0) scrollToItem(target)
+    }
 }

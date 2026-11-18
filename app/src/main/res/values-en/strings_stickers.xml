@@ -74,7 +74,9 @@
     <!-- Persona / speaking style -->
     <string name="persona_title">Who She Is</string>
     <string name="persona_action_back">Back</string>
-    <string name="persona_import_pack">Import Persona Pack</string>
+    <string name="persona_import_pack">Import Persona</string>
+    <string name="persona_import_hint">Supports .md / .txt persona text, or a .xypersona pack</string>
+    <string name="persona_edit_hint">Once saved, the copy on your phone is what she uses — imported personas can be edited too.</string>
     <string name="persona_section_identity">Identity</string>
     <string name="persona_identity_hint">Who she is: her age, where she lives, what she has been through. The more specific you are, the more she feels like someone with a past.</string>
     <string name="persona_section_style">Speaking Style</string>

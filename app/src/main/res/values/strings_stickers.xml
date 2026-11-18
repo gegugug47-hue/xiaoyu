@@ -74,7 +74,9 @@
     <!-- 人格 / 说话风格 -->
     <string name="persona_title">她是谁</string>
     <string name="persona_action_back">返回</string>
-    <string name="persona_import_pack">导入人格包</string>
+    <string name="persona_import_pack">导入人设</string>
+    <string name="persona_import_hint">支持 .md / .txt 人设文本，也支持 .xypersona 人格包</string>
+    <string name="persona_edit_hint">保存后以手机上的这一份为准；导入的人设也可以随时改。</string>
     <string name="persona_section_identity">身份</string>
     <string name="persona_identity_hint">她是谁：年龄、住在哪、经历过什么。写得越具体，她越像一个有过去的人。</string>
     <string name="persona_section_style">说话风格</string>
