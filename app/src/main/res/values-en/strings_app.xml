@@ -90,6 +90,7 @@
     <string name="vm_share_persona">Share persona pack</string>
     <string name="vm_persona_created">Persona pack created (%1$d KB)</string>
     <string name="vm_persona_read_failed">Couldn\'t read the persona file. Please choose it again.</string>
+    <string name="vm_persona_imported_current">Imported “%1$s” — new chats will use her</string>
     <string name="vm_persona_too_large">The identity profile is too large and needs confirmation</string>
     <string name="vm_persona_imported">Imported \"%1$s\"</string>
     <string name="vm_persona_imported_styles">, %1$d styles</string>

@@ -90,6 +90,7 @@
     <string name="vm_share_persona">分享人格包</string>
     <string name="vm_persona_created">人格包已生成（%1$d KB）</string>
     <string name="vm_persona_read_failed">读取人设文件失败，请重新选择文件</string>
+    <string name="vm_persona_imported_current">已导入「%1$s」，新对话将使用她</string>
     <string name="vm_persona_too_large">身份设定过大，需要确认</string>
     <string name="vm_persona_imported">已导入「%1$s」</string>
     <string name="vm_persona_imported_styles">，风格 %1$d 个</string>

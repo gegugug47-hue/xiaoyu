@@ -1207,6 +1207,11 @@ class AppViewModel @Inject constructor(
 
     // ---------------- 人设 ----------------
 
+    /** 把人设设为默认：之后新建的对话都用她；已有对话仍沿用各自创建时绑定的人设。 */
+    fun useIdentity(id: Long) {
+        viewModelScope.launch { settingsRepo.update { it.copy(chosenIdentityId = id) } }
+    }
+
     fun saveIdentity(id: Long?, name: String, content: String) {
         viewModelScope.launch {
             if (id == null) personaRepo.createIdentity(name, content)
@@ -1378,8 +1383,10 @@ class AppViewModel @Inject constructor(
                         return@launch
                     }
                     val name = personaNameFrom(uri, text)
-                    personaRepo.createIdentity(name, text.trim())
-                    _toast.value = appContext.getString(R.string.vm_persona_imported, name)
+                    val newId = personaRepo.createIdentity(name, text.trim())
+                    // 导入即生效：设为默认人设，新建的对话直接由她来聊
+                    settingsRepo.update { it.copy(chosenIdentityId = newId) }
+                    _toast.value = appContext.getString(R.string.vm_persona_imported_current, name)
                     return@launch
                 }
                 val result = personaPackArchive.import(temp, confirmLargeIdentity)

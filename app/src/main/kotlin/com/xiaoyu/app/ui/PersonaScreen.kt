@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -26,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,6 +54,9 @@ private data class PersonaDraft(val id: Long?, val name: String, val content: St
 fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val identities by viewModel.identities.collectAsStateWithLifecycle()
     val styles by viewModel.styles.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    // 会话创建时会绑定「默认人设」，没有显式选择时回落到列表第一位
+    val activeIdentityId = settings.chosenIdentityId ?: identities.firstOrNull()?.id
     var draft by remember { mutableStateOf<PersonaDraft?>(null) }
     val defaultIdentityName = stringResource(R.string.persona_default_identity_name)
     val defaultStyleName = stringResource(R.string.persona_default_style_name)
@@ -107,6 +114,8 @@ fun PersonaScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                             onDelete = { viewModel.deleteIdentity(identity.id) },
                             onShare = { viewModel.sharePersonaPack(identity.id) },
                             deletable = identities.size > 1,
+                            inUse = identity.id == activeIdentityId,
+                            onUse = { viewModel.useIdentity(identity.id) },
                         )
                     }
                 }
@@ -177,11 +186,24 @@ private fun PersonaRow(
     onDelete: () -> Unit,
     deletable: Boolean,
     onShare: (() -> Unit)? = null,
+    inUse: Boolean = false,
+    onUse: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+            if (inUse) {
+                Text(
+                    stringResource(R.string.persona_in_use),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
             Spacer(Modifier.weight(1f))
+            if (!inUse) {
+                onUse?.let { use -> TextButton(onClick = use) { Text(stringResource(R.string.persona_action_use)) } }
+            }
             onShare?.let { share -> TextButton(onClick = share) { Text(stringResource(R.string.persona_action_share)) } }
             TextButton(onClick = onEdit) { Text(stringResource(R.string.persona_action_edit)) }
             if (deletable) TextButton(onClick = onDelete) { Text(stringResource(R.string.persona_action_delete)) }
@@ -204,21 +226,44 @@ private fun PersonaEditDialog(
     var name by remember { mutableStateOf(draft.name) }
     var content by remember { mutableStateOf(draft.content) }
 
-    AlertDialog(
+    // 用固定高度的自定义对话框：AlertDialog 每输一个字都会重新测量内容高度，
+    // 长文本编辑时整个框上下闪跳；这里锁住高度，只让输入框内部滚动。
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (draft.isStyle) stringResource(R.string.persona_dialog_title_style) else stringResource(R.string.persona_dialog_title_identity)) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .imePadding()
+                .fillMaxHeight(0.86f),
+        ) {
             Column(
-                Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.persona_label_name)) }, singleLine = true)
+                Text(
+                    if (draft.isStyle) stringResource(R.string.persona_dialog_title_style)
+                    else stringResource(R.string.persona_dialog_title_identity),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.persona_label_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
                     label = { Text(stringResource(R.string.persona_label_description)) },
-                    minLines = 8,
-                    maxLines = 18,
+                    // 固定占满剩余高度：输入时只有框内文字滚动，对话框尺寸不再变化
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                 )
                 // 导入的人设同样可改：存下来就以手机上的这份为准，不存在「只能改源文件」
                 Text(
@@ -226,11 +271,13 @@ private fun PersonaEditDialog(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.persona_action_cancel)) }
+                    Button(onClick = { onConfirm(name, content) }, enabled = content.isNotBlank()) {
+                        Text(stringResource(R.string.persona_action_save))
+                    }
+                }
             }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(name, content) }, enabled = content.isNotBlank()) { Text(stringResource(R.string.persona_action_save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.persona_action_cancel)) } },
-    )
+        }
+    }
 }
