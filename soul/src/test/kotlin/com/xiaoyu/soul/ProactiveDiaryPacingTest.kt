@@ -196,7 +196,7 @@ class ProactiveDiaryPacingTest {
     }
 
     @Test
-    fun `回复延迟夹在十秒到十五分钟之间`() {
+    fun `回复延迟夹在六百毫秒到九秒之间`() {
         var hitMin = false
         var hitMax = false
         for (seed in 0 until 500) {
@@ -205,8 +205,8 @@ class ProactiveDiaryPacingTest {
             if (low == ReplyPacer.MIN_DELAY_MS) hitMin = true
 
             val high = ReplyPacer.delayMillis(2.0f, energy = 20, hourOfDay = 3, random = Random(seed))
-            assertTrue(high <= 900_000L)
-            if (high == 900_000L) hitMax = true
+            assertTrue(high <= ReplyPacer.MAX_DELAY_MS)
+            if (high == ReplyPacer.MAX_DELAY_MS) hitMax = true
         }
         assertTrue(hitMin)
         assertTrue(hitMax)

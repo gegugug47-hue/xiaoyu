@@ -880,7 +880,9 @@ class ChatRepository @Inject constructor(
                     // 用户消息里的 [xy:*] 一律转义，防止伪造协议（3.3.1）
                     content = XyTokenParser.escapeUserText(userText),
                     createdAt = now,
-                    status = STATUS_SENDING,
+                    // 自己发的消息一落库就算「已发送」：真人聊天里对方还没回，
+                    // 也不会一直把你的消息显示成「发送中」
+                    status = STATUS_SENT,
                     quoteToId = quoteToId,
                 )
             )
@@ -962,11 +964,13 @@ class ChatRepository @Inject constructor(
         // v3 §12.9 / H-23：默认 none，用户开启后才注入表情目录
         val stickerCatalog = if (settings.current().stickersEnabled) stickerRepo.catalogForPrompt(40) else emptyList()
         if (config.immersiveEnabled) {
+            // 停顿按「读你这句 + 组织语言」估算，落在 0.6~9 秒；不再有十分钟级的等待
             val delayMs = ReplyPacer.delayMillis(
                 intensity = config.immersiveIntensity,
                 energy = mood.energy,
                 hourOfDay = hour,
                 random = Random.Default,
+                userTextLength = userText?.length ?: 20,
             )
             emit(ChatEvent.Typing(delayMs))
             delay(delayMs)
@@ -1016,7 +1020,16 @@ class ChatRepository @Inject constructor(
                     persisted += 1
                     flushStickers()
                     emit(ChatEvent.SegmentBreak)
-                    if (segmentSending) delay(600L + Random.nextLong(-300, 301))
+                    if (segmentSending) {
+                        // 连发之间的停顿：像真人打完一句、停一下再补一句；
+                        // 关掉回复节奏时保留一个固定的短停顿，不做长时间等待
+                        val gap = if (config.immersiveEnabled) {
+                            ReplyPacer.segmentGapMillis(config.immersiveIntensity, hour, Random.Default)
+                        } else {
+                            600L
+                        }
+                        delay(gap)
+                    }
                 }
                 is PostEvent.Sticker -> {
                     val sticker = stickerRepo.resolve(ev.stickerId, stickerCatalog)

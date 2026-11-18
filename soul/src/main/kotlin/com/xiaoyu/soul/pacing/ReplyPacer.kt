@@ -3,29 +3,52 @@ package com.xiaoyu.soul.pacing
 import kotlin.random.Random
 
 /**
- * 回复节奏（PRD 9.2）：默认关闭；开启后 10 秒 ~ 5 分钟随机延迟，
- * 深夜更长；深夜且低能量时直接“困了”。多条消息合并回复由聊天层负责。
+ * 回复节奏（PRD 9.2）：默认关闭。
+ *
+ * 真人聊天的停顿不是「等五分钟」，而是：看到消息 → 想一下 → 边打字边发。
+ * 所以单次停顿控制在 0.6~9 秒：强度滑杆只做线性缩放，
+ * 再慢也不会慢到让人以为她掉线了；早期 10 秒~5 分钟的区间已废弃。
  */
 object ReplyPacer {
-    const val MIN_DELAY_MS = 10_000L
-    const val MAX_DELAY_MS = 300_000L
+    /** 最快也要喘口气，避免秒回得像机器人。 */
+    const val MIN_DELAY_MS = 600L
+    /** 超过这个时长，「正在输入」就变成失联提示了。 */
+    const val MAX_DELAY_MS = 9_000L
 
     fun delayMillis(
         intensity: Float,
         energy: Int,
         hourOfDay: Int,
         random: Random,
+        userTextLength: Int = 20,
     ): Long {
-        val factor = when (hourOfDay) {
-            in 0..5 -> 1.9
-            23 -> 1.4
-            6, 7 -> 1.2
+        // 读你这句话要的时间：中文按每字 90ms 估，最长 3 秒
+        val reading = (userTextLength.coerceIn(1, 400) * 90L).coerceAtMost(3_000L)
+        // 组织语言的起步停顿 + 抖动
+        val start = 400L + random.nextLong(0L, 900L)
+        val base = reading + start
+        // 深夜稍慢一点，但不惩罚到夸张
+        val hourFactor = when (hourOfDay) {
+            in 0..5 -> 1.5
+            23 -> 1.2
+            6, 7 -> 1.1
             else -> 1.0
         }
-        val energyFactor = if (energy < 30) 1.3 else 1.0
-        val scale = intensity.coerceIn(0.2f, 2.0f) * factor * energyFactor
-        val base = MIN_DELAY_MS + random.nextDouble() * (MAX_DELAY_MS - MIN_DELAY_MS)
-        return (base * scale).toLong().coerceIn(MIN_DELAY_MS, 900_000L)
+        val energyFactor = if (energy < 30) 1.15 else 1.0
+        val scale = intensity.coerceIn(0.2f, 2.0f) * hourFactor * energyFactor
+        return (base * scale).toLong().coerceIn(MIN_DELAY_MS, MAX_DELAY_MS)
+    }
+
+    /** 分段连发之间的停顿：像真人打完一句、停一下再补一句。 */
+    fun segmentGapMillis(
+        intensity: Float,
+        hourOfDay: Int,
+        random: Random,
+    ): Long {
+        val hourFactor = if (hourOfDay in 0..5) 1.4 else 1.0
+        val scale = intensity.coerceIn(0.2f, 2.0f) * hourFactor
+        val base = 700L + random.nextLong(0L, 1_100L)
+        return (base * scale).toLong().coerceIn(300L, 2_500L)
     }
 
     fun shouldSaySleepy(hourOfDay: Int, energy: Int, random: Random): Boolean {

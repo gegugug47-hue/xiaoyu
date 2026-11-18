@@ -33,6 +33,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -49,6 +50,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -114,6 +116,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -731,6 +734,21 @@ private fun ChatPane(
                     snapshotFlow { listState.firstVisibleItemScrollOffset.toFloat() }
                         .collect { onScrollOffset(it) }
                 }
+                // 键盘弹起会把可视区压小，LazyColumn 仍锚定在原来的第一条上，
+                // 最新的消息就被输入框挡住了。输入框获得焦点且键盘展开时，逐帧贴回底部。
+                var inputFocused by remember { mutableStateOf(false) }
+                val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+                LaunchedEffect(imeVisible, inputFocused) {
+                    if (!imeVisible || !inputFocused) return@LaunchedEffect
+                    // 覆盖键盘弹出的过渡动画（约 250ms），之后交还给用户自由滚动
+                    repeat(24) {
+                        withFrameNanos { }
+                        val info = listState.layoutInfo
+                        val last = info.visibleItemsInfo.lastOrNull() ?: return@repeat
+                        val gap = info.viewportEndOffset - (last.offset + last.size)
+                        if (gap > 1) listState.scrollBy(gap.toFloat())
+                    }
+                }
                 var instantScroll by remember(sessionId) { mutableStateOf(true) }
                 val displayMessages = if (isContinuous) allMessages else messages
                 // v3 §14.5：只渲染最近 N 条，上滑到顶再逐页放出更早的历史
@@ -1136,6 +1154,7 @@ private fun ChatPane(
                     stickersOpen = showStickers,
                     onToggleStickers = { showStickers = !showStickers },
                     onCloseStickers = { showStickers = false },
+                    onFocusChanged = { inputFocused = it },
                     clearDraftSignal = clearDraftSignal,
                     clearDraftIdentityId = clearDraftIdentityId,
                     insertText = pendingEmoji,
@@ -1996,6 +2015,7 @@ private fun InputBar(
     stickersOpen: Boolean = false,
     onToggleStickers: () -> Unit = {},
     onCloseStickers: () -> Unit = {},
+    onFocusChanged: (Boolean) -> Unit = {},
     clearDraftSignal: Int = 0,
     clearDraftIdentityId: Long? = null,
     insertText: String? = null,
@@ -2022,6 +2042,9 @@ private fun InputBar(
     val sendContentDescription = stringResource(R.string.chat_send)
     val voiceContentDescription = stringResource(R.string.chat_a11y_voice_hold)
     val context = LocalContext.current
+
+    // 输入框聚焦状态上报给聊天页：键盘弹起时据此把最新消息贴回可视区
+    LaunchedEffect(focused) { onFocusChanged(focused) }
 
     // 切回该人设时自动恢复草稿；切换人设时先用旧 id 存旧文本，再加载新人设草稿（M1-09）
     LaunchedEffect(identityId) {
