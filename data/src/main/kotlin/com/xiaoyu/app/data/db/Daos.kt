@@ -42,6 +42,14 @@ interface SessionDao {
     @Query("UPDATE sessions SET extracted_state = :state, extract_attempts = extract_attempts + 1 WHERE id = :id")
     suspend fun setExtractState(id: Long, state: String)
 
+    /** 提炼失败（网络/解析）：只累计失败次数，供调用方做重试上限判定。 */
+    @Query("UPDATE sessions SET extracted_state = 'failed', extract_attempts = extract_attempts + 1 WHERE id = :id")
+    suspend fun markExtractFailed(id: Long)
+
+    /** 提炼完成：状态落定并清零失败计数。 */
+    @Query("UPDATE sessions SET extracted_state = 'done', extract_attempts = 0 WHERE id = :id")
+    suspend fun markExtractDone(id: Long)
+
     @Query("UPDATE sessions SET title = :title WHERE id = :id")
     suspend fun rename(id: Long, title: String)
 
@@ -87,8 +95,19 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE session_id = :sessionId AND hidden = 0 ORDER BY created_at ASC, id ASC")
     suspend fun visibleForSession(sessionId: Long): List<MessageEntity>
 
+    /**
+     * 记忆提炼用：撤回的消息不再参与提炼。
+     * 不能直接改 [visibleForSession]——聊天历史与导出仍要展示「你撤回了一条消息」占位。
+     */
+    @Query("SELECT * FROM messages WHERE session_id = :sessionId AND hidden = 0 AND retracted = 0 ORDER BY created_at ASC, id ASC")
+    suspend fun visibleForExtraction(sessionId: Long): List<MessageEntity>
+
+    /** 某条用户消息之后是否已经落下她的回复（只算可见消息）。 */
+    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId AND role = 'assistant' AND hidden = 0 AND created_at >= :since")
+    suspend fun countAssistantSince(sessionId: Long, since: Long): Int
+
     /** v3 H-14：统计游标之后的可见消息数，用于增量提炼触发判定。 */
-    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId AND hidden = 0 AND created_at > :cursor")
+    @Query("SELECT COUNT(*) FROM messages WHERE session_id = :sessionId AND hidden = 0 AND retracted = 0 AND created_at > :cursor")
     suspend fun countSince(sessionId: Long, cursor: Long): Int
 
     @Query("SELECT * FROM messages WHERE session_id = :sessionId AND hidden = 0 AND retracted = 0 ORDER BY created_at DESC, id DESC LIMIT :limit")
@@ -118,7 +137,7 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE hidden = 0 AND content LIKE '%' || :keyword || '%' ORDER BY created_at DESC LIMIT :limit")
     suspend fun search(keyword: String, limit: Int = 30): List<MessageEntity>
 
-    @Query("SELECT * FROM messages WHERE hidden = 0 AND created_at >= :since ORDER BY created_at ASC LIMIT 300")
+    @Query("SELECT * FROM messages WHERE hidden = 0 AND retracted = 0 AND created_at >= :since ORDER BY created_at ASC LIMIT 300")
     suspend fun since(since: Long): List<MessageEntity>
 
     /** 所有带图片的可见消息（PRD US-018 图库）。 */
@@ -139,21 +158,42 @@ interface MessageDao {
     @Query("UPDATE messages SET content = :content, edited_at = :editedAt, status = 'sent' WHERE id = :id")
     suspend fun updateContent(id: Long, content: String, editedAt: Long)
 
-    // ---- 撤回（M3-07）：只对自己的消息有效，标记后正文不展示 ----
-    @Query("UPDATE messages SET retracted = 1 WHERE id = :id AND role = 'user'")
+    // ---- 重发 / 编辑重发（M3-07）：复用的用户消息要重新排到时间线末尾 ----
+    @Query("UPDATE messages SET created_at = :createdAt WHERE id = :id")
+    suspend fun updateCreatedAt(id: Long, createdAt: Long)
+
+    // ---- 撤回（M3-07）：只对自己的消息有效，标记后正文一并清空（软删，不物理删除） ----
+    @Query("UPDATE messages SET retracted = 1, content = '' WHERE id = :id AND role = 'user'")
     suspend fun retract(id: Long)
 
-    // ---- 重新生成的历史版本（M3-06）：同 reply_group_id 的全部 AI 文本版本，含 hidden=1 ----
+    // ---- 重新生成的历史版本（M3-06）----
+    /**
+     * 同一版本家族（version_family_id）的全部轮次消息，含 hidden=1。
+     * 兼容旧数据：早期重新生成复用 reply_group_id 作家族 id，因此也按它匹配。
+     * 每一轮的分段共享 reply_group_id，调用方按「轮」聚合后再展示。
+     */
     @Query(
         """
         SELECT * FROM messages
-        WHERE reply_group_id = :groupId AND role = 'assistant' AND type = 'text'
+        WHERE (version_family_id = :family OR reply_group_id = :family) AND role = 'assistant'
         ORDER BY created_at ASC, id ASC
         """
     )
-    suspend fun assistantVersions(groupId: String): List<MessageEntity>
+    suspend fun assistantVersions(family: String): List<MessageEntity>
 
-    /** 切换版本时先整组收起旧版本，再单独放亮选中的那条（只改 hidden，不删数据）。 */
+    /** 切换版本时先整族收起旧版本（只改 hidden，不删数据）。 */
+    @Query("UPDATE messages SET hidden = 1 WHERE version_family_id = :family OR reply_group_id = :family")
+    suspend fun hideFamily(family: String)
+
+    /** 放亮某一轮的全部消息（含同轮的表情分段）。 */
+    @Query("UPDATE messages SET hidden = 0 WHERE reply_group_id = :roundId")
+    suspend fun unhideRound(roundId: String)
+
+    /** 某一版本族里当前可见的消息（用于重新生成失败时恢复上一条有效回复）。 */
+    @Query("SELECT * FROM messages WHERE (version_family_id = :family OR reply_group_id = :family) AND hidden = 0")
+    suspend fun visibleInFamily(family: String): List<MessageEntity>
+
+    /** 整轮收起（拦截重试 / 重新生成回滚用）。 */
     @Query("UPDATE messages SET hidden = 1 WHERE reply_group_id = :groupId")
     suspend fun hideGroup(groupId: String)
 

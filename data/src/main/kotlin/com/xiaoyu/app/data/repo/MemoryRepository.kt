@@ -29,6 +29,9 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** 提炼输出解析失败的次数上限：超过后放弃本轮，避免后台无休止重试。 */
+private const val MAX_PARSE_FAILURES = 3
+
 /**
  * 三级记忆系统（PRD 5）：会话结束提炼 → 短期碎片 → 每晚晋升/衰减 → 长期卡片。
  * 红线：绝不触碰 messages 的删除；遗忘只作用于 memories 表。
@@ -57,7 +60,8 @@ class MemoryRepository @Inject constructor(
         val session = sessionDao.byId(sessionId) ?: return false
         // v3 H-14：仅提炼游标之后的消息，实现会话内增量提炼
         val cursor = session.extractCursor
-        val allVisible = messageDao.visibleForSession(sessionId)
+        // 撤回的消息正文已被清空，不能再作为记忆提炼的输入
+        val allVisible = messageDao.visibleForExtraction(sessionId)
             // v3 §8.2：L2 及以上的危机消息整条跳过，绝不提炼进记忆
             .filterNot {
                 it.role == ROLE_USER &&
@@ -65,16 +69,27 @@ class MemoryRepository @Inject constructor(
             }
         val messages = allVisible.filter { it.createdAt > cursor }
         if (messages.isEmpty()) {
-            sessionDao.setExtractState(sessionId, "done")
+            sessionDao.markExtractDone(sessionId)
             // 没有新消息也前移游标，避免重复判定
             allVisible.lastOrNull()?.let { sessionDao.updateExtractCursor(sessionId, it.createdAt) }
             return true
         }
         val prompt = soul.extractMemoriesPrompt(title, messages.map { it.toSoulMessage() })
         val raw = router.completeJson(BrainRole.EXTRACT, null, prompt)
-        val parsed = MemoryExtractionParser.parseMemories(raw)
         if (raw == null) {
-            sessionDao.setExtractState(sessionId, "failed")
+            sessionDao.markExtractFailed(sessionId)
+            return false
+        }
+        val parsed = MemoryExtractionParser.parseMemories(raw)
+        if (!MemoryExtractionParser.hasParsableArray(raw)) {
+            // 输出被截断 / 夹带说明 ≠ 确实没有可记内容：游标留在原处，允许下次重试。
+            // 累计失败到上限后标 done 停止重排（避免死循环），游标仍不前进，
+            // 后续有新消息时这批消息会一起再次参与提炼。
+            if (session.extractAttempts + 1 >= MAX_PARSE_FAILURES) {
+                sessionDao.markExtractDone(sessionId)
+                return true
+            }
+            sessionDao.markExtractFailed(sessionId)
             return false
         }
         val now = System.currentTimeMillis()
@@ -102,7 +117,7 @@ class MemoryRepository @Inject constructor(
         }
         // v3 H-14：提炼完成后游标前移到本轮最后一条消息
         messages.lastOrNull()?.let { sessionDao.updateExtractCursor(sessionId, it.createdAt) }
-        sessionDao.setExtractState(sessionId, "done")
+        sessionDao.markExtractDone(sessionId)
         return true
     }
 
@@ -197,14 +212,15 @@ class MemoryRepository @Inject constructor(
     suspend fun runNightlySettlement(now: Long = System.currentTimeMillis()) {
         val shortTerm = memoryDao.shortTerm()
         for (memory in shortTerm) {
-            val days = (now - memory.lastAccess) / 86_400_000.0
-            val strength = ForgettingCurve.decayedStrength(
+            val strength = ForgettingCurve.nightlyStrength(
                 current = memory.strength,
-                days = days,
+                lastAccess = memory.lastAccess,
+                now = now,
                 importance = memory.importance,
-                longTerm = false,
             )
-            if (strength != memory.strength) memoryDao.setStrength(memory.id, strength)
+            // 衰减与推进 last_access 必须同一条 UPDATE：否则下一晚会把已经衰减过的天数
+            // 再按累计天数衰减一次（复合衰减），importance=3 的碎片约 3 晚就会进回收站。
+            memoryDao.updateStrength(memory.id, strength, memory.reviewCount, now)
             if (ForgettingCurve.shouldBin(strength)) {
                 memoryDao.moveToBin(memory.id, now)
             }

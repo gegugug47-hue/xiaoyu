@@ -44,10 +44,13 @@ import com.xiaoyu.soul.prompt.PromptContext
 import com.xiaoyu.soul.sticker.StickerCooldown
 import com.xiaoyu.soul.util.TokenEstimator
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalTime
@@ -97,6 +100,14 @@ sealed interface ChatEvent {
     data object Completed : ChatEvent
 
     data class Failed(val message: String, val partial: String) : ChatEvent
+}
+
+/**
+ * 单轮生成的可变状态：flow 被取消后 onCompletion 仍要读取，
+ * 所以声明在 flow 作用域之外，避免误伤下一轮刚插入的用户消息。
+ */
+private class ReplyTurnState {
+    var userMessageId: Long? = null
 }
 
 /**
@@ -300,14 +311,42 @@ class ChatRepository @Inject constructor(
         if (msg.role != ROLE_USER) return false
         if (System.currentTimeMillis() - msg.createdAt > RETRACT_WINDOW_MS) return false
         messageDao.retract(messageId)
+        // 正文已清空，同步删掉全文索引，避免撤回内容还能被搜索命中
+        runCatching { messageDao.deleteFts(messageId) }
         return true
     }
 
-    /** 编辑重发（M3-07）：更新正文 + 标记 edited_at，然后基于新文本再触发一轮回复。 */
+    /**
+     * 编辑重发（M3-07）：更新正文 + 标记 edited_at，然后基于新文本再触发一轮回复。
+     * 语义选择：编辑后这条消息会排到时间线末尾，因此把它之后、下一条用户消息之前的
+     * 她的回复整段软隐藏（只改 hidden），避免出现「她先答、你再问」的倒序；不删任何数据。
+     * 若后面已经有新的用户消息，挪到末尾会打乱整段时间线，此时直接拒绝并说明原因。
+     */
     suspend fun editAndResend(sessionId: Long, messageId: Long, newText: String): Flow<ChatEvent> {
-        messageDao.updateContent(messageId, newText.trim(), System.currentTimeMillis())
+        val visible = messageDao.visibleForSession(sessionId)
+        val index = visible.indexOfFirst { it.id == messageId }
+        if (index >= 0 && visible.drop(index + 1).any { it.role == ROLE_USER }) {
+            return flow {
+                emit(ChatEvent.Failed(appContext.getString(R.string.data_chat_edit_blocked), ""))
+            }
+        }
+        val now = System.currentTimeMillis()
+        hideRepliesAfter(visible, index)
+        messageDao.updateContent(messageId, newText.trim(), now)
+        // 复用手上这条用户消息并把它排回时间线末尾，避免同一句话再插一条导致 history 里重复
+        messageDao.updateCreatedAt(messageId, now)
         reindexMessage(messageId)
-        return replyFlow(sessionId, newText, continueMode = false)
+        return replyFlow(sessionId, newText, continueMode = false, existingUserMessageId = messageId)
+    }
+
+    /** 软隐藏某条用户消息之后、下一条用户消息之前的 assistant 回复（编辑重发用）。 */
+    private suspend fun hideRepliesAfter(visible: List<MessageEntity>, index: Int) {
+        if (index < 0) return
+        val ids = visible.drop(index + 1)
+            .takeWhile { it.role != ROLE_USER }
+            .filter { it.role == ROLE_ASSISTANT }
+            .map { it.id }
+        if (ids.isNotEmpty()) messageDao.hideBatch(ids)
     }
 
     /** 正文变更后同步全文索引（M7-04）。 */
@@ -331,8 +370,11 @@ class ChatRepository @Inject constructor(
             ?: return flow {
                 emit(ChatEvent.Failed(appContext.getString(R.string.data_chat_message_not_found), ""))
             }
+        val now = System.currentTimeMillis()
         messageDao.updateStatus(messageId, STATUS_SENDING)
-        return replyFlow(sessionId, msg.content, continueMode = false)
+        // 复用这条已存在的用户消息并排回时间线末尾，避免重发时同一句话在库里出现两次、history 里也重复
+        messageDao.updateCreatedAt(messageId, now)
+        return replyFlow(sessionId, msg.content, continueMode = false, existingUserMessageId = messageId)
     }
 
     suspend fun endSession(id: Long) {
@@ -606,40 +648,76 @@ class ChatRepository @Inject constructor(
     }
 
     /**
-     * 重新生成（执行书 6.3.6）：同组旧消息软隐藏，复用当次请求的 prompt 快照重来一次。
-     * 新旧版本共享 reply_group_id，供「查看之前的版本」切换。
+     * 重新生成（执行书 6.3.6）：同族旧版本整族软隐藏，复用当次请求的 prompt 快照重来一次。
+     * 新旧版本共享 version_family_id，供「查看之前的版本」按轮切换。
+     * 若本轮生成失败 / 被取消，回滚成生成前的可见版本，保证永远能看到上一条有效回复。
      */
     suspend fun regenerate(sessionId: Long, messageId: Long): Flow<ChatEvent> = flow {
         val target = messageDao.byId(messageId)
-        val groupId = target?.replyGroupId ?: UUID.randomUUID().toString()
-        // 整组收起（只改 hidden），避免切换版本时出现两条同时可见的回复
-        if (target?.replyGroupId != null) {
-            messageDao.hideGroup(groupId)
+        val familyId = target?.versionFamilyId ?: target?.replyGroupId
+        // 记录生成前可见的版本，失败时用于恢复
+        val previousVisible = if (familyId != null) {
+            messageDao.visibleInFamily(familyId)
+        } else {
+            listOfNotNull(target)
+        }
+        // 整族收起（只改 hidden），避免切换版本时出现两条同时可见的回复
+        if (familyId != null) {
+            messageDao.hideFamily(familyId)
         } else {
             messageDao.hide(messageId)
         }
+        // 预先分配本轮 id，失败时才能精确回滚这一轮的半截分段
+        val roundId = UUID.randomUUID().toString()
         val snapshot = findSnapshot(sessionId, target?.content.orEmpty())
-        replyFlow(
-            sessionId = sessionId,
-            userText = null,
-            continueMode = false,
-            extraDirective = "请换一种说法重新回答上一条，不要重复刚才的表达。",
-            versionGroupId = groupId,
-            reuseSnapshot = snapshot,
-        ).collect { emit(it) }
+        var succeeded = false
+        try {
+            replyFlow(
+                sessionId = sessionId,
+                userText = null,
+                continueMode = false,
+                extraDirective = "请换一种说法重新回答上一条，不要重复刚才的表达。",
+                versionFamilyId = familyId,
+                roundId = roundId,
+                reuseSnapshot = snapshot,
+            ).collect { event ->
+                if (event is ChatEvent.Completed) succeeded = true
+                emit(event)
+            }
+        } finally {
+            if (!succeeded) {
+                withContext(NonCancellable) {
+                    // 生成失败 / 无内容 / 被取消：新版本可能只落了半截分段，整轮收起后恢复旧版本
+                    messageDao.hideGroup(roundId)
+                    previousVisible.ifEmpty { listOfNotNull(target) }
+                        .forEach { messageDao.unhide(it.id) }
+                }
+            }
+        }
     }
 
-    /** 同组的全部生成版本（含已隐藏），按时间正序。 */
+    /**
+     * 同族的全部生成版本（含已隐藏），按轮聚合后每轮取第一条文本分段做代表。
+     * 分段发送时同一轮的多个气泡共享 reply_group_id，不能把每个分段都当成一个版本。
+     */
     suspend fun versions(messageId: Long): List<MessageEntity> {
         val message = messageDao.byId(messageId) ?: return emptyList()
-        val groupId = message.replyGroupId ?: return listOf(message)
-        return messageDao.assistantVersions(groupId)
+        val family = message.versionFamilyId ?: message.replyGroupId ?: return listOf(message)
+        return messageDao.assistantVersions(family)
+            .filter { it.type == TYPE_TEXT }
+            .groupBy { it.replyGroupId ?: "solo-${it.id}" }
+            .values
+            .map { round -> round.minBy { it.createdAt } }
+            .sortedBy { it.createdAt }
     }
 
-    /** 切换到某一历史版本：整组收起后只放亮这一条。 */
+    /** 切换到某一历史版本：整族收起后整轮放亮（同轮的其它分段和表情一起回来）。 */
     suspend fun switchVersion(groupId: String, messageId: Long) {
-        messageDao.hideGroup(groupId)
-        messageDao.unhide(messageId)
+        val target = messageDao.byId(messageId) ?: return
+        val family = target.versionFamilyId ?: target.replyGroupId ?: groupId
+        messageDao.hideFamily(family)
+        val round = target.replyGroupId
+        if (round != null) messageDao.unhideRound(round) else messageDao.unhide(messageId)
     }
 
     /** 找到生成这条消息时用的请求快照：优先选原始输出里含该消息片段的，退化为最近一次。 */
@@ -719,22 +797,26 @@ class ChatRepository @Inject constructor(
         transientContext: String? = null,
         extraDirective: String? = null,
         quoteToId: Long? = null,
-        /** 重新生成时与旧版本共享的组 id（M3-06）；为空则本轮新建。 */
-        versionGroupId: String? = null,
+        /** 重新生成时与旧版本共享的版本家族 id（M3-06）；为空表示这条回复只有一个版本。 */
+        versionFamilyId: String? = null,
+        /** 重新生成时预先分配的本轮 id，便于失败时精确回滚这一轮。 */
+        roundId: String? = null,
         /** 重新生成时复用的请求快照（M3-06）。 */
         reuseSnapshot: RequestSnapshotEntity? = null,
+        /** 重发 / 编辑重发时复用已有的用户消息 id，避免同一句用户消息在库里出现两次。 */
+        existingUserMessageId: Long? = null,
+        turnState: ReplyTurnState = ReplyTurnState(),
     ): Flow<ChatEvent> = flow {
         val session = sessionDao.byId(sessionId) ?: throw IllegalStateException("会话不存在")
         stickerCooldown.onTurnStarted()
         val now = System.currentTimeMillis()
         val directives = mutableListOf<String>()
-        var userMessageId: Long? = null
 
         // v3 §4.4：连续超长回复累计 3 次后，本轮追加长度约束
         lengthGuard.directive()?.let { directives += it }
 
         if (userText != null) {
-            userMessageId = insertMessage(
+            turnState.userMessageId = existingUserMessageId ?: insertMessage(
                 MessageEntity(
                     sessionId = sessionId,
                     role = ROLE_USER,
@@ -748,7 +830,7 @@ class ChatRepository @Inject constructor(
             sessionDao.touch(sessionId, now)
             autoTitle(sessionId, session.title, userText)
             // v3 §7.4.6：被夸 / 被道歉时，她可能给你的消息补一个 reaction（本地规则）
-            userMessageId?.let { maybeReactToUserMessage(it, userText) }
+            turnState.userMessageId?.let { maybeReactToUserMessage(it, userText) }
             handleExplicitMemory(userText)?.let { directives += it }
             handleDiaryRequest(userText)?.let { directives += it }
         } else if (continueMode) {
@@ -798,10 +880,21 @@ class ChatRepository @Inject constructor(
         // v3 §12.9 / H-23：默认 none，用户开启后才注入表情目录
         val stickerCatalog = if (settings.current().stickersEnabled) stickerRepo.catalogForPrompt(40) else emptyList()
         if (config.segmentSending) directives += SEGMENT_DIRECTIVE
+        val replyGroupId = roundId ?: UUID.randomUUID().toString()
         // v3 §4.14 / H-10：深夜 + 低精力时自然收束，说晚安结束本轮（不依赖沉浸模式开关）
         if (ReplyPacer.shouldSaySleepy(hour, mood.energy, Random.Default)) {
             val line = ReplyPacer.sleepyLine(Random.Default)
-            persistAssistant(sessionId, line)
+            // 重新生成时也要挂在同一版本族下，否则旧版本会被藏起来又切不回去
+            persistAssistant(
+                sessionId = sessionId,
+                content = line,
+                replyGroupId = if (versionFamilyId != null) replyGroupId else null,
+                versionFamilyId = versionFamilyId,
+            )
+            // 这条分支也必须走完正常收尾：用户消息不能一直停在「发送中」
+            turnState.userMessageId?.let { messageDao.updateStatus(it, STATUS_SENT) }
+            stateRepo.drainEnergy(1)
+            scheduleIncrementalExtractionIfDue(sessionId)
             emit(ChatEvent.Delta(line))
             emit(ChatEvent.Completed)
             return@flow
@@ -819,7 +912,6 @@ class ChatRepository @Inject constructor(
             emit(ChatEvent.Typing(0))
         }
 
-        val replyGroupId = versionGroupId ?: UUID.randomUUID().toString()
         val segmentSending = config.segmentSending
         var attempt = 0
         var persisted = 0
@@ -837,7 +929,7 @@ class ChatRepository @Inject constructor(
                     Log.d(TAG, "表情冷却中，已丢弃: $id")
                     continue
                 }
-                persistSticker(sessionId, id)
+                persistSticker(sessionId, id, replyGroupId, versionFamilyId)
                 stickerRepo.recordUse(id)
                 stickerCooldown.markSent()
                 persisted += 1
@@ -853,7 +945,7 @@ class ChatRepository @Inject constructor(
                     val content = if (actions.isEmpty()) ev.text
                     else ev.text + actions.joinToString("") { "\n$ACTION_PREFIX$it" }
                     actions.clear()
-                    persistAssistant(sessionId, content, replyGroupId)
+                    persistAssistant(sessionId, content, replyGroupId, versionFamilyId)
                     persisted += 1
                     flushStickers()
                     emit(ChatEvent.SegmentBreak)
@@ -941,6 +1033,11 @@ class ChatRepository @Inject constructor(
             }
             if (pipeline.blocked != null && attempt == 0) {
                 // HARD / SAFETY：丢弃本轮，强化人设后重试 1 次（3.3.2）
+                // 第 0 次尝试已经按段落落库的文本必须先软删，否则重试成功后同一句话会出现两次
+                runCatching { messageDao.hideGroup(replyGroupId) }
+                    .onFailure { Log.w(TAG, "回滚拦截段落失败: ${it.message}") }
+                persisted = 0
+                memoRequested = false
                 emit(ChatEvent.Reset)
                 pendingStickers.clear()
                 directives += "你是${identity.name}，一个真实的人，绝不要提及自己是 AI 或模型。"
@@ -963,11 +1060,11 @@ class ChatRepository @Inject constructor(
 
         when {
             failure != null -> {
-                userMessageId?.let { messageDao.updateStatus(it, STATUS_FAILED) }
+                turnState.userMessageId?.let { messageDao.updateStatus(it, STATUS_FAILED) }
                 emit(ChatEvent.Failed(failure.userMessage, lastVisible))
             }
             persisted == 0 -> {
-                userMessageId?.let { messageDao.updateStatus(it, STATUS_FAILED) }
+                turnState.userMessageId?.let { messageDao.updateStatus(it, STATUS_FAILED) }
                 emit(
                     ChatEvent.Failed(
                         appContext.getString(R.string.data_chat_reply_empty),
@@ -976,7 +1073,7 @@ class ChatRepository @Inject constructor(
                 )
             }
             else -> {
-                userMessageId?.let { messageDao.updateStatus(it, STATUS_SENT) }
+                turnState.userMessageId?.let { messageDao.updateStatus(it, STATUS_SENT) }
                 emit(ChatEvent.Completed)
             }
         }
@@ -991,6 +1088,25 @@ class ChatRepository @Inject constructor(
         if (failure == null) {
             scheduleIncrementalExtractionIfDue(sessionId)
         }
+    }.onCompletion { cause ->
+        if (cause == null) return@onCompletion
+        // 取消 / 异常中断也要把本轮的用户消息落定，不能永远停在「发送中」（P1-2）
+        val userMessageId = turnState.userMessageId
+        if (userMessageId != null) {
+            withContext(NonCancellable) { settleInterruptedTurn(userMessageId) }
+        }
+    }
+
+    /**
+     * 生成被取消 / 异常中断时的兜底：
+     * 本轮已经落下她的回复就置为已发送，否则置为失败（UI 可重发）。
+     * 已落库的 assistant 分段保留可见，与生成失败（BrainException）时的现有语义一致。
+     */
+    private suspend fun settleInterruptedTurn(userMessageId: Long) {
+        val pending = messageDao.byId(userMessageId) ?: return
+        if (pending.status != STATUS_SENDING) return
+        val replied = messageDao.countAssistantSince(pending.sessionId, pending.createdAt) > 0
+        messageDao.updateStatus(userMessageId, if (replied) STATUS_SENT else STATUS_FAILED)
     }
 
     /** 增量提炼触发判定（v3 H-14）：≥60 条或 ≥4h 且 ≥10 条未提炼消息。 */
@@ -1020,7 +1136,12 @@ class ChatRepository @Inject constructor(
         stateRepo.applyMoodSignal(moodDelta, energyDelta)
     }
 
-    private suspend fun persistAssistant(sessionId: Long, content: String, replyGroupId: String? = null) {
+    private suspend fun persistAssistant(
+        sessionId: Long,
+        content: String,
+        replyGroupId: String? = null,
+        versionFamilyId: String? = null,
+    ) {
         // v3 §8.1：assistant 文本入库前过输出闸门；命中伤害性表达就换成 care 兜底并记 event
         val screen = DefaultSafetyGate.default.screenOutput(content)
         val finalContent = if (screen.blocked) {
@@ -1036,13 +1157,19 @@ class ChatRepository @Inject constructor(
                 content = finalContent,
                 createdAt = System.currentTimeMillis(),
                 replyGroupId = replyGroupId,
+                versionFamilyId = versionFamilyId,
             )
         )
         sessionDao.touch(sessionId, System.currentTimeMillis())
     }
 
     /** 表情消息：content 为空，type=sticker（执行书 7.4.4）。 */
-    private suspend fun persistSticker(sessionId: Long, stickerId: String) {
+    private suspend fun persistSticker(
+        sessionId: Long,
+        stickerId: String,
+        replyGroupId: String? = null,
+        versionFamilyId: String? = null,
+    ) {
         val now = System.currentTimeMillis()
         insertMessage(
             MessageEntity(
@@ -1050,6 +1177,8 @@ class ChatRepository @Inject constructor(
                 role = ROLE_ASSISTANT,
                 content = "",
                 createdAt = now,
+                replyGroupId = replyGroupId,
+                versionFamilyId = versionFamilyId,
                 type = TYPE_STICKER,
                 stickerId = stickerId,
             )

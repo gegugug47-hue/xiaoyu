@@ -21,6 +21,7 @@ import com.xiaoyu.app.ui.XiaoyuRoot
 import com.xiaoyu.app.ui.theme.XiaoyuTheme
 import com.xiaoyu.app.widget.LockScreenEntry
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -33,11 +34,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    /** 点通知进来时的会话 id，作为可重复触发的状态暴露给 Compose；消费后置空。 */
+    private val pendingSessionId = MutableStateFlow<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // 统一 Android 8~16 的窗口行为：内容延伸到系统栏下方，由 Compose 的 inset 决定留白。
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         handleLockScreenIntent(intent)
+        handleSessionIntent(intent)
         // 冷启动就要上锁：先把设置读出来，再决定是否拦在锁屏页（执行书 5.6.3）
         lifecycleScope.launch { appLock.coldStart() }
         setContent {
@@ -63,7 +68,11 @@ class MainActivity : ComponentActivity() {
                             onUnlocked = appLock::unlock,
                         )
                     } else {
-                        XiaoyuRoot()
+                        val incomingSessionId by pendingSessionId.collectAsStateWithLifecycle()
+                        XiaoyuRoot(
+                            pendingSessionId = incomingSessionId,
+                            onSessionConsumed = { pendingSessionId.value = null },
+                        )
                     }
                 }
             }
@@ -84,6 +93,17 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleLockScreenIntent(intent)
+        // App 存活时点通知走这里：把 sessionId 推进状态，Compose 侧即可重复响应
+        handleSessionIntent(intent)
+    }
+
+    private fun handleSessionIntent(intent: Intent?) {
+        val sessionId = intent?.getLongExtra("sessionId", -1L) ?: -1L
+        if (sessionId > 0L) {
+            // 先消费掉 extra，避免 Activity 重建时残留导致再次跳转
+            intent?.removeExtra("sessionId")
+            pendingSessionId.value = sessionId
+        }
     }
 
     /**

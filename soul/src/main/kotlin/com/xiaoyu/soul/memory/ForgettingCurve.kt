@@ -22,6 +22,21 @@ object ForgettingCurve {
         return if (importance >= 5) base * IMPORTANT_MULTIPLIER else base
     }
 
+    fun daysSince(lastAccess: Long, now: Long): Double = (now - lastAccess) / 86_400_000.0
+
+    /**
+     * 每晚清算的短期记忆衰减：只按「距上次结算的真实天数」衰减一次。
+     * 调用方必须在结算后把 last_access 推进到 now，否则每晚都会在已衰减的值上
+     * 再按累计天数衰减一次（复合衰减，会提前把记忆打进回收站）。
+     */
+    fun nightlyStrength(current: Int, lastAccess: Long, now: Long, importance: Int): Int =
+        decayedStrength(
+            current = current,
+            days = daysSince(lastAccess, now),
+            importance = importance,
+            longTerm = false,
+        )
+
     fun decayedStrength(
         current: Int,
         days: Double,

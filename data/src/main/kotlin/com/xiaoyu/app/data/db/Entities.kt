@@ -45,6 +45,11 @@ data class MessageEntity(
     @ColumnInfo(name = "voice_uri") val voiceUri: String? = null,
     /** 分段发送时同一轮回复的多个气泡共享该 id（执行书 3.2.4）。 */
     @ColumnInfo(name = "reply_group_id") val replyGroupId: String? = null,
+    /**
+     * 重新生成的多版本家族 id：同一轮对话的多次生成共享，每一轮本身仍用 reply_group_id 聚合。
+     * null 表示这条回复只有一个版本（绝大多数正常消息）。
+     */
+    @ColumnInfo(name = "version_family_id") val versionFamilyId: String? = null,
     /** 用户给的 reaction，逗号分隔，单用户场景每类最多 1 个（执行书 6.3.7）。 */
     @ColumnInfo(name = "reactions_json") val reactionsJson: String = "",
     /** 消息类型：text / sticker（执行书 7.4.4；sticker 的 content 为空串）。 */

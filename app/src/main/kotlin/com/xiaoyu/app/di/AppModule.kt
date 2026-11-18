@@ -23,6 +23,7 @@ import com.xiaoyu.app.data.db.MIGRATION_7_8
 import com.xiaoyu.app.data.db.MIGRATION_8_9
 import com.xiaoyu.app.data.db.MIGRATION_9_10
 import com.xiaoyu.app.data.db.MIGRATION_10_11
+import com.xiaoyu.app.data.db.MIGRATION_11_12
 import com.xiaoyu.app.data.db.MemoryDao
 import com.xiaoyu.app.data.db.MessageDao
 import com.xiaoyu.app.data.db.MoodDao
@@ -54,7 +55,7 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): XiaoyuDatabase =
         Room.databaseBuilder(context, XiaoyuDatabase::class.java, "xiaoyu.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
             .build()
 
     @Provides

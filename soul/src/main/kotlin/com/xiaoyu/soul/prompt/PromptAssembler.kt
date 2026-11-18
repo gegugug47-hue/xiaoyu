@@ -111,9 +111,12 @@ class PromptAssembler(
         fun lifeText(list: List<String>): String = list.joinToString("\n") { "- $it" }
         fun memoryText(list: List<MemoryFragment>): String = list.joinToString("\n") { "- ${it.content}" }
 
+        // 答题模式检测：连续提问 + 她只短答时，追加一句主动接话的要求
+        val momentum = TopicMomentum.nudge(context.history)
+
         fun volatileTokens(): Int = TokenEstimator.estimate(
             cardText(cards) + lifeText(life) + memoryText(memories) +
-                (context.directive ?: "")
+                (context.directive ?: "") + (momentum ?: "")
         )
 
         // 超预算：先砍记忆碎片，再砍生活碎片，最后砍卡片（长期卡片优先级最高）
@@ -144,7 +147,11 @@ class PromptAssembler(
                     )
                 )
             }
-            val directive = context.directive?.takeIf { it.isNotBlank() }
+            // 答题模式检测：连续提问 + 她只短答时，追加一句主动接话的要求
+            val directive = listOfNotNull(
+                context.directive?.takeIf { it.isNotBlank() },
+                momentum,
+            ).joinToString("\n\n").takeIf { it.isNotBlank() }
             if (directive != null) {
                 if (isNotEmpty()) append("\n\n")
                 append(directive)
@@ -168,7 +175,8 @@ class PromptAssembler(
         }
 
         val injected = TokenEstimator.estimate(
-            cardText(cards) + lifeText(life) + memoryText(memories) + (context.directive ?: "")
+            cardText(cards) + lifeText(life) + memoryText(memories) +
+                (context.directive ?: "") + (momentum ?: "")
         )
         return PromptAssembly(blocks, messages, injected)
     }

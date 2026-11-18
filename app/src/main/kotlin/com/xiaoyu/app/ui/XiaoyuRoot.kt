@@ -35,7 +35,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -55,20 +54,22 @@ enum class Screen {
 }
 
 @Composable
-fun XiaoyuRoot(viewModel: AppViewModel = hiltViewModel()) {
+fun XiaoyuRoot(
+    viewModel: AppViewModel = hiltViewModel(),
+    pendingSessionId: Long? = null,
+    onSessionConsumed: () -> Unit = {},
+) {
     val ready by viewModel.ready.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     val toast by viewModel.toast.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    // 点通知进来时带上 sessionId，直接落到对应会话（执行书 6.11）
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        val intent = (context as? android.app.Activity)?.intent ?: return@LaunchedEffect
-        val sessionId = intent.getLongExtra("sessionId", -1L)
-        if (sessionId > 0L) {
-            viewModel.openSession(sessionId)
-            intent.removeExtra("sessionId")
+    // 点通知进来（冷启动或热启动）时带上 sessionId，直接落到对应会话（执行书 6.11）。
+    // 用状态作为 key，热启动再次进来也能重新触发；消费后由宿主置空，避免重复跳转。
+    LaunchedEffect(pendingSessionId) {
+        if (pendingSessionId != null) {
+            viewModel.openSession(pendingSessionId)
+            onSessionConsumed()
         }
     }
 

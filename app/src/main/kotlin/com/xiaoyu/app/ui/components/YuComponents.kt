@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -139,7 +140,12 @@ data class YuNavItem(
 
 @Composable
 fun YuNavBar(items: List<YuNavItem>, modifier: Modifier = Modifier) {
-    NavigationBar(modifier = modifier.height(Tokens.SizeNavBar)) {
+    // 不写死总高：NavigationBar 会把 navigationBars inset 作为内层 padding，
+    // 固定 64dp 在 3 键导航（48dp inset）下只剩十几 dp，图标文字会被裁掉。
+    NavigationBar(
+        modifier = modifier.heightIn(min = Tokens.SizeNavBar),
+        windowInsets = NavigationBarDefaults.windowInsets,
+    ) {
         items.forEach { item ->
             NavigationBarItem(
                 selected = item.selected,

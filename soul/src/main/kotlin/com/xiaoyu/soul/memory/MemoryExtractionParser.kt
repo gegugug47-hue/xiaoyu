@@ -15,6 +15,13 @@ import java.time.Instant
 object MemoryExtractionParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
+    /**
+     * 模型输出里是否存在一个可解析的 JSON 数组。
+     * 用于区分「确实没有可记内容（[]）」与「输出被截断 / 夹带说明导致解析失败」：
+     * 后者不应推进提炼游标，否则这批消息会永远漏提炼。
+     */
+    fun hasParsableArray(raw: String?): Boolean = extractArray(raw) != null
+
     fun parseMemories(raw: String?): List<ExtractedMemory> {
         val array = extractArray(raw) ?: return emptyList()
         val parsed = array.mapNotNull { element ->

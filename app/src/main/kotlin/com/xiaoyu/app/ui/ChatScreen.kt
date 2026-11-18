@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -104,6 +105,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -210,6 +212,9 @@ private const val HISTORY_PAGE_SIZE = 80
 
 /** v3 §7.4.1：撤回 / 编辑时限 2 分钟。 */
 private const val RECALL_WINDOW_MS = 2 * 60 * 1000L
+
+/** 距列表末尾 N 条以内视为「本来就在底部」，新消息才自动跟随滚动。 */
+private const val NEAR_BOTTOM_ITEM_THRESHOLD = 2
 
 /** v3 §7.4.2：长按面板快捷 reaction（同一表情再点一次取消）。 */
 private val QUICK_REACTIONS = listOf("👍", "❤️", "😂", "😮", "😢", "🎉")
@@ -704,9 +709,13 @@ private fun ChatPane(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    // 先消费 Scaffold 已给的底栏高度，imePadding 只补差额；
+                    // 否则键盘弹起时底部被算两次，输入栏与底栏之间会空出一段。
+                    .consumeWindowInsets(padding)
                     .imePadding(),
             ) {
-                val listState = rememberLazyListState()
+                // 会话切换时重建列表状态，避免复用上一会话的滚动位置（消息条数相同时尤其明显）
+                val listState = key(sessionId) { rememberLazyListState() }
                 LaunchedEffect(listState) {
                     snapshotFlow { listState.firstVisibleItemScrollOffset.toFloat() }
                         .collect { onScrollOffset(it) }
@@ -741,7 +750,7 @@ private fun ChatPane(
                             }
                         }
                 }
-                LaunchedEffect(displayMessages.size, streaming.isNotEmpty(), typing) {
+                LaunchedEffect(displayMessages.size, streaming.isNotEmpty(), typing, sessionId) {
                     val extra = (if (typing) 1 else 0) + (if (streaming.isNotEmpty()) 1 else 0)
                     val count = if (isContinuous) timeline.size else visibleMessages.size
                     val target = count + extra - 1
@@ -751,7 +760,13 @@ private fun ChatPane(
                             listState.scrollToItem(target)
                             instantScroll = false
                         } else {
-                            listState.animateScrollToItem(target)
+                            // 只有用户本来就在底部附近才跟随滚动；上滑看历史时不抢滚动，
+                            // 仅保留「回到最新」FAB 与未读数提示。
+                            val layout = listState.layoutInfo
+                            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
+                            val nearBottom = layout.totalItemsCount == 0 ||
+                                lastVisible >= layout.totalItemsCount - 1 - NEAR_BOTTOM_ITEM_THRESHOLD
+                            if (nearBottom) listState.animateScrollToItem(target)
                         }
                     }
                 }
@@ -1229,10 +1244,16 @@ private fun ChatPane(
                             )
                         }
                         if (canRecall) {
-                            add(MenuAction(R.string.chat_edit) {
-                                menuMessage = null
-                                editingMessage = target
-                            })
+                            add(
+                                MenuAction(
+                                    labelRes = R.string.chat_edit,
+                                    enabled = !hasLaterUserMessage,
+                                    hintRes = if (hasLaterUserMessage) R.string.chat_regenerate_blocked else null,
+                                ) {
+                                    menuMessage = null
+                                    if (!hasLaterUserMessage) editingMessage = target
+                                },
+                            )
                             add(MenuAction(R.string.chat_retract) {
                                 menuMessage = null
                                 confirmRetract = target
@@ -1965,7 +1986,10 @@ private fun InputBar(
     onSend: (String) -> Unit,
     onSendSplit: (List<String>) -> Unit = { chunks -> chunks.forEach(onSend) },
 ) {
-    var text by rememberSaveable(identityId) { mutableStateOf("") }
+    // 文本不按 identityId 重建，切换人设时才拿得到旧文本，避免把 A 的草稿写进 B
+    var text by rememberSaveable { mutableStateOf("") }
+    // 当前 text 属于哪个人设；加载新草稿前置空，防止加载期间把空文本写回数据库
+    var draftOwner by remember { mutableStateOf<Long?>(null) }
     var voiceMode by rememberSaveable { mutableStateOf(false) }
     var holding by remember { mutableStateOf(false) }
     var voiceToggles by remember { mutableIntStateOf(0) }
@@ -1979,11 +2003,23 @@ private fun InputBar(
     val sendContentDescription = stringResource(R.string.chat_send)
     val context = LocalContext.current
 
-    // 切回该人设时自动恢复草稿；切换人设时保存当前草稿（M1-09）
+    // 切回该人设时自动恢复草稿；切换人设时先用旧 id 存旧文本，再加载新人设草稿（M1-09）
     LaunchedEffect(identityId) {
-        identityId?.let {
-            val saved = viewModel.getDraft(it)
-            if (!saved.isNullOrBlank()) text = saved
+        val target = identityId
+        val owner = draftOwner
+        draftOwner = null
+        if (owner != null && owner != target) {
+            viewModel.saveDraft(owner, text)
+        }
+        if (target != null) {
+            val saved = viewModel.getDraft(target)
+            text = when {
+                !saved.isNullOrBlank() -> saved
+                // 仅在从已加载的人设切换过来时清空输入框；首次进入保留已有内容
+                owner != null -> ""
+                else -> text
+            }
+            draftOwner = target
         }
     }
     // v3 §7.4.7：表情面板点 Emoji 后插入到输入框光标末尾
@@ -1993,8 +2029,9 @@ private fun InputBar(
             onInserted()
         }
     }
-    LaunchedEffect(text, identityId) {
-        identityId?.let { viewModel.saveDraft(it, text) }
+    LaunchedEffect(text, identityId, draftOwner) {
+        val owner = draftOwner
+        if (owner != null && owner == identityId) viewModel.saveDraft(owner, text)
     }
     // 从「按住说话」切回键盘时补一次焦点；首次进入聊天页不抢焦点，避免自动弹键盘
     LaunchedEffect(voiceMode) {

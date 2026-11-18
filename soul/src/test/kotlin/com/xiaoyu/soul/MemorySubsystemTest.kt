@@ -187,6 +187,49 @@ class MemorySubsystemTest {
     }
 
     @Test
+    fun `连续两晚清算不会二次复合衰减`() {
+        val start = MEM_NOW
+        var strength = 60
+        var lastAccess = start
+        repeat(2) { night ->
+            val now = start + (night + 1) * DAY_MS
+            strength = ForgettingCurve.nightlyStrength(strength, lastAccess, now, importance = 3)
+            // 仓库用 updateStrength(at = now) 同步推进 last_access
+            lastAccess = now
+        }
+        // 两晚各衰减 1 天，等价于一次性衰减 2 天；不是在已衰减值上再按累计 2 天衰减
+        assertEquals(
+            ForgettingCurve.decayedStrength(60, 2.0, importance = 3, longTerm = false),
+            strength,
+        )
+        assertFalse(ForgettingCurve.shouldBin(strength))
+        // 对照：不推进 last_access 时第二晚会按累计 2 天再衰减一次（旧逻辑的复合衰减）
+        val compounded = ForgettingCurve.nightlyStrength(
+            ForgettingCurve.nightlyStrength(60, start, start + DAY_MS, importance = 3),
+            start,
+            start + 2 * DAY_MS,
+            importance = 3,
+        )
+        assertTrue(compounded < strength)
+    }
+
+    @Test
+    fun `提炼输出能区分解析失败与确实无内容`() {
+        // 模型正常返回「没有可记内容」
+        assertTrue(MemoryExtractionParser.hasParsableArray("[]"))
+        assertTrue(MemoryExtractionParser.hasParsableArray("```json\n[]\n```"))
+        // 数组存在但没有有效条目，仍算正常返回（只是确实没有可记内容）
+        assertTrue(MemoryExtractionParser.hasParsableArray("[{}]"))
+        // 输出被截断 / 夹带说明 / 为空：属于解析失败，不能前进游标
+        assertFalse(MemoryExtractionParser.hasParsableArray(null))
+        assertFalse(MemoryExtractionParser.hasParsableArray("好的，这是结果："))
+        assertFalse(MemoryExtractionParser.hasParsableArray("""[{"content":"被截断""""))
+        // lenient JSON 会把 [oops] 解析成字符串数组（无有效条目），属于「正常返回但无内容」
+        assertTrue(MemoryExtractionParser.hasParsableArray("[oops]"))
+        assertTrue(MemoryExtractionParser.parseMemories("[oops]").isEmpty())
+    }
+
+    @Test
     fun `情绪增量被夹在上下限`() {
         assertEquals(MoodSignal(30, -20), MemoryExtractionParser.parseMoodDelta("""{"mood_delta":99,"energy_delta":-99}"""))
         assertEquals(MoodSignal(0, 0), MemoryExtractionParser.parseMoodDelta("""{}"""))

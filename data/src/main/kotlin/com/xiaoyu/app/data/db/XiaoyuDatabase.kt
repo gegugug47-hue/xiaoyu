@@ -278,6 +278,17 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
     }
 }
 
+/**
+ * v11 → v12（M3-06 修正）：messages 新增 `version_family_id`。
+ * 重新生成的多个版本共享家族 id，而每一轮分段仍用 reply_group_id 聚合，
+ * 切换版本时整轮显示 / 隐藏，不再丢掉同轮其它分段。只加列，不动历史数据。
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `messages` ADD COLUMN `version_family_id` TEXT")
+    }
+}
+
 @Database(
     entities = [
         SessionEntity::class,
@@ -302,7 +313,7 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         SafetyEventEntity::class,
         ChatBackgroundEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 abstract class XiaoyuDatabase : RoomDatabase() {
