@@ -63,6 +63,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -467,7 +470,12 @@ private fun ChatPane(
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val sessionId by viewModel.sessionId.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
-    val streaming by viewModel.streaming.collectAsStateWithLifecycle()
+    // 流式正文按 token 变化：整页只订阅「是否在流式」，正文本交给她自己的气泡订阅。
+    // 否则每来一个字都会让顶栏、背景和整张列表跟着重组一遍，这是打字卡顿的主因之一。
+    val streamingActiveFlow = remember(viewModel) {
+        viewModel.streaming.map { it.isNotEmpty() }.distinctUntilChanged()
+    }
+    val streamingActive by streamingActiveFlow.collectAsStateWithLifecycle(initialValue = false)
     val typing by viewModel.typing.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -787,8 +795,8 @@ private fun ChatPane(
                             }
                         }
                 }
-                LaunchedEffect(displayMessages.size, streaming.length, typing, sessionId) {
-                    val extra = (if (typing) 1 else 0) + (if (streaming.isNotEmpty()) 1 else 0)
+                LaunchedEffect(displayMessages.size, streamingActive, typing, sessionId) {
+                    val extra = (if (typing) 1 else 0) + (if (streamingActive) 1 else 0)
                     val count = if (isContinuous) timeline.size else visibleMessages.size
                     val target = count + extra - 1
                     if (target >= 0) {
@@ -923,7 +931,11 @@ private fun ChatPane(
                                 }
                             }
                         } else {
-                            itemsIndexed(visibleMessages, key = { _, it -> it.id }) { index, message ->
+                            itemsIndexed(
+                                visibleMessages,
+                                key = { _, it -> it.id },
+                                contentType = { _, it -> it.type },
+                            ) { index, message ->
                                 val prev = visibleMessages.getOrNull(index - 1)
                                 val showTime = prev == null || message.createdAt - prev.createdAt >= TIME_GAP_FOR_DISPLAY_MS
                                 MessageRow(
@@ -955,9 +967,10 @@ private fun ChatPane(
                                 )
                             }
                         }
-                        if (streaming.isNotEmpty()) {
+                        if (streamingActive) {
                             item("streaming") {
-                                Bubble(text = streaming, isUser = false, pending = true)
+                                // 只让这一个气泡跟着 token 重组
+                                StreamingBubble(viewModel.streaming)
                             }
                         } else if (typing) {
                             item("typing") {
@@ -973,7 +986,7 @@ private fun ChatPane(
                         }
                     }
                     // 空会话/空列表时给一句引导，避免出现一片空白
-                    if (visibleMessages.isEmpty() && streaming.isEmpty() && !typing) {
+                    if (visibleMessages.isEmpty() && !streamingActive && !typing) {
                         YuEmptyView(
                             kind = YuIllustrationKind.CHAT,
                             message = stringResource(R.string.chat_empty_hint),
@@ -3033,4 +3046,12 @@ private suspend fun LazyListState.pinToLatest(frames: Int = 24) {
         val target = layoutInfo.totalItemsCount - 1
         if (target >= 0) scrollToItem(target)
     }
+}
+
+/** 流式回复气泡：自己订阅正文，token 变化只重组这一块，不牵连整页。 */
+@Composable
+private fun StreamingBubble(flow: StateFlow<String>) {
+    val text by flow.collectAsStateWithLifecycle()
+    if (text.isEmpty()) return
+    Bubble(text = text, isUser = false, pending = true)
 }

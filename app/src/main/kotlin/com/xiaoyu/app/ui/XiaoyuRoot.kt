@@ -28,6 +28,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
@@ -37,6 +39,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -99,8 +104,24 @@ fun XiaoyuRoot(
     // 表情包导入页需要记住要导入到哪个包
     var stickerPackId by rememberSaveable { mutableStateOf("") }
     var stickerPackName by rememberSaveable { mutableStateOf("") }
-    val go: (Screen) -> Unit = { target -> stack = stack + target }
-    val back: () -> Unit = { if (stack.size > 1) stack = stack.dropLast(1) }
+    // 转场方向：前进（新页从右进）还是返回（当前页按手势方向整体滑出）
+    var navigationForward by remember { mutableStateOf(true) }
+    // 返回时上一页从哪一侧进来：左边缘右滑 → 从左进；右边缘左滑 → 从右进
+    var backFromLeft by remember { mutableStateOf(true) }
+    val go: (Screen) -> Unit = { target ->
+        navigationForward = true
+        stack = stack + target
+    }
+    val pop: () -> Unit = {
+        if (stack.size > 1) {
+            navigationForward = false
+            stack = stack.dropLast(1)
+        }
+    }
+    val back: () -> Unit = {
+        backFromLeft = true
+        pop()
+    }
     // 返回上一页后保留各页面内部状态（滚动位置、开关等），不因重组被丢弃
     val screenStates = rememberSaveableStateHolder()
 
@@ -130,17 +151,56 @@ fun XiaoyuRoot(
             }
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                // 左右边缘侧滑返回：手指往哪边滑，整页就往哪边退出去
+                .pointerInput(stack.size) {
+                    if (stack.size <= 1) return@pointerInput
+                    val edge = 28.dp.toPx()
+                    val threshold = 56.dp.toPx()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val fromLeft = down.position.x <= edge
+                        val fromRight = down.position.x >= size.width - edge
+                        if (!fromLeft && !fromRight) return@awaitEachGesture
+                        var total = 0f
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            total += change.positionChange().x
+                            val moved = if (fromLeft) total else -total
+                            if (moved >= threshold) {
+                                change.consume()
+                                // 从左边缘右滑：上一页从左进；右边缘左滑：上一页从右进
+                                backFromLeft = fromLeft
+                                pop()
+                                break
+                            }
+                            if (kotlin.math.abs(total) > threshold * 1.5f) break
+                        }
+                    }
+                },
+        ) {
             // 页面切换加转场动画，避免硬切造成"闪一下"和卡顿感
             AnimatedContent(
                 targetState = screen,
                 transitionSpec = {
-                    // 前进：新页从右侧淡入滑入，旧页向左淡出滑出
-                    (slideInHorizontally(animationSpec = tween(pageDuration)) { it / 4 } +
-                        fadeIn(animationSpec = tween(pageDuration))).togetherWith(
-                        slideOutHorizontally(animationSpec = tween(pageDuration)) { -it / 4 } +
-                            fadeOut(animationSpec = tween(pageDuration))
-                    )
+                    val slide = tween<IntOffset>(pageDuration)
+                    val fade = tween<Float>(pageDuration)
+                    if (navigationForward) {
+                        // 前进：新页整页从右侧滑入，旧页轻微左移淡出
+                        (slideInHorizontally(slide) { it } + fadeIn(fade)).togetherWith(
+                            slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade)
+                        )
+                    } else {
+                        // 返回：当前页整页朝手势方向退出去，上一页从对应方向滑回来
+                        (slideInHorizontally(slide) { if (backFromLeft) -it else it } + fadeIn(fade)).togetherWith(
+                            slideOutHorizontally(slide) { if (backFromLeft) it else -it } + fadeOut(fade)
+                        )
+                    }
                 },
                 label = "screen",
             ) { currentScreen ->
