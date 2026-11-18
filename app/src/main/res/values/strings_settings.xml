@@ -21,6 +21,7 @@
     <string name="settings_segment_sending_subtitle">长回复拆成几条短消息连发，更像真人在聊天</string>
     <string name="settings_proactive_title">允许她主动找你</string>
     <string name="settings_proactive_subtitle">每天在合适的时间，她可能会发来一条消息</string>
+    <string name="settings_notification_permission_denied">未获得通知权限，主动消息保持关闭</string>
     <string name="settings_dnd_button">免打扰：%1$d:00 - %2$d:00</string>
     <string name="settings_section_chat_mode">聊天模式</string>
     <string name="settings_chat_mode_desc">连续流：像微信一样只有一个聊天窗口，所有消息按时间连续展示；会话列表：按话题分成多个对话。两种模式共用同一份数据。</string>
@@ -73,6 +74,7 @@
     <string name="settings_backup_mode_overwrite">覆盖（重启后生效）</string>
     <string name="settings_backup_encrypt">用口令加密备份（AES-GCM）</string>
     <string name="settings_backup_password_label">备份口令（恢复时需要）</string>
+    <string name="settings_backup_password_required">已开启加密，请先输入备份口令</string>
     <string name="settings_backup_local_count">本机备份 %1$d 份，最近：%2$s</string>
     <string name="settings_section_app_lock">隐私与安全</string>
     <string name="settings_app_lock_desc">开启后，每次回到 App 都要先解锁；聊天内容与通知正文在锁定时不会露出。PIN 只存加密后的摘要，不写入备份。</string>

@@ -179,10 +179,17 @@ class NightlyWorker(
         val persona = ep.personaRepository()
         val identity = persona.identities().firstOrNull() ?: return Result.success()
         val style = persona.styles().firstOrNull() ?: return Result.success()
+        val targetDate = inputData.getString(KEY_TARGET_DATE)
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: LocalDate.now()
         ep.memoryRepository().runNightlySettlement()
-        ep.soulStateRepository().runNightly(identity, style)
+        ep.soulStateRepository().runNightly(identity, style, targetDate)
         ep.memoryRepository().processPendingExplicitFacts()
         return Result.success()
+    }
+
+    companion object {
+        const val KEY_TARGET_DATE = "target_date"
     }
 }
 

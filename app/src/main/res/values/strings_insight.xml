@@ -17,6 +17,8 @@
     <string name="memory_restore">捡回来</string>
     <string name="memory_edit">编辑</string>
     <string name="memory_delete_permanently">彻底删除</string>
+    <string name="memory_delete_permanently_confirm_title">彻底删除这条记忆？</string>
+    <string name="memory_delete_permanently_confirm_text">删除后无法恢复，也不会再出现在回收站。</string>
     <string name="memory_delete">删除</string>
     <string name="memory_dialog_edit_memory">编辑记忆</string>
     <string name="memory_label_content">内容</string>

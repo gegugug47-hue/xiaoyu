@@ -36,7 +36,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -147,6 +146,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -185,6 +185,7 @@ import com.xiaoyu.app.ui.components.YuNavItem
 import com.xiaoyu.app.ui.components.YuTimeDivider
 import com.xiaoyu.app.ui.illustrations.YuIllustrationKind
 import com.xiaoyu.app.ui.theme.LocalBubbleColors
+import com.xiaoyu.app.ui.theme.LocalXiaoyuDark
 import com.xiaoyu.app.ui.theme.LocalYuMotion
 import com.xiaoyu.app.ui.theme.LocalYuType
 import com.xiaoyu.app.ui.theme.Tokens
@@ -347,7 +348,7 @@ fun ChatScreen(
     val isContinuous = chatMode == ChatMode.CONTINUOUS
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val backgroundRender by viewModel.chatBackgroundRender.collectAsStateWithLifecycle()
-    val darkTheme = isSystemInDarkTheme()
+    val darkTheme = LocalXiaoyuDark.current
     val identityId = sessions.firstOrNull { it.id == sessionId }?.identityId
         ?: archived.firstOrNull { it.id == sessionId }?.identityId
         ?: settings.chosenIdentityId
@@ -520,6 +521,8 @@ private fun ChatPane(
     // 双击输入栏 → 全屏输入（v3 §14.5 手势地图）
     var showFullInput by remember { mutableStateOf(false) }
     var fullInputSeed by remember { mutableStateOf("") }
+    var clearDraftSignal by remember { mutableIntStateOf(0) }
+    var clearDraftIdentityId by remember { mutableStateOf<Long?>(null) }
     // 上滑到顶时按页加载更多历史（v3 §14.5）
     var historyLimit by remember(sessionId) { mutableIntStateOf(HISTORY_PAGE_SIZE) }
     // 顶栏更多菜单（M5-04：导出会话 Markdown）
@@ -537,6 +540,12 @@ private fun ChatPane(
         tts.onFinished = { speakingMessageId = null }
         onDispose { tts.shutdown() }
     }
+    LaunchedEffect(sessionId) {
+        // 切换会话时停止上一会话的朗读，并清理两种语音播放状态
+        tts.stop()
+        speakingMessageId = null
+        viewModel.stopVoice()
+    }
 
     LaunchedEffect(versionTarget) {
         // v3 §7.8：历史版本抽屉最多展示 3 版
@@ -549,6 +558,8 @@ private fun ChatPane(
         selectionMode = false
         selectedIds = emptySet()
     }
+    // 放在多选返回处理之后，表情面板展开时优先只收起面板
+    BackHandler(enabled = showStickers) { showStickers = false }
 
     Box(modifier = modifier) {
         Scaffold(
@@ -750,7 +761,7 @@ private fun ChatPane(
                             }
                         }
                 }
-                LaunchedEffect(displayMessages.size, streaming.isNotEmpty(), typing, sessionId) {
+                LaunchedEffect(displayMessages.size, streaming.length, typing, sessionId) {
                     val extra = (if (typing) 1 else 0) + (if (streaming.isNotEmpty()) 1 else 0)
                     val count = if (isContinuous) timeline.size else visibleMessages.size
                     val target = count + extra - 1
@@ -1125,6 +1136,8 @@ private fun ChatPane(
                     stickersOpen = showStickers,
                     onToggleStickers = { showStickers = !showStickers },
                     onCloseStickers = { showStickers = false },
+                    clearDraftSignal = clearDraftSignal,
+                    clearDraftIdentityId = clearDraftIdentityId,
                     insertText = pendingEmoji,
                     onInserted = { pendingEmoji = null },
                     onDoubleTapInput = { seed ->
@@ -1147,8 +1160,11 @@ private fun ChatPane(
                 initial = fullInputSeed,
                 onDismiss = { showFullInput = false },
                 onSend = { value ->
-                    viewModel.send(value)
-                    showFullInput = false
+                    if (viewModel.send(value)) {
+                        clearDraftIdentityId = current?.identityId
+                        clearDraftSignal++
+                        showFullInput = false
+                    }
                 },
             )
         }
@@ -1980,6 +1996,8 @@ private fun InputBar(
     stickersOpen: Boolean = false,
     onToggleStickers: () -> Unit = {},
     onCloseStickers: () -> Unit = {},
+    clearDraftSignal: Int = 0,
+    clearDraftIdentityId: Long? = null,
     insertText: String? = null,
     onInserted: () -> Unit = {},
     onDoubleTapInput: (String) -> Unit = {},
@@ -1990,6 +2008,7 @@ private fun InputBar(
     var text by rememberSaveable { mutableStateOf("") }
     // 当前 text 属于哪个人设；加载新草稿前置空，防止加载期间把空文本写回数据库
     var draftOwner by remember { mutableStateOf<Long?>(null) }
+    var handledClearDraftSignal by remember { mutableIntStateOf(0) }
     var voiceMode by rememberSaveable { mutableStateOf(false) }
     var holding by remember { mutableStateOf(false) }
     var voiceToggles by remember { mutableIntStateOf(0) }
@@ -2001,6 +2020,7 @@ private fun InputBar(
     val textInteraction = remember { MutableInteractionSource() }
     val focused by textInteraction.collectIsFocusedAsState()
     val sendContentDescription = stringResource(R.string.chat_send)
+    val voiceContentDescription = stringResource(R.string.chat_a11y_voice_hold)
     val context = LocalContext.current
 
     // 切回该人设时自动恢复草稿；切换人设时先用旧 id 存旧文本，再加载新人设草稿（M1-09）
@@ -2020,6 +2040,16 @@ private fun InputBar(
                 else -> text
             }
             draftOwner = target
+        }
+    }
+    // 全屏输入发送成功后清空原草稿；人设加载期间等归属确定再清，切换他人设则放弃本次清理
+    LaunchedEffect(clearDraftSignal, clearDraftIdentityId, identityId, draftOwner) {
+        if (clearDraftSignal <= handledClearDraftSignal) return@LaunchedEffect
+        if (clearDraftIdentityId != identityId) {
+            handledClearDraftSignal = clearDraftSignal
+        } else if (draftOwner == identityId) {
+            text = ""
+            handledClearDraftSignal = clearDraftSignal
         }
     }
     // v3 §7.4.7：表情面板点 Emoji 后插入到输入框光标末尾
@@ -2149,6 +2179,14 @@ private fun InputBar(
                                 holding = false
                                 if (released) launchVoice()
                             })
+                        }
+                        .semantics {
+                            contentDescription = voiceContentDescription
+                            // TalkBack 双击无法执行按住手势，提供直接唤起语音识别的点击动作
+                            onClick {
+                                launchVoice()
+                                true
+                            }
                         },
                     contentAlignment = Alignment.Center,
                 ) {

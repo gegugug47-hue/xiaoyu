@@ -99,6 +99,7 @@
     <string name="chat_a11y_fab_scroll_bottom">Jump to latest message</string>
     <string name="chat_a11y_typing">She is typing</string>
     <string name="chat_a11y_poke">Double tap to poke her</string>
+    <string name="chat_a11y_voice_hold">Hold to talk, or double-tap to start voice recognition</string>
     <string name="chat_a11y_select">Select this message</string>
     <string name="chat_a11y_selected">Selected</string>
     <string name="chat_a11y_resend">Resend</string>

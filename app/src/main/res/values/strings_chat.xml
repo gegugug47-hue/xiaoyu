@@ -134,6 +134,7 @@
     <string name="chat_a11y_fab_scroll_bottom">回到最新消息</string>
     <string name="chat_a11y_typing">她正在输入</string>
     <string name="chat_a11y_poke">双击戳一下她</string>
+    <string name="chat_a11y_voice_hold">按住说话，或双击开始语音识别</string>
     <string name="chat_a11y_select">选择这条消息</string>
     <string name="chat_a11y_selected">已选中</string>
     <string name="chat_a11y_resend">重新发送</string>

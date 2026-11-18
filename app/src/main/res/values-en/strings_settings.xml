@@ -19,6 +19,7 @@
     <string name="settings_segment_sending_subtitle">Long replies arrive as a few short messages in a row, more like real chatting</string>
     <string name="settings_proactive_title">Let her reach out</string>
     <string name="settings_proactive_subtitle">At the right moment each day, she may send you a message</string>
+    <string name="settings_notification_permission_denied">Notification permission was denied, so proactive messages remain off.</string>
     <string name="settings_dnd_button">Quiet hours: %1$d:00 - %2$d:00</string>
     <string name="settings_section_chat_mode">Chat mode</string>
     <string name="settings_chat_mode_desc">Continuous feed: one chat window like WeChat, every message in time order; Session list: split into conversations by topic. Both modes share the same data.</string>
@@ -71,6 +72,7 @@
     <string name="settings_backup_mode_overwrite">Overwrite (takes effect after restart)</string>
     <string name="settings_backup_encrypt">Encrypt backups with a passphrase (AES-GCM)</string>
     <string name="settings_backup_password_label">Backup passphrase (needed to restore)</string>
+    <string name="settings_backup_password_required">Encryption is on. Enter a backup passphrase first.</string>
     <string name="settings_backup_local_count">%1$d backups on this device, latest: %2$s</string>
     <string name="settings_section_app_lock">Privacy &amp; security</string>
     <string name="settings_app_lock_desc">When on, you\'ll need to unlock each time you return to the app; chat content and notification text stay hidden while locked. The PIN is stored only as an encrypted hash and never written to backups.</string>

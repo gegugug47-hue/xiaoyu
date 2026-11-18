@@ -29,7 +29,12 @@ class AlarmReceiver : BroadcastReceiver() {
                 val ep = EntryPointAccessors.fromApplication(appContext, WorkerEntryPoint::class.java)
                 ep.settingsRepository().ensureLoaded()
                 val scheduler = ep.workScheduler()
-                val dayKey = LocalDate.now().toString()
+                // 夜间闹钟携带预约时的目标日，即使跨午夜才送达也不分析错日期
+                val dayKey = if (kind == WorkScheduler.ALARM_NIGHT) {
+                    slotKey ?: LocalDate.now().toString()
+                } else {
+                    LocalDate.now().toString()
+                }
                 when (kind) {
                     WorkScheduler.ALARM_MORNING -> scheduler.scheduleLife(0, dayKey)
                     WorkScheduler.ALARM_NIGHT -> scheduler.scheduleNightly(0, dayKey)

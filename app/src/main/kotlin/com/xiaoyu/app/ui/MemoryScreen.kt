@@ -59,6 +59,7 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     var editingMemory by remember { mutableStateOf<MemoryEntity?>(null) }
     var editingCard by remember { mutableStateOf<FactCardEntity?>(null) }
     var creatingCard by remember { mutableStateOf(false) }
+    var confirmPermanentDelete by remember { mutableStateOf<MemoryEntity?>(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -148,7 +149,7 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                             tags = memory.tags,
                             meta = stringResource(R.string.memory_meta_in_bin),
                             onEdit = null,
-                            onDelete = { viewModel.deleteMemory(memory.id) },
+                            onDelete = { confirmPermanentDelete = memory },
                             extra = {
                                 TextButton(onClick = { viewModel.restoreMemory(memory.id) }) { Text(stringResource(R.string.memory_restore)) }
                             },
@@ -157,6 +158,25 @@ fun MemoryScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    confirmPermanentDelete?.let { memory ->
+        AlertDialog(
+            onDismissRequest = { confirmPermanentDelete = null },
+            title = { Text(stringResource(R.string.memory_delete_permanently_confirm_title)) },
+            text = { Text(stringResource(R.string.memory_delete_permanently_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmPermanentDelete = null
+                    viewModel.deleteMemory(memory.id)
+                }) { Text(stringResource(R.string.memory_delete_permanently)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmPermanentDelete = null }) {
+                    Text(stringResource(R.string.memory_cancel))
+                }
+            },
+        )
     }
 
     editingMemory?.let { memory ->

@@ -6,6 +6,8 @@ import com.xiaoyu.app.data.secure.SecretStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +19,7 @@ class SettingsRepository @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val key = "app_settings"
+    private val mutex = Mutex()
     private val _state = MutableStateFlow(AppSettings())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
 
@@ -28,7 +31,7 @@ class SettingsRepository @Inject constructor(
         load()
     }
 
-    suspend fun load() {
+    suspend fun load() = mutex.withLock {
         val stored = dao.get(key)
         if (stored != null) {
             val plain = secretStore.decrypt(stored.valueEncrypted)
@@ -42,7 +45,7 @@ class SettingsRepository @Inject constructor(
         loaded = true
     }
 
-    suspend fun update(transform: (AppSettings) -> AppSettings) {
+    suspend fun update(transform: (AppSettings) -> AppSettings) = mutex.withLock {
         val next = transform(_state.value)
         _state.value = next
         dao.put(SettingEntity(key, secretStore.encrypt(json.encodeToString(AppSettings.serializer(), next))))

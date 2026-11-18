@@ -44,7 +44,10 @@ import com.xiaoyu.soul.prompt.PromptContext
 import com.xiaoyu.soul.sticker.StickerCooldown
 import com.xiaoyu.soul.util.TokenEstimator
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -55,6 +58,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalTime
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
@@ -139,6 +143,8 @@ class ChatRepository @Inject constructor(
     private val stickerCooldown = StickerCooldown(4)
     /** v3 §4.4：连续超长回复的自适应反馈，跨会话共享。 */
     private val lengthGuard = LengthGuard()
+    /** 正在生成的用户轮次：撤回时取消对应收集协程，避免继续落库。 */
+    private val activeGenerations = ConcurrentHashMap<Long, Job>()
 
     fun observeMessages(sessionId: Long): Flow<List<MessageEntity>> = messageDao.observeVisible(sessionId)
 
@@ -313,6 +319,12 @@ class ChatRepository @Inject constructor(
         messageDao.retract(messageId)
         // 正文已清空，同步删掉全文索引，避免撤回内容还能被搜索命中
         runCatching { messageDao.deleteFts(messageId) }
+        activeGenerations.remove(messageId)?.let { job ->
+            job.cancel(CancellationException("用户消息已撤回，本轮生成已取消"))
+            // 取消前已经落下的半截分段也一并收起，只保留 hidden=1 的历史数据
+            val visible = messageDao.visibleForSession(msg.sessionId)
+            hideRepliesAfter(visible, visible.indexOfFirst { it.id == messageId })
+        }
         return true
     }
 
@@ -332,11 +344,12 @@ class ChatRepository @Inject constructor(
         }
         val now = System.currentTimeMillis()
         hideRepliesAfter(visible, index)
-        messageDao.updateContent(messageId, newText.trim(), now)
+        messageDao.updateContent(messageId, XyTokenParser.escapeUserText(newText.trim()), now)
         // 复用手上这条用户消息并把它排回时间线末尾，避免同一句话再插一条导致 history 里重复
         messageDao.updateCreatedAt(messageId, now)
         reindexMessage(messageId)
-        return replyFlow(sessionId, newText, continueMode = false, existingUserMessageId = messageId)
+        // 与 send 共用安全判定和回复前置管线，编辑后的危机文本不能绕过 L3
+        return sendInternal(sessionId, newText, existingUserMessageId = messageId)
     }
 
     /** 软隐藏某条用户消息之后、下一条用户消息之前的 assistant 回复（编辑重发用）。 */
@@ -371,6 +384,9 @@ class ChatRepository @Inject constructor(
                 emit(ChatEvent.Failed(appContext.getString(R.string.data_chat_message_not_found), ""))
             }
         val now = System.currentTimeMillis()
+        // 上次失败可能已落下可见的半截分段，重发前先收起旧轮，避免与新回复并存
+        val visible = messageDao.visibleForSession(sessionId)
+        hideRepliesAfter(visible, visible.indexOfFirst { it.id == messageId })
         messageDao.updateStatus(messageId, STATUS_SENDING)
         // 复用这条已存在的用户消息并排回时间线末尾，避免重发时同一句话在库里出现两次、history 里也重复
         messageDao.updateCreatedAt(messageId, now)
@@ -423,7 +439,17 @@ class ChatRepository @Inject constructor(
             ?.takeIf { it.isNotBlank() }
             ?.take(120)
 
-    suspend fun send(sessionId: Long, text: String, transientContext: String? = null, quoteToId: Long? = null): Flow<ChatEvent> {
+    suspend fun send(sessionId: Long, text: String, transientContext: String? = null, quoteToId: Long? = null): Flow<ChatEvent> =
+        sendInternal(sessionId, text, transientContext, quoteToId)
+
+    /** 新发送与编辑重发共用的安全前置管线。 */
+    private suspend fun sendInternal(
+        sessionId: Long,
+        text: String,
+        transientContext: String? = null,
+        quoteToId: Long? = null,
+        existingUserMessageId: Long? = null,
+    ): Flow<ChatEvent> {
         val session = sessionDao.byId(sessionId) ?: error("会话不存在")
         if (session.endedAt != null) sessionDao.reopen(sessionId)
         val content = text.trim()
@@ -437,7 +463,7 @@ class ChatRepository @Inject constructor(
         if (verdict.level == CrisisLevel.L3_IMMINENT) {
             // v3 §8.2：暂停人格演绎 + 暂停主动消息 + 会话标记 safety（但绝不结束对话）
             pauseProactive()
-            return imminentFlow(sessionId, content, verdict)
+            return imminentFlow(sessionId, content, verdict, existingUserMessageId)
         }
 
         var directive: String? = when (verdict.level) {
@@ -465,6 +491,7 @@ class ChatRepository @Inject constructor(
             transientContext = transientContext,
             quoteToId = quoteToId,
             extraDirective = directive,
+            existingUserMessageId = existingUserMessageId,
         )
         // L2：会话内首次出现求助资源卡，放在她的回复下方（可关）
         val showCareCard = verdict.level == CrisisLevel.L2_SELF_HARM_IDEA &&
@@ -582,30 +609,54 @@ class ChatRepository @Inject constructor(
      * v3 §8.2 L3：暂停人格演绎——固定现实导向回复 + 热线卡，不调用模型、不触发收束，
      * 也绝不结束会话（只把 closed_by 标成 safety 供后续分析）。
      */
-    private fun imminentFlow(sessionId: Long, userText: String, verdict: SafetyVerdict): Flow<ChatEvent> = flow {
+    private fun imminentFlow(
+        sessionId: Long,
+        userText: String,
+        verdict: SafetyVerdict,
+        existingUserMessageId: Long? = null,
+    ): Flow<ChatEvent> = flow {
         val now = System.currentTimeMillis()
-        insertMessage(
-            MessageEntity(
-                sessionId = sessionId,
-                role = ROLE_USER,
-                content = XyTokenParser.escapeUserText(userText),
-                createdAt = now,
-                status = STATUS_SENT,
+        val userMessageId = if (existingUserMessageId == null) {
+            insertMessage(
+                MessageEntity(
+                    sessionId = sessionId,
+                    role = ROLE_USER,
+                    content = XyTokenParser.escapeUserText(userText),
+                    createdAt = now,
+                    status = STATUS_SENT,
+                )
             )
-        )
-        insertMessage(
-            MessageEntity(
-                sessionId = sessionId,
-                role = ROLE_ASSISTANT,
-                content = SafetyTexts.IMMINENT_REPLY,
-                createdAt = now + 1,
-                status = STATUS_SENT,
+        } else {
+            messageDao.updateStatus(existingUserMessageId, STATUS_SENT)
+            existingUserMessageId
+        }
+        currentCoroutineContext()[Job]?.let { job -> activeGenerations[userMessageId] = job }
+        try {
+            // 撤回可能发生在安全判定之后：落回复前再确认一次
+            ensureUserNotRetracted(userMessageId)
+            insertMessage(
+                MessageEntity(
+                    sessionId = sessionId,
+                    role = ROLE_ASSISTANT,
+                    content = SafetyTexts.IMMINENT_REPLY,
+                    createdAt = now + 1,
+                    status = STATUS_SENT,
+                )
             )
-        )
-        insertCareCard(sessionId, verdict.zhHelp, now + 2)
-        sessionDao.markClosedBy(sessionId, "safety")
-        sessionDao.touch(sessionId, now + 2)
-        emit(ChatEvent.Completed)
+            insertCareCard(sessionId, verdict.zhHelp, now + 2)
+            sessionDao.markClosedBy(sessionId, "safety")
+            sessionDao.touch(sessionId, now + 2)
+            emit(ChatEvent.Completed)
+        } finally {
+            activeGenerations.remove(userMessageId)
+            // 竞态兜底：撤回后晚到的回复也要收起（只改 hidden，不删数据）
+            withContext(NonCancellable) {
+                if (messageDao.byId(userMessageId)?.retracted == true) {
+                    val visible = messageDao.visibleForSession(sessionId)
+                    hideRepliesAfter(visible, visible.indexOfFirst { it.id == userMessageId })
+                }
+            }
+        }
     }
 
     /** 回复中断后的“继续”（PRD 4.1）。 */
@@ -654,7 +705,13 @@ class ChatRepository @Inject constructor(
      */
     suspend fun regenerate(sessionId: Long, messageId: Long): Flow<ChatEvent> = flow {
         val target = messageDao.byId(messageId)
-        val familyId = target?.versionFamilyId ?: target?.replyGroupId
+        val familyId = target?.let {
+            it.versionFamilyId ?: it.replyGroupId ?: UUID.randomUUID().toString()
+        }
+        if (target != null && target.versionFamilyId == null && familyId != null) {
+            // 兼容旧消息：给旧轮所有分段补上与新版本共同的版本族，不改表结构
+            messageDao.assignVersionFamily(target.id, target.replyGroupId, familyId)
+        }
         // 记录生成前可见的版本，失败时用于恢复
         val previousVisible = if (familyId != null) {
             messageDao.visibleInFamily(familyId)
@@ -827,6 +884,9 @@ class ChatRepository @Inject constructor(
                     quoteToId = quoteToId,
                 )
             )
+            turnState.userMessageId?.let { id ->
+                currentCoroutineContext()[Job]?.let { job -> activeGenerations[id] = job }
+            }
             sessionDao.touch(sessionId, now)
             autoTitle(sessionId, session.title, userText)
             // v3 §7.4.6：被夸 / 被道歉时，她可能给你的消息补一个 reaction（本地规则）
@@ -864,26 +924,14 @@ class ChatRepository @Inject constructor(
 
         val mood = stateRepo.currentMoodSnapshot()
         val favorability = stateRepo.favorabilityValue()
-        val memories = if (userText != null) memoryRepo.recallForChat(userText) else emptyList()
-        memoryRepo.markRecalled(memories.map { it.id })
-        val cards = memoryRepo.cards()
-        val life = stateRepo.freshLifeForChat(3)
-        val historyEntities = messageDao.latestForSession(sessionId, 24).reversed()
-        val historyStickerNames = stickerRepo.namesFor(
-            historyEntities.mapNotNull { it.stickerId }
-        )
-        val history = historyEntities.map { it.toSoulMessage(historyStickerNames[it.stickerId]) }
         val hour = LocalTime.now().hour
-
         val config = settings.current()
-        // L3 表情目录：空表时为空，PromptAssembler 会整段省略（7.4.2）
-        // v3 §12.9 / H-23：默认 none，用户开启后才注入表情目录
-        val stickerCatalog = if (settings.current().stickersEnabled) stickerRepo.catalogForPrompt(40) else emptyList()
         if (config.segmentSending) directives += SEGMENT_DIRECTIVE
         val replyGroupId = roundId ?: UUID.randomUUID().toString()
         // v3 §4.14 / H-10：深夜 + 低精力时自然收束，说晚安结束本轮（不依赖沉浸模式开关）
         if (ReplyPacer.shouldSaySleepy(hour, mood.energy, Random.Default)) {
             val line = ReplyPacer.sleepyLine(Random.Default)
+            ensureUserNotRetracted(turnState.userMessageId)
             // 重新生成时也要挂在同一版本族下，否则旧版本会被藏起来又切不回去
             persistAssistant(
                 sessionId = sessionId,
@@ -899,6 +947,20 @@ class ChatRepository @Inject constructor(
             emit(ChatEvent.Completed)
             return@flow
         }
+
+        // 只有确定要请求模型后才消耗记忆复习次数和生活碎片，晚安直出不做这些副作用
+        val memories = if (userText != null) memoryRepo.recallForChat(userText) else emptyList()
+        memoryRepo.markRecalled(memories.map { it.id })
+        val cards = memoryRepo.cards()
+        val life = stateRepo.freshLifeForChat(3)
+        val historyEntities = messageDao.latestForSession(sessionId, 24).reversed()
+        val historyStickerNames = stickerRepo.namesFor(
+            historyEntities.mapNotNull { it.stickerId }
+        )
+        val history = historyEntities.map { it.toSoulMessage(historyStickerNames[it.stickerId]) }
+        // L3 表情目录：空表时为空，PromptAssembler 会整段省略（7.4.2）
+        // v3 §12.9 / H-23：默认 none，用户开启后才注入表情目录
+        val stickerCatalog = if (settings.current().stickersEnabled) stickerRepo.catalogForPrompt(40) else emptyList()
         if (config.immersiveEnabled) {
             val delayMs = ReplyPacer.delayMillis(
                 intensity = config.immersiveIntensity,
@@ -918,6 +980,9 @@ class ChatRepository @Inject constructor(
         var failure: BrainException? = null
         var lastVisible = ""
         val pendingStickers = mutableListOf<String>()
+        val generatedStickers = mutableListOf<String>()
+        var stickerSentThisAttempt = false
+        val pendingSignals = mutableListOf<String?>()
         /** 模型本轮是否打了 `[xy:memo]` 标记（PRD 5.2），回复落库后再排队提炼。 */
         var memoRequested = false
 
@@ -925,13 +990,14 @@ class ChatRepository @Inject constructor(
         suspend fun flushStickers() {
             if (pendingStickers.isEmpty()) return
             for (id in pendingStickers) {
-                if (!stickerCooldown.canSend()) {
+                if (!stickerCooldown.canSend() || stickerSentThisAttempt) {
                     Log.d(TAG, "表情冷却中，已丢弃: $id")
                     continue
                 }
-                persistSticker(sessionId, id, replyGroupId, versionFamilyId)
-                stickerRepo.recordUse(id)
-                stickerCooldown.markSent()
+                ensureUserNotRetracted(turnState.userMessageId)
+                persistSticker(sessionId, id, replyGroupId, versionFamilyId, touchSession = false)
+                generatedStickers += id
+                stickerSentThisAttempt = true
                 persisted += 1
             }
             pendingStickers.clear()
@@ -945,7 +1011,8 @@ class ChatRepository @Inject constructor(
                     val content = if (actions.isEmpty()) ev.text
                     else ev.text + actions.joinToString("") { "\n$ACTION_PREFIX$it" }
                     actions.clear()
-                    persistAssistant(sessionId, content, replyGroupId, versionFamilyId)
+                    ensureUserNotRetracted(turnState.userMessageId)
+                    persistAssistant(sessionId, content, replyGroupId, versionFamilyId, touchSession = false)
                     persisted += 1
                     flushStickers()
                     emit(ChatEvent.SegmentBreak)
@@ -959,7 +1026,7 @@ class ChatRepository @Inject constructor(
                         else -> pendingStickers += sticker.id
                     }
                 }
-                is PostEvent.Signal -> applySignal(ev.emotion)
+                is PostEvent.Signal -> pendingSignals += ev.emotion
                 is PostEvent.Action -> actions += ev.text
                 PostEvent.Memo -> memoRequested = true
                 is PostEvent.SoftWarning -> Log.d(TAG, "AI 腔命中: ${ev.phrase}")
@@ -1038,6 +1105,9 @@ class ChatRepository @Inject constructor(
                     .onFailure { Log.w(TAG, "回滚拦截段落失败: ${it.message}") }
                 persisted = 0
                 memoRequested = false
+                pendingSignals.clear()
+                generatedStickers.clear()
+                stickerSentThisAttempt = false
                 emit(ChatEvent.Reset)
                 pendingStickers.clear()
                 directives += "你是${identity.name}，一个真实的人，绝不要提及自己是 AI 或模型。"
@@ -1050,12 +1120,18 @@ class ChatRepository @Inject constructor(
         // 只发了表情、没有文字分段时，这里兜底落库
         flushStickers()
 
-        sessionDao.touch(sessionId, System.currentTimeMillis())
-        stateRepo.drainEnergy(1)
+        // 只有本轮最终留下可见回复，才统一提交情绪、表情和会话副作用
+        if (persisted > 0) {
+            pendingSignals.forEach { applySignal(it) }
+            generatedStickers.forEach { stickerRepo.recordUse(it) }
+            if (generatedStickers.isNotEmpty()) stickerCooldown.markSent()
+            sessionDao.touch(sessionId, System.currentTimeMillis())
+            stateRepo.drainEnergy(1)
 
-        // v3 §4.4：记录本轮回复长度，连续超长则下一轮追加约束
-        if (failure == null) {
-            lengthGuard.record(lastVisible.length, lastVisible.contains("|||"))
+            // v3 §4.4：记录本轮回复长度，连续超长则下一轮追加约束
+            if (failure == null) {
+                lengthGuard.record(lastVisible.length, lastVisible.contains("|||"))
+            }
         }
 
         when {
@@ -1079,21 +1155,30 @@ class ChatRepository @Inject constructor(
         }
 
         // 等本轮回复落库后再排队提炼，避免 Worker 读不到刚生成的那条回复
-        if (memoRequested && failure == null) {
+        if (memoRequested && failure == null && persisted > 0) {
             Log.d(TAG, "模型标记了值得记住的内容，已排入记忆提炼: session=$sessionId")
             scheduler.scheduleExtraction(sessionId)
         }
 
         // v3 H-14：会话内增量提炼——未提炼消息 ≥60 条，或 ≥4 小时且 ≥10 条时触发
-        if (failure == null) {
+        if (failure == null && persisted > 0) {
             scheduleIncrementalExtractionIfDue(sessionId)
         }
     }.onCompletion { cause ->
+        turnState.userMessageId?.let { activeGenerations.remove(it) }
         if (cause == null) return@onCompletion
         // 取消 / 异常中断也要把本轮的用户消息落定，不能永远停在「发送中」（P1-2）
         val userMessageId = turnState.userMessageId
         if (userMessageId != null) {
             withContext(NonCancellable) { settleInterruptedTurn(userMessageId) }
+        }
+    }
+
+    /** 每次 assistant 落库前复核撤回状态；取消信号由 retract 同时发出。 */
+    private suspend fun ensureUserNotRetracted(userMessageId: Long?) {
+        val id = userMessageId ?: return
+        if (messageDao.byId(id)?.retracted == true) {
+            throw CancellationException("用户消息已撤回，停止回复落库")
         }
     }
 
@@ -1104,6 +1189,13 @@ class ChatRepository @Inject constructor(
      */
     private suspend fun settleInterruptedTurn(userMessageId: Long) {
         val pending = messageDao.byId(userMessageId) ?: return
+        if (pending.retracted) {
+            // 再次兜住「落库前检查后、写入完成前撤回」的竞态
+            val visible = messageDao.visibleForSession(pending.sessionId)
+            hideRepliesAfter(visible, visible.indexOfFirst { it.id == userMessageId })
+            if (pending.status == STATUS_SENDING) messageDao.updateStatus(userMessageId, STATUS_SENT)
+            return
+        }
         if (pending.status != STATUS_SENDING) return
         val replied = messageDao.countAssistantSince(pending.sessionId, pending.createdAt) > 0
         messageDao.updateStatus(userMessageId, if (replied) STATUS_SENT else STATUS_FAILED)
@@ -1141,6 +1233,7 @@ class ChatRepository @Inject constructor(
         content: String,
         replyGroupId: String? = null,
         versionFamilyId: String? = null,
+        touchSession: Boolean = true,
     ) {
         // v3 §8.1：assistant 文本入库前过输出闸门；命中伤害性表达就换成 care 兜底并记 event
         val screen = DefaultSafetyGate.default.screenOutput(content)
@@ -1160,7 +1253,7 @@ class ChatRepository @Inject constructor(
                 versionFamilyId = versionFamilyId,
             )
         )
-        sessionDao.touch(sessionId, System.currentTimeMillis())
+        if (touchSession) sessionDao.touch(sessionId, System.currentTimeMillis())
     }
 
     /** 表情消息：content 为空，type=sticker（执行书 7.4.4）。 */
@@ -1169,6 +1262,7 @@ class ChatRepository @Inject constructor(
         stickerId: String,
         replyGroupId: String? = null,
         versionFamilyId: String? = null,
+        touchSession: Boolean = true,
     ) {
         val now = System.currentTimeMillis()
         insertMessage(
@@ -1183,7 +1277,7 @@ class ChatRepository @Inject constructor(
                 stickerId = stickerId,
             )
         )
-        sessionDao.touch(sessionId, now)
+        if (touchSession) sessionDao.touch(sessionId, now)
     }
 
     /** 用户从表情面板发一枚表情。 */

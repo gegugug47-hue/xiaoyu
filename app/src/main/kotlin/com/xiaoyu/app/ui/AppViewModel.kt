@@ -863,8 +863,8 @@ class AppViewModel @Inject constructor(
         }
     }
 
-    fun send(text: String) {
-        if (text.isBlank() || _busy.value) return
+    fun send(text: String): Boolean {
+        if (text.isBlank() || _busy.value) return false
         cancelGeneration()
         val serial = generationSerial
         _busy.value = true
@@ -902,6 +902,7 @@ class AppViewModel @Inject constructor(
                 finishGeneration(serial)
             }
         }
+        return true
     }
 
     // ---- 引用回复（M1-09） ----

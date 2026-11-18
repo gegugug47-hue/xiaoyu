@@ -64,14 +64,16 @@ class SoulStateRepository @Inject constructor(
 
     fun observeMood(): Flow<MoodEntity?> = moodDao.observeLatest()
 
-    suspend fun ensureTodayMood(): MoodEntity {
-        val today = LocalDate.now(zone).toString()
+    suspend fun ensureTodayMood(): MoodEntity = ensureMood(LocalDate.now(zone))
+
+    private suspend fun ensureMood(date: LocalDate): MoodEntity {
+        val dayKey = date.toString()
         val now = System.currentTimeMillis()
-        val existing = moodDao.byDate(today)
+        val existing = moodDao.byDate(dayKey)
         if (existing != null) return existing
         val fav = favorabilityRow()
         val row = MoodEntity(
-            date = today,
+            date = dayKey,
             moodValue = 10,
             energy = 80,
             favorabilitySnapshot = fav.currentValue,
@@ -255,7 +257,7 @@ class SoulStateRepository @Inject constructor(
         if (diaryDao.byDate(date.toString()) != null) return null
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val moodRow = moodDao.byDate(date.toString()) ?: ensureTodayMood()
+        val moodRow = ensureMood(date)
         val yesterdayMood = moodDao.byDate(date.minusDays(1).toString())?.moodValue ?: moodRow.moodValue
         val fav = favorabilityRow()
         val newMemories = memoryRepo.createdBetween(start, end)
@@ -307,14 +309,18 @@ class SoulStateRepository @Inject constructor(
     /**
      * 每晚清算（PRD 5.8）：情绪分析 → 日记 → 生活碎片。记忆衰减/晋升由 MemoryRepository 负责。
      */
-    suspend fun runNightly(identity: IdentityEntity, style: StyleEntity) {
-        val today = LocalDate.now(zone)
-        val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val messages = messageDao.since(start)
+    suspend fun runNightly(
+        identity: IdentityEntity,
+        style: StyleEntity,
+        targetDate: LocalDate = LocalDate.now(zone),
+    ) {
+        val start = targetDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val end = targetDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val messages = messageDao.since(start).filter { it.createdAt < end }
         if (messages.isNotEmpty()) {
             val prompt = soul.moodAnalysisPrompt(messages.map { it.toSoulMessage() })
             val signal = MemoryExtractionParser.parseMoodDelta(router.completeJson(BrainRole.EXTRACT, null, prompt))
-            val row = ensureTodayMood()
+            val row = ensureMood(targetDate)
             val now = System.currentTimeMillis()
             val newMood = if (signal != null) {
                 (row.moodValue + signal.moodDelta).coerceIn(MoodSystem.MIN_MOOD, MoodSystem.MAX_MOOD)
@@ -335,8 +341,8 @@ class SoulStateRepository @Inject constructor(
             )
         }
         generateLifeIfNeeded(identity, style)
-        generateDiary(today, identity, style)
-        settings.update { it.copy(lastNightlyDate = today.toString()) }
+        generateDiary(targetDate, identity, style)
+        settings.update { it.copy(lastNightlyDate = targetDate.toString()) }
     }
 
     fun dayStartMillis(date: LocalDate = LocalDate.now(zone)): Long =

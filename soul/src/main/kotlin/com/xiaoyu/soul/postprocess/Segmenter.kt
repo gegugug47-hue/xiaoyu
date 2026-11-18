@@ -37,26 +37,8 @@ class Segmenter(private val maxSegments: Int = 4) {
             match = separator.find(pending)
         }
 
-        // 已到上限：剩余内容全部并入最后一段，分隔符换行
-        if (completed >= limit) {
-            val rest = pending.toString()
-            pending.clear()
-            if (rest.isNotEmpty()) {
-                val safe = separator.replace(rest, "\n")
-                current.append(safe)
-                out += SegmentEvent.Text(safe)
-            }
-            return out
-        }
-
-        // 暂扣尾部可能是半个分隔符的字符，避免把 "|" 先吐出去又拆段
-        val hold = holdLength()
-        if (pending.length > hold) {
-            val visible = pending.substring(0, pending.length - hold)
-            pending.delete(0, visible.length)
-            current.append(visible)
-            out += SegmentEvent.Text(visible)
-        }
+        // 已到上限时分隔符换行；两种分支都统一暂扣可能跨 chunk 的分隔符后缀
+        drainPending(replaceSeparators = completed >= limit)?.let { out += it }
         return out
     }
 
@@ -73,6 +55,17 @@ class Segmenter(private val maxSegments: Int = 4) {
         return out
     }
 
+    /** 吐出安全前缀，尾部若仍是分隔符前缀则原样留在 pending。 */
+    private fun drainPending(replaceSeparators: Boolean): SegmentEvent.Text? {
+        val hold = holdLength()
+        if (pending.length <= hold) return null
+        val raw = pending.substring(0, pending.length - hold)
+        pending.delete(0, raw.length)
+        val visible = if (replaceSeparators) separator.replace(raw, "\n") else raw
+        current.append(visible)
+        return SegmentEvent.Text(visible)
+    }
+
     private fun completeSegment(): SegmentEvent? {
         // 模型偶尔会多打一两个竖线（或全角竖线），不能让它留在气泡开头
         val text = current.toString().trim().trim('|', '｜').trim()
@@ -85,11 +78,12 @@ class Segmenter(private val maxSegments: Int = 4) {
     private fun holdLength(): Int {
         var i = pending.length
         var hasPipe = false
-        while (i > 0 && (pending[i - 1] == '|' || pending[i - 1] == '｜' || pending[i - 1] == ' ')) {
+        while (i > 0 && (pending[i - 1] == '|' || pending[i - 1] == '｜' || pending[i - 1].isWhitespace())) {
             if (pending[i - 1] == '|' || pending[i - 1] == '｜') hasPipe = true
             i--
         }
         if (!hasPipe) return 0
-        return minOf(pending.length - i, 5)
+        // 空白也可能跨很多 chunk，不能按固定长度截断后把前面的竖线漏出去
+        return pending.length - i
     }
 }

@@ -181,6 +181,16 @@ interface MessageDao {
     )
     suspend fun assistantVersions(family: String): List<MessageEntity>
 
+    /** 给历史回复及其同轮分段补建版本族，供旧数据重新生成后切换版本。 */
+    @Query(
+        """
+        UPDATE messages SET version_family_id = :familyId
+        WHERE version_family_id IS NULL
+          AND (id = :messageId OR (:replyGroupId IS NOT NULL AND reply_group_id = :replyGroupId))
+        """
+    )
+    suspend fun assignVersionFamily(messageId: Long, replyGroupId: String?, familyId: String)
+
     /** 切换版本时先整族收起旧版本（只改 hidden，不删数据）。 */
     @Query("UPDATE messages SET hidden = 1 WHERE version_family_id = :family OR reply_group_id = :family")
     suspend fun hideFamily(family: String)
@@ -362,8 +372,8 @@ interface MemoryDao {
     @Query("UPDATE memories SET tier = 'BIN', bin_at = :at WHERE id = :id")
     suspend fun moveToBin(id: Long, at: Long)
 
-    @Query("UPDATE memories SET tier = 'SHORT', bin_at = NULL, strength = :strength WHERE id = :id")
-    suspend fun restore(id: Long, strength: Int)
+    @Query("UPDATE memories SET tier = 'SHORT', bin_at = NULL, strength = :strength, last_access = :at WHERE id = :id")
+    suspend fun restore(id: Long, strength: Int, at: Long)
 
     @Query("UPDATE memories SET promoted_to_card_id = :cardId WHERE id IN (:ids)")
     suspend fun markPromoted(ids: List<Long>, cardId: Long)

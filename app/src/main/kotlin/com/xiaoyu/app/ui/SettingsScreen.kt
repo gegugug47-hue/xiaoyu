@@ -2,6 +2,7 @@ package com.xiaoyu.app.ui
 
 import android.Manifest
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -99,6 +101,7 @@ fun SettingsScreen(
     val checking by viewModel.checkingHealth.collectAsStateWithLifecycle()
     val backups by viewModel.backups.collectAsStateWithLifecycle()
     val sizeClass = rememberWindowSizeClass()
+    val context = LocalContext.current
 
     var editingSlot by remember { mutableStateOf<Slot?>(null) }
     var showHours by remember { mutableStateOf(false) }
@@ -137,7 +140,11 @@ fun SettingsScreen(
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
-    ) { uri -> uri?.let { viewModel.exportBackup(it, backupPassword.ifBlank { null }) } }
+    ) { uri ->
+        uri?.let {
+            viewModel.exportBackup(it, if (encryptBackup) backupPassword.ifBlank { null } else null)
+        }
+    }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let {
             viewModel.importBackup(
@@ -147,7 +154,16 @@ fun SettingsScreen(
             )
         }
     }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.updateSettings { it.copy(proactiveEnabled = granted) }
+        if (!granted) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.settings_notification_permission_denied),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -246,8 +262,9 @@ fun SettingsScreen(
                     ) { enabled ->
                         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            viewModel.updateSettings { it.copy(proactiveEnabled = enabled) }
                         }
-                        viewModel.updateSettings { it.copy(proactiveEnabled = enabled) }
                     }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     TextButton(onClick = { showHours = true }) {
@@ -266,8 +283,9 @@ fun SettingsScreen(
                     ) { enabled ->
                         if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            viewModel.updateSettings { it.copy(proactiveEnabled = enabled) }
                         }
-                        viewModel.updateSettings { it.copy(proactiveEnabled = enabled) }
                     }
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant)
                     TextButton(onClick = { showHours = true }) {
@@ -465,7 +483,15 @@ fun SettingsScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(Tokens.SpacingSm)) {
                         YuButton(onClick = { viewModel.createLocalBackup(if (encryptBackup) backupPassword.ifBlank { null } else null) }) { Text(stringResource(R.string.settings_backup_now)) }
                         TextButton(onClick = {
-                            exportLauncher.launch("xiaoyu-backup.xiaoyu")
+                            if (encryptBackup && backupPassword.isBlank()) {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.settings_backup_password_required),
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                exportLauncher.launch("xiaoyu-backup.xiaoyu")
+                            }
                         }) { Text(stringResource(R.string.settings_backup_export)) }
                         TextButton(onClick = {
                             importLauncher.launch(arrayOf("*/*"))

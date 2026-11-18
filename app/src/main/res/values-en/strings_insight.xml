@@ -17,6 +17,8 @@
     <string name="memory_restore">Restore</string>
     <string name="memory_edit">Edit</string>
     <string name="memory_delete_permanently">Delete forever</string>
+    <string name="memory_delete_permanently_confirm_title">Delete this memory forever?</string>
+    <string name="memory_delete_permanently_confirm_text">This cannot be undone, and the memory will no longer appear in Trash.</string>
     <string name="memory_delete">Delete</string>
     <string name="memory_dialog_edit_memory">Edit memory</string>
     <string name="memory_label_content">Content</string>

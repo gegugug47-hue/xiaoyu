@@ -59,6 +59,7 @@ class WorkScheduler @Inject constructor(
     fun scheduleNightly(delayMillis: Long, dayKey: String) {
         val request = OneTimeWorkRequestBuilder<NightlyWorker>()
             .setInitialDelay(delayMillis.coerceAtLeast(0), TimeUnit.MILLISECONDS)
+            .setInputData(workDataOf(NightlyWorker.KEY_TARGET_DATE to dayKey))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 20, TimeUnit.MINUTES)
             .build()
         wm().enqueueUniqueWork("nightly-$dayKey", ExistingWorkPolicy.KEEP, request)
@@ -139,9 +140,11 @@ class WorkScheduler @Inject constructor(
             ALARM_MORNING,
             nextOccurrence(now, MORNING_HOUR, MORNING_MINUTE).toInstant().toEpochMilli(),
         )
+        val night = nextOccurrence(now, NIGHT_HOUR, NIGHT_MINUTE)
         scheduleAlarm(
             ALARM_NIGHT,
-            nextOccurrence(now, NIGHT_HOUR, NIGHT_MINUTE).toInstant().toEpochMilli(),
+            night.toInstant().toEpochMilli(),
+            night.toLocalDate().toString(),
         )
     }
 

@@ -287,30 +287,37 @@ class BackupImporter @Inject constructor(
         prompts: Map<String, ByteArray>,
         backgrounds: Map<String, ByteArray>,
         onProgress: (Progress) -> Unit,
-    ): ImportResult.Failure? = runCatching {
-        onProgress(Progress.Writing)
-        BackgroundBackup.restore(context.filesDir, backgrounds)
+    ): ImportResult.Failure? {
         val pending = File(context.filesDir, BackupRepository.PENDING_NAME)
         // 先写临时文件再原子改名，避免进程被杀时留下半个数据库被下次启动误用。
         val temp = File(context.filesDir, "${BackupRepository.PENDING_NAME}.tmp")
-        staging.copyTo(temp, overwrite = true)
-        if (!temp.renameTo(pending)) {
-            temp.copyTo(pending, overwrite = true)
-            temp.delete()
+        var staged = false
+        return runCatching {
+            onProgress(Progress.Writing)
+            staging.copyTo(temp, overwrite = true)
+            if (!temp.renameTo(pending)) {
+                temp.copyTo(pending, overwrite = true)
+                temp.delete()
+            }
+            staged = true
+            BackgroundBackup.restore(context.filesDir, backgrounds)
+            applyPrompts(prompts)
+            onProgress(Progress.Done)
+            Log.i(TAG, "覆盖导入已暂存，重启后生效：${pending.name}")
+            null
+        }.getOrElse {
+            // 落盘失败时清掉本次新增的 pending，不能让半成品在下次启动顶掉正式库
+            runCatching { temp.delete() }
+            if (staged) runCatching { pending.delete() }
+            Log.e(TAG, "写入待恢复数据库失败", it)
+            failure(
+                FailureReason.IO_ERROR,
+                context.getString(
+                    R.string.data_backup_import_stage_failed,
+                    it.message ?: context.getString(R.string.data_backup_import_unknown_error),
+                ),
+            )
         }
-        applyPrompts(prompts)
-        onProgress(Progress.Done)
-        Log.i(TAG, "覆盖导入已暂存，重启后生效：${pending.name}")
-        null
-    }.getOrElse {
-        Log.e(TAG, "写入待恢复数据库失败", it)
-        failure(
-            FailureReason.IO_ERROR,
-            context.getString(
-                R.string.data_backup_import_stage_failed,
-                it.message ?: context.getString(R.string.data_backup_import_unknown_error),
-            ),
-        )
     }
 
     private fun applyPrompts(prompts: Map<String, ByteArray>) {

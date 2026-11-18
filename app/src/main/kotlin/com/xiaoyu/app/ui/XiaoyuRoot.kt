@@ -64,15 +64,6 @@ fun XiaoyuRoot(
     val hasHistory by viewModel.hasHistory.collectAsStateWithLifecycle()
     val toast by viewModel.toast.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    // 点通知进来（冷启动或热启动）时带上 sessionId，直接落到对应会话（执行书 6.11）。
-    // 用状态作为 key，热启动再次进来也能重新触发；消费后由宿主置空，避免重复跳转。
-    LaunchedEffect(pendingSessionId) {
-        if (pendingSessionId != null) {
-            viewModel.openSession(pendingSessionId)
-            onSessionConsumed()
-        }
-    }
-
     LaunchedEffect(toast) {
         if (!toast.isNullOrBlank()) {
             snackbar.showSnackbar(toast!!)
@@ -112,6 +103,16 @@ fun XiaoyuRoot(
     val back: () -> Unit = { if (stack.size > 1) stack = stack.dropLast(1) }
     // 返回上一页后保留各页面内部状态（滚动位置、开关等），不因重组被丢弃
     val screenStates = rememberSaveableStateHolder()
+
+    // 点通知进来（冷启动或热启动）时带上 sessionId，直接落到对应会话（执行书 6.11）。
+    // 同时重置到聊天页，避免热启动后仍停留在子页面；消费后由宿主置空，避免重复跳转。
+    LaunchedEffect(pendingSessionId) {
+        if (pendingSessionId != null) {
+            stack = listOf(Screen.Chat)
+            viewModel.openSession(pendingSessionId)
+            onSessionConsumed()
+        }
+    }
 
     BackHandler(enabled = stack.size > 1) { back() }
     val pageDuration = LocalYuMotion.current.page

@@ -53,7 +53,11 @@ class MemoryRepository @Inject constructor(
 
     fun observeCards(): Flow<List<FactCardEntity>> = cardDao.observeAll()
 
-    suspend fun cards(): List<FactCard> = cardDao.all().map { it.toSoul() }
+    suspend fun cards(): List<FactCard> {
+        val now = System.currentTimeMillis()
+        // Worker 尚未清算时也不能把已过期事实继续注入 prompt
+        return cardDao.all().filter { it.expireAt == null || it.expireAt > now }.map { it.toSoul() }
+    }
 
     /** 会话结束提炼 / 增量提炼（PRD 5.2 / v3 H-14）；返回是否成功。 */
     suspend fun extractSession(sessionId: Long, title: String): Boolean {
@@ -203,7 +207,7 @@ class MemoryRepository @Inject constructor(
 
     suspend fun deleteMemory(id: Long) = memoryDao.purge(listOf(id))
 
-    suspend fun restoreMemory(id: Long) = memoryDao.restore(id, 40)
+    suspend fun restoreMemory(id: Long) = memoryDao.restore(id, 40, System.currentTimeMillis())
 
     suspend fun editMemory(id: Long, content: String, type: MemoryType, tags: String, importance: Int) =
         memoryDao.edit(id, content, type.name, tags, importance)
