@@ -674,6 +674,11 @@ class AppViewModel @Inject constructor(
         _sessionId.value = id
     }
 
+    /** 会话内切换人设：只影响这个对话之后的回复，历史消息不动。 */
+    fun switchSessionIdentity(sessionId: Long, identityId: Long) {
+        viewModelScope.launch { chatRepo.switchIdentity(sessionId, identityId) }
+    }
+
     fun newSession() {
         cancelGeneration()
         _error.value = null

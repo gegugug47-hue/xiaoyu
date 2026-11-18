@@ -287,6 +287,12 @@ class ChatRepository @Inject constructor(
 
     suspend fun setStyle(sessionId: Long, styleId: Long) = sessionDao.setStyle(sessionId, styleId)
 
+    /** 会话内切换人设：只改该会话的绑定，历史消息不动，下一条回复开始用新人设。 */
+    suspend fun switchIdentity(sessionId: Long, identityId: Long) {
+        if (personaRepo.identity(identityId) == null) return
+        sessionDao.setIdentity(sessionId, identityId)
+    }
+
     suspend fun hideMessage(id: Long) = messageDao.hide(id)
 
     /** 多选软删（M3-07）：批量标记 hidden=1，不物理删除。 */

@@ -62,6 +62,10 @@ interface SessionDao {
     @Query("UPDATE sessions SET style_id = :styleId WHERE id = :id")
     suspend fun setStyle(id: Long, styleId: Long)
 
+    /** 会话内切换人设：之后这个对话的回复都按新人设生成。 */
+    @Query("UPDATE sessions SET identity_id = :identityId WHERE id = :id")
+    suspend fun setIdentity(id: Long, identityId: Long)
+
     @Query("UPDATE sessions SET last_message_at = :at WHERE id = :id")
     suspend fun touch(id: Long, at: Long)
 

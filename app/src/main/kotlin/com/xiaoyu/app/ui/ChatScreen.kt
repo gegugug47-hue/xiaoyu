@@ -529,6 +529,9 @@ private fun ChatPane(
     var historyLimit by remember(sessionId) { mutableIntStateOf(HISTORY_PAGE_SIZE) }
     // 顶栏更多菜单（M5-04：导出会话 Markdown）
     var showMoreMenu by remember { mutableStateOf(false) }
+    // 会话内切换人设（她是谁 → 只影响之后的回复）
+    var showIdentityPicker by remember { mutableStateOf(false) }
+    val identities by viewModel.identities.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val motion = LocalYuMotion.current
@@ -702,6 +705,13 @@ private fun ChatPane(
                                     onClick = {
                                         showMoreMenu = false
                                         sessionId?.let { viewModel.exportSessionMarkdown(it) }
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.chat_switch_identity)) },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        showIdentityPicker = true
                                     },
                                 )
                             }
@@ -1423,6 +1433,56 @@ private fun ChatPane(
                     Spacer(Modifier.height(Tokens.SpacingLg))
                 }
             }
+        }
+
+        if (showIdentityPicker) {
+            AlertDialog(
+                onDismissRequest = { showIdentityPicker = false },
+                title = { Text(stringResource(R.string.chat_switch_identity)) },
+                text = {
+                    Column {
+                        Text(
+                            stringResource(R.string.chat_switch_identity_hint),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(Tokens.SpacingSm))
+                        identities.forEach { identity ->
+                            val selected = identity.id == current?.identityId
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable(enabled = !selected) {
+                                        sessionId?.let { viewModel.switchSessionIdentity(it, identity.id) }
+                                        showIdentityPicker = false
+                                    }
+                                    .padding(vertical = Tokens.SpacingSm, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    identity.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (selected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showIdentityPicker = false }) { Text(stringResource(R.string.chat_cancel)) }
+                },
+            )
         }
 
         confirmHide?.let { target ->

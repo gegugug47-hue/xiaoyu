@@ -15,6 +15,8 @@
     <string name="chat_new_chat">新对话</string>
     <string name="chat_more">更多</string>
     <string name="chat_export_markdown">导出对话为 Markdown</string>
+    <string name="chat_switch_identity">切换人设</string>
+    <string name="chat_switch_identity_hint">只影响这个对话之后的回复，历史消息保持不变</string>
     <string name="chat_typing">她正在输入…</string>
     <string name="chat_empty_hint">说点什么吧，她会记得你。</string>
     <string name="chat_continue">继续</string>
