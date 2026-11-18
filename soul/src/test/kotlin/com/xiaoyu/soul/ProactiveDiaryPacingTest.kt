@@ -8,6 +8,7 @@ import com.xiaoyu.soul.proactive.ProactiveKind
 import com.xiaoyu.soul.proactive.ProactivePlanner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -220,5 +221,17 @@ class ProactiveDiaryPacingTest {
         assertTrue((0 until 200).any { ReplyPacer.shouldSaySleepy(2, energy = 80, random = Random(it)) })
         assertTrue((0 until 200).any { !ReplyPacer.shouldSaySleepy(2, energy = 80, random = Random(it)) })
         assertTrue(ReplyPacer.sleepyLine(Random(3)).isNotEmpty())
+    }
+
+    @Test
+    fun `晚安台词不会连续复读同一句`() {
+        val first = ReplyPacer.sleepyLine(Random(3))
+        assertTrue(ReplyPacer.isSleepyLine(first))
+        // 无论抽到哪个种子，避让上一句后都不会再拿到同一句
+        (0 until 50).forEach { seed ->
+            assertNotEquals(first, ReplyPacer.sleepyLine(Random(seed), avoid = first))
+        }
+        // 非池内文本不算已道过晚安
+        assertFalse(ReplyPacer.isSleepyLine("晚安呀"))
     }
 }

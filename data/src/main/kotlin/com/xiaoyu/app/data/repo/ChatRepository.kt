@@ -71,6 +71,9 @@ private const val PROACTIVE_PAUSE_AFTER_CRISIS_MS = 48 * 60 * 60 * 1000L
 /** v3 §8.2：L3 之后保持现实导向的轮数。 */
 private const val L3_REALITY_ROUNDS = 3
 
+/** 她刚道过晚安后，这段时间内不再直出同一句，改由模型正常回应。 */
+private const val SLEEPY_REPEAT_WINDOW_MS = 6 * 60 * 60 * 1000L
+
 /** 分段发送的输出格式指令（执行书 3.2.4）。 */
 private const val SEGMENT_DIRECTIVE =
     "[输出格式] 像微信聊天一样把回复拆成 1~3 条短消息，每条之间用 ||| 分隔，不要用换行代替分隔符；" +
@@ -937,8 +940,13 @@ class ChatRepository @Inject constructor(
         if (config.segmentSending) directives += SEGMENT_DIRECTIVE
         val replyGroupId = roundId ?: UUID.randomUUID().toString()
         // v3 §4.14 / H-10：深夜 + 低精力时自然收束，说晚安结束本轮（不依赖沉浸模式开关）
-        if (ReplyPacer.shouldSaySleepy(hour, mood.energy, Random.Default)) {
-            val line = ReplyPacer.sleepyLine(Random.Default)
+        // 一晚只说一次：她刚道过晚安就不要再直出同一句，继续聊时交给模型按低精力自然回应
+        val lastAssistant = messageDao.latestAssistantForSession(sessionId)
+        val alreadySaidGoodNight = lastAssistant != null &&
+            now - lastAssistant.createdAt < SLEEPY_REPEAT_WINDOW_MS &&
+            ReplyPacer.isSleepyLine(lastAssistant.content)
+        if (!alreadySaidGoodNight && ReplyPacer.shouldSaySleepy(hour, mood.energy, Random.Default)) {
+            val line = ReplyPacer.sleepyLine(Random.Default, avoid = lastAssistant?.content.orEmpty())
             ensureUserNotRetracted(turnState.userMessageId)
             // 重新生成时也要挂在同一版本族下，否则旧版本会被藏起来又切不回去
             persistAssistant(

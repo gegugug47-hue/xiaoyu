@@ -56,12 +56,19 @@ object ReplyPacer {
         return energy < 40 || random.nextDouble() < 0.5
     }
 
-    fun sleepyLine(random: Random): String {
-        val lines = listOf(
-            "唔…我有点困了，先睡啦，明天再跟你聊好不好",
-            "困得眼睛都快睁不开了…明天见哦",
-            "这条我先回你：困了，明天聊～",
-        )
-        return lines[random.nextInt(lines.size)]
+    /** 晚安直出池：判定「上一句是不是已经在道晚安」时也用它。 */
+    private val SLEEPY_LINES = listOf(
+        "唔…我有点困了，先睡啦，明天再跟你聊好不好",
+        "困得眼睛都快睁不开了…明天见哦",
+        "这条我先回你：困了，明天聊～",
+    )
+
+    /** 上一句就是池子里的晚安台词，说明这一晚已经道过别了。 */
+    fun isSleepyLine(text: String): Boolean = SLEEPY_LINES.any { it == text.trim() }
+
+    fun sleepyLine(random: Random, avoid: String = ""): String {
+        // 同一晚道别两次已经是极限，至少别把同一句原样复读一遍
+        val pool = SLEEPY_LINES.filter { it != avoid.trim() }.ifEmpty { SLEEPY_LINES }
+        return pool[random.nextInt(pool.size)]
     }
 }

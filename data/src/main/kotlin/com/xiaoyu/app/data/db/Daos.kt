@@ -276,6 +276,17 @@ interface MessageDao {
         """
     )
     suspend fun latestAssistantMessage(): MessageEntity?
+
+    /** 本会话她最近一句说出口的话：用于避免连续两次直出同一句晚安。 */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE session_id = :sessionId AND hidden = 0 AND retracted = 0
+          AND role = 'assistant' AND type = 'text' AND content != ''
+        ORDER BY created_at DESC, id DESC LIMIT 1
+        """
+    )
+    suspend fun latestAssistantForSession(sessionId: Long): MessageEntity?
 }
 
 @Dao
