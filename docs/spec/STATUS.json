@@ -1,7 +1,7 @@
 {
-  "version": "2.1.1",
+  "version": "2.1.2",
   "phase": "ALL_DONE",
-  "updatedAt": "2026-11-18",
+  "updatedAt": "2026-11-19",
   "summary": {
     "total": 30,
     "done": 30,
@@ -14,8 +14,8 @@
   },
   "releasePlan": {
     "strategy": "all-at-once",
-    "note": "v2.0.0 为 30 条采纳清单；v2.1.0 为二次差距审计五批次；v2.1.1 为使用反馈驱动的全量缺陷审计修复（40 条中修 P0×1 + P1×12）",
-    "releasedTag": "v2.1.1"
+    "note": "v2.0.0 为 30 条采纳清单；v2.1.0 为二次差距审计五批次；v2.1.1 为使用反馈驱动的全量缺陷审计修复（40 条中修 P0×1 + P1×12）；v2.1.2 修复深夜晚安直出被连续复读",
+    "releasedTag": "v2.1.2"
   },
   "gapAudit": {
     "spec": "docs/spec/V3-GAP-AUDIT.md",
