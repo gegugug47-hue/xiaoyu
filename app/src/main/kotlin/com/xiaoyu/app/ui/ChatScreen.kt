@@ -13,7 +13,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -59,6 +62,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -913,6 +917,7 @@ private fun ChatPane(
                                     ) {
                                         MessageRow(
                                             message = item.message,
+                                            modifier = chatItem(),
                                             sticker = item.message.stickerId?.let(stickerById::get),
                                             grouped = item.grouped,
                                             showTime = item.showTime,
@@ -952,6 +957,7 @@ private fun ChatPane(
                                 val showTime = prev == null || message.createdAt - prev.createdAt >= TIME_GAP_FOR_DISPLAY_MS
                                 MessageRow(
                                     message = message,
+                                    modifier = chatItem(),
                                     sticker = message.stickerId?.let(stickerById::get),
                                     showTime = showTime,
                                     lastInGroup = message.id in lastMessageGroupIds,
@@ -982,18 +988,20 @@ private fun ChatPane(
                         if (streamingActive) {
                             item("streaming") {
                                 // 只让这一个气泡跟着 token 重组
-                                StreamingBubble(viewModel.streaming)
+                                Box(chatItem()) { StreamingBubble(viewModel.streaming) }
                             }
                         } else if (typing) {
                             item("typing") {
-                                Text(
-                                    stringResource(R.string.chat_typing),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .padding(start = 6.dp)
-                                        .semantics { liveRegion = LiveRegionMode.Polite },
-                                )
+                                Box(chatItem()) {
+                                    Text(
+                                        stringResource(R.string.chat_typing),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .padding(start = 6.dp)
+                                            .semantics { liveRegion = LiveRegionMode.Polite },
+                                    )
+                                }
                             }
                         }
                     }
@@ -1630,10 +1638,21 @@ private fun RenameSessionDialog(initial: String, onDismiss: () -> Unit, onConfir
     )
 }
 
+/**
+ * 新气泡淡入、其它气泡平滑让位，比整块内容同时“啪”地冒出来柔和。
+ * 只在条目真正新增/移动时播放，来回滚动不会重播。
+ */
+private fun LazyItemScope.chatItem(): Modifier = Modifier.animateItem(
+    fadeInSpec = tween(220),
+    placementSpec = spring(stiffness = Spring.StiffnessMediumLow),
+    fadeOutSpec = tween(160),
+)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageRow(
     message: MessageEntity,
+    modifier: Modifier = Modifier,
     sticker: StickerEntity? = null,
     /** v3 §7.3.3：与上一条同作者且间隔<60s，省略头像、收紧间距 */
     grouped: Boolean = false,
@@ -1730,7 +1749,7 @@ private fun MessageRow(
 
     Box(
         // v3 H-22 / 1.3#48：连续同作者消息间距减半，正常间距由消息密度档位决定
-        modifier = Modifier.fillMaxWidth().padding(
+        modifier = modifier.fillMaxWidth().padding(
             top = if (grouped) (density.verticalPaddingDp / 2).dp else density.verticalPaddingDp.dp
         ),
         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart,

@@ -1100,6 +1100,19 @@ class ChatRepository @Inject constructor(
                 }
             } catch (e: BrainException) {
                 failure = e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 读流被切断、连接重置这类底层异常以前会直接漏到 UI 兜底分支，
+                // 界面上只剩一句笼统的「消息发送失败」，半截气泡也一直挂着光标。
+                // 统一收成本轮失败，走和模型报错一样的收尾流程。
+                Log.w(TAG, "回复流异常中断", e)
+                failure = BrainException(
+                    message = e.message ?: e::class.java.simpleName,
+                    userMessage = appContext.getString(R.string.data_chat_network_lost),
+                    role = BrainRole.CHAT,
+                    cause = e,
+                )
             }
             val durationMs = System.currentTimeMillis() - attemptStarted
             lastVisible = pipeline.visibleText()

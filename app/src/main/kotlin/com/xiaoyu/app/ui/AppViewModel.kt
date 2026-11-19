@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Log
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -903,7 +904,12 @@ class AppViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (serial == generationSerial) _error.value = e.message ?: appContext.getString(R.string.vm_send_failed)
+                if (serial == generationSerial) {
+                    // 兜底分支也要收干净：半截流式气泡不能留在界面上一直闪光标
+                    _streaming.value = ""
+                    Log.w("XiaoyuChat", "发送失败: ${e.message}", e)
+                    _error.value = e.message ?: appContext.getString(R.string.vm_send_failed)
+                }
             } finally {
                 finishGeneration(serial)
             }

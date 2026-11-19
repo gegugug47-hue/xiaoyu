@@ -103,6 +103,7 @@
 
     <!-- 聊天链路（ChatRepository） -->
     <string name="data_chat_message_not_found">消息不存在</string>
+    <string name="data_chat_network_lost">网络连接中断了，这一条没发完整。检查网络后点“继续”或重发。</string>
     <string name="data_chat_reply_empty">她好像走神了，没有说出话来。点“继续”试试，或检查模型设置。</string>
     <string name="data_chat_edit_blocked">这条消息之后已经聊过新的内容了，现在修改会打乱时间线，不能再改。</string>
 
