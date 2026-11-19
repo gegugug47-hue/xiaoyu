@@ -1,6 +1,8 @@
 # 更新日志
 
-## 未发布
+## v2.1.3 (2026-11-19)
+
+- Release: https://github.com/gegugug47-hue/xiaoyu/releases/tag/v2.1.3
 
 ### 修复
 
