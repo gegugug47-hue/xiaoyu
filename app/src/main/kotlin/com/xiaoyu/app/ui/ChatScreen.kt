@@ -795,24 +795,36 @@ private fun ChatPane(
                             }
                         }
                 }
-                LaunchedEffect(displayMessages.size, streamingActive, typing, sessionId) {
-                    val extra = (if (typing) 1 else 0) + (if (streamingActive) 1 else 0)
-                    val count = if (isContinuous) timeline.size else visibleMessages.size
-                    val target = count + extra - 1
-                    if (target >= 0) {
-                        // 首次进入/切换会话时直接跳到底部，避免高速滚过整段历史；后续新消息才用动画
-                        if (instantScroll || motion.reduced) {
-                            listState.scrollToItem(target)
-                            instantScroll = false
-                        } else {
-                            // 只有用户本来就在底部附近才跟随滚动；上滑看历史时不抢滚动，
-                            // 仅保留「回到最新」FAB 与未读数提示。
-                            val layout = listState.layoutInfo
-                            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
-                            val nearBottom = layout.totalItemsCount == 0 ||
-                                lastVisible >= layout.totalItemsCount - 1 - NEAR_BOTTOM_ITEM_THRESHOLD
-                            if (nearBottom) listState.animateScrollToItem(target)
-                        }
+                // 发送后/新消息到达时贴底：
+                // 自己刚发的消息无条件贴底（按下发送就代表在看最新），其余消息只在原本贴底时跟随。
+                // 用「连续几帧滚到最后一条」而不是按条数反推下标，时间分隔、新消息分隔插进来也不会偏。
+                val newestIsMine = visibleMessages.lastOrNull()?.role == ROLE_USER
+                LaunchedEffect(displayMessages.size, streamingActive, typing, sessionId, newestIsMine) {
+                    if (instantScroll || motion.reduced || newestIsMine) {
+                        listState.pinToLatest()
+                        instantScroll = false
+                    } else {
+                        // 只有用户本来就在底部附近才跟随滚动；上滑看历史时不抢滚动，
+                        // 仅保留「回到最新」FAB 与未读数提示。
+                        val layout = listState.layoutInfo
+                        val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: -1
+                        val nearBottom = layout.totalItemsCount == 0 ||
+                            lastVisible >= layout.totalItemsCount - 1 - NEAR_BOTTOM_ITEM_THRESHOLD
+                        if (nearBottom) listState.pinToLatest()
+                    }
+                }
+                // 流式回复边写边长：只要还贴底就逐帧追着最后一条走，别让新字落到屏幕外
+                LaunchedEffect(streamingActive, sessionId) {
+                    if (!streamingActive) return@LaunchedEffect
+                    while (true) {
+                        withFrameNanos { }
+                        val layout = listState.layoutInfo
+                        val lastIndex = layout.totalItemsCount - 1
+                        if (lastIndex < 0) continue
+                        val last = layout.visibleItemsInfo.lastOrNull()
+                        // 用户开始拖动或已经上滑离开底部，就把滚动交还给他
+                        if (listState.isScrollInProgress || last == null || last.index < lastIndex - 1) break
+                        listState.scrollToItem(lastIndex)
                     }
                 }
 
@@ -3042,6 +3054,8 @@ private fun splitForSpeech(text: String, limit: Int = 120): List<String> {
  */
 private suspend fun LazyListState.pinToLatest(frames: Int = 24) {
     repeat(frames) {
+        // 用户自己开始滚动就交还控制，别和手指抢
+        if (isScrollInProgress) return
         withFrameNanos { }
         val target = layoutInfo.totalItemsCount - 1
         if (target >= 0) scrollToItem(target)
